@@ -5,16 +5,18 @@ NOTE: at the moment only the types of constraints used in Chapter 4 of the PhD
 are considered.
 """
 
-from logicalterms import *
-from domainterms import *
+from kc.data_structures.logicalterms import *
+from kc.data_structures.domainterms import *
 from abc import ABC
+
+from typing import List
 
 class ConstraintSet:
     """A FOL-DC constraint set.
     This consists of a set of constraints, which form a conjunction.
     """
 
-    def __init__(self, constraints: list['Constraint']) -> None:
+    def __init__(self, constraints: List['Constraint']) -> None:
         self.constraints = constraints
 
     def __str__(self) -> str:

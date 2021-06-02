@@ -2,7 +2,9 @@
 Class for FO-CNF formulas.
 """
 
-from clauses import *
+from kc.data_structures.clauses import *
+
+from typing import List
 
 class FO_CNF:
     """
@@ -10,7 +12,7 @@ class FO_CNF:
     This consists of a set of constrained clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: list['ConstrainedClause']) -> None:
+    def __init__(self, clauses: List['ConstrainedClause']) -> None:
         self.clauses = clauses
 
     def __str__(self) -> str:

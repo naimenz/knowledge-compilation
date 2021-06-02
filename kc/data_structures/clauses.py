@@ -1,12 +1,16 @@
 """
 Classes for clauses in FOL-DC.
 This includes constrained AND unconstrained clauses.
+
+TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from logicalterms import *
-from literals import *
-from constraintsets import *
+from kc.data_structures.logicalterms import *
+from kc.data_structures.literals import *
+from kc.data_structures.constraints import *
 from abc import ABC
+
+from typing import List
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
@@ -16,7 +20,7 @@ class UnconstrainedClause(Clause):
     This consists of a set of FOL literals, which form a disjunction
     """
 
-    def __init__(self, literals: list['Literal']) -> None:
+    def __init__(self, literals: List['Literal']) -> None:
         self.literals = literals
 
     def __str__(self) -> str:
@@ -32,8 +36,8 @@ class ConstrainedClause(Clause):
 
     def __init__(self,
             unconstrained_clause: 'UnconstrainedClause',
-            bound_vars: list['LogicalVariable'],
-            cs: 'ConstraintSet'):
+            bound_vars: List['LogicalVariable'],
+            cs: 'ConstraintSet') -> None:
         self.unconstrained_clause = unconstrained_clause
         self.bound_vars = bound_vars
         self.cs = cs
@@ -42,6 +46,30 @@ class ConstrainedClause(Clause):
         bound_vars_strs = [str(var) for var in self.bound_vars]
         return f"FORALL {{{', '.join(bound_vars_strs)}}}, {self.cs} : {self.unconstrained_clause}"
 
+
+class UnitClause(ConstrainedClause):
+    """AN FOL-DC unit clause.
+    This is a constrained clause with a single literal
+    """
+    def __init__(self,
+            unconstrained_clause: 'UnconstrainedClause',
+            bound_vars: List['LogicalVariable'],
+            cs: 'ConstraintSet') -> None:
+        assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
+        super(UnitClause, self).__init__(unconstrained_clause, bound_vars, cs)
+
+
+class ConstrainedAtom(UnitClause):
+    """An FOL-DC constrained atom.
+    This is a constrained clause with a single atom (positive literal).
+    """
+    def __init__(self,
+            unconstrained_clause: 'UnconstrainedClause',
+            bound_vars: List['LogicalVariable'],
+            cs: 'ConstraintSet') -> None:
+        assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
+        assert(unconstrained_clause.literals[0].polarity) # ensure that it is not negated
+        super(ConstrainedAtom, self).__init__(unconstrained_clause, bound_vars, cs)
 
 
 if __name__ == '__main__':

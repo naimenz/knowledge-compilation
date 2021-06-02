@@ -2,8 +2,10 @@
 Classes for literals, including the predicates and atoms that go into building literals.
 """
 
-from logicalterms import *
+from kc.data_structures.logicalterms import *
 import typing
+
+from typing import List
 
 class Literal:
     """
@@ -26,7 +28,7 @@ class Atom:
     This consists of a predicate and a tuple of terms.
     """
 
-    def __init__(self, predicate: 'Predicate', terms: list['LogicalTerm']) -> None:
+    def __init__(self, predicate: 'Predicate', terms: List['LogicalTerm']) -> None:
         assert(len(terms) == predicate.arity)
         self.predicate = predicate
         self.terms = terms
