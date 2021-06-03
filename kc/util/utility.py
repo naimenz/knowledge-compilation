@@ -6,7 +6,7 @@ from kc.data_structures.cnf import *
 from kc.data_structures.literals import *
 from kc.data_structures.constraints import *
 
-from typing import List
+from typing import List, Tuple, Set
 
 
 def get_constrained_atoms(clause: 'ConstrainedClause') -> List['ConstrainedAtom']:
@@ -38,23 +38,43 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
     predicate2 = c_atom2.unconstrained_clause.literals[0].atom.predicate
     return predicate1 == predicate2
 
+
 def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> List[List['Constant']]:
     """Get a list of solutions to the constraint set cs for specific variables.
 
     NOTE: This assumes that cs constains at least one InclusionConstraint.
+    Also, we assume that there are no domain variables.
     Additionally, we only consider substituting in constants, not free variables."""
-
     # find the allowed set of constants for each variable  based on the set constraints
-    for variable in variables:
-        inclusion_condition = lambda c: isinstance(c, InclusionConstraint) and c.logical_term == variable
-        notinclusion_condition = lambda c: isinstance(c, NotInclusionConstraint) and c.logical_term == variable
-        inclusion_constraints = []
-        notinclusion_constraints = []
-        for constraint in cs.constraints:
-            if inclusion_condition(constraint):
-                inclusion_constraints.append(constraint)
-            elif notinclusion_condition(constraint):
-                notinclusion_constraints.append(constraint)
+    variable_domains = [None] * len(variables)
+    for i, variable in enumerate(variables):
+        inclusion_constraints, notinclusion_constraints = get_set_constraints(cs, variable)
+        assert(len(inclusion_constraints) > 0) # this should be true by assumption
+
+        inclusion_constants = [ic.domain_term.constants for ic in inclusion_constraints]
+        included_constants = set().union(*inclusion_constants)
+
+        if len(notinclusion_constraints) > 0: # notinclusion constraints are optional
+            notinclusion_constants = [nc.domain_term.constants for nc in notinclusion_constraints]
+            notincluded_constants = set().union(*notinclusion_constants)
+        allowed_constants = included_constants - notincluded_constants
+        variable_domains[i] = allowed_constants
+    return variable_domains
+
+
+
+def get_set_constraints(cs: 'ConstraintSet', variable: 'LogicalVariable') -> Tuple[List['InclusionConstraint'], List['NotInclusionConstraint']]:
+    """Get lists of the inclusion and negated inclusion constraints from a constraint set for a specific variable"""
+    inclusion_condition = lambda c: isinstance(c, InclusionConstraint) and c.logical_term == variable
+    notinclusion_condition = lambda c: isinstance(c, NotInclusionConstraint) and c.logical_term == variable
+    inclusion_constraints = []
+    notinclusion_constraints = []
+    for constraint in cs.constraints:
+        if inclusion_condition(constraint):
+            inclusion_constraints.append(constraint)
+        elif notinclusion_condition(constraint):
+            notinclusion_constraints.append(constraint)
+    return inclusion_constraints, notinclusion_constraints
 
 
 if __name__ == '__main__':
