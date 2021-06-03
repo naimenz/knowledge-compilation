@@ -35,10 +35,20 @@ class Constraint(ABC):
 class LogicalConstraint(Constraint):
     """Abstract base class for constraints that only involve logical terms.
     This covers equality constraints and ineqality constraints."""
+    left_term: 'LogicalTerm'
+
+
+    right_term: 'LogicalTerm'
 
 class SetConstraint(Constraint):
     """Abstract base class for constraints that involve domain terms (i.e. sets of constants and variables representing sets)
-    This covers inclusion constraints and non-inclusion constraints."""
+    This covers inclusion constraints and non-inclusion constraints.
+
+    NOTE: For now, this doesn't allow domain variables"""
+
+    logical_term: 'LogicalTerm'
+
+    domain_term: 'SetOfConstants'
 
 class EqualityConstraint(LogicalConstraint):
     """
