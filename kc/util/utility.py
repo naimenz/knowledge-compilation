@@ -43,38 +43,95 @@ def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> Li
     """Get a list of solutions to the constraint set cs for specific variables.
 
     NOTE: This assumes that cs constains at least one InclusionConstraint.
-    Also, we assume that there are no domain variables.
+    Also, we assume that there are no domain variables anywhere.
     Additionally, we only consider substituting in constants, not free variables."""
-    # find the allowed set of constants for each variable  based on the set constraints
-    variable_domains = [None] * len(variables)
-    for i, variable in enumerate(variables):
-        inclusion_constraints, notinclusion_constraints = get_set_constraints(cs, variable)
-        assert(len(inclusion_constraints) > 0) # this should be true by assumption
+    variable_domains = get_variable_domains(cs, variables)
 
-        inclusion_constants = [ic.domain_term.constants for ic in inclusion_constraints]
-        included_constants = set().union(*inclusion_constants)
+    # extract the equality and inequality constraints from the constraint set
+    logical_constraints = get_all_logical_constraints(cs)
+    sols: List[List['Constant']] = initiate_variable_recursion(variables, variable_domains, logical_constraints)
 
-        if len(notinclusion_constraints) > 0: # notinclusion constraints are optional
-            notinclusion_constants = [nc.domain_term.constants for nc in notinclusion_constraints]
-            notincluded_constants = set().union(*notinclusion_constants)
-        allowed_constants = included_constants - notincluded_constants
-        variable_domains[i] = allowed_constants
+
+def initiate_variable_recursion(variables: List['LogicalVariable'],
+                                domains: List[Set['Constant']],
+                                constraints: List['LogicalConstraint']) -> List[List['Constant']]:
+    """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
+    return recurse(variables[0], variables, domains, constraints)
+
+
+def recurse(variable: 'LogicalVariable',
+            remaining_variables: List['LogicalVariable'],
+            remaining_domains: List[Set['Constant']],
+            constraints: List['LogicalConstraint']) -> List[List['Constant']]:
+    """Recursively construct the solutions for each substitution to 'variable'"""
+    partial_sols: List[List['Constant']] = []
+    for subsitution in remaining_domains[0]: # iterate over allowed constants for current variable
+        constraints_involving_variable = get_relevant_logical_constraints(constraints, variable)
+        # now follows a lot of messy logic to update the allowed constants for each variable
+        for constraint in constraints_involving_variable:
+            # first, deal with equality constraints that involve the current variable
+            if isinstance(constraint, EqualityConstraint):
+
+
+
+def get_relevant_logical_constraints(constraints: List['LogicalConstraint'],
+                                     variable: 'LogicalVariable') -> List['LogicalConstraint']:
+    """From a list of logical constraints, get the ones that involve 'variable'"""
+    return [constraint for constraint in constraints if (constraint.left_term == variable or constraint.right_term == variable)]
+
+
+def get_variable_domains(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> List[Set['Constant']]:
+    """Find the allowed set of constants for each variable based on the set constraints
+    
+    NOTE: assumes there are no domain variables anywhere."""
+    variable_domains = []
+    for variable in variables:
+        allowed_constants = get_variable_domain(cs, variable)
+        variable_domains.append(allowed_constants)
     return variable_domains
 
 
+def get_variable_domain(cs: 'ConstraintSet', variable: 'LogicalVariable') -> Set['Constant']:
+    """Find the allowed set of constants for A SINGLE variable based on the set constraints
+    
+    NOTE: assumes there are no domain variables anywhere."""
+    inclusion_constraints, notinclusion_constraints = get_relevant_set_constraints(cs.constraints, variable)
+    assert(len(inclusion_constraints) > 0) # this should be true by assumption
 
-def get_set_constraints(cs: 'ConstraintSet', variable: 'LogicalVariable') -> Tuple[List['InclusionConstraint'], List['NotInclusionConstraint']]:
+    inclusion_constants = [ic.domain_term.constants for ic in inclusion_constraints]
+    emptyset: Set['Constant'] = set() # a hack for type checking
+    included_constants = emptyset.union(*inclusion_constants)
+
+    # notinclusion constraints are optional
+    if len(notinclusion_constraints) > 0: 
+        notinclusion_constants = [nc.domain_term.constants for nc in notinclusion_constraints]
+        notincluded_constants = emptyset.union(*notinclusion_constants)
+    else:
+        notincluded_constants = set()
+
+    allowed_constants = included_constants - notincluded_constants
+    return allowed_constants
+
+
+def get_relevant_set_constraints(cs: List['Constraint'], variable: 'LogicalVariable') -> Tuple[List['InclusionConstraint'], List['NotInclusionConstraint']]:
     """Get lists of the inclusion and negated inclusion constraints from a constraint set for a specific variable"""
     inclusion_condition = lambda c: isinstance(c, InclusionConstraint) and c.logical_term == variable
     notinclusion_condition = lambda c: isinstance(c, NotInclusionConstraint) and c.logical_term == variable
-    inclusion_constraints = []
-    notinclusion_constraints = []
-    for constraint in cs.constraints:
+    inclusion_constraints: List['InclusionConstraint'] = []
+    notinclusion_constraints: List['NotInclusionConstraint']  = []
+    for constraint in cs:
         if inclusion_condition(constraint):
+            assert(isinstance(constraint, InclusionConstraint)) # assertion fixes type checking
             inclusion_constraints.append(constraint)
         elif notinclusion_condition(constraint):
+            assert(isinstance(constraint, NotInclusionConstraint)) # assertion fixes type checking
             notinclusion_constraints.append(constraint)
     return inclusion_constraints, notinclusion_constraints
+
+
+def get_all_logical_constraints(cs: 'ConstraintSet') -> List['LogicalConstraint']:
+    """Get lists of the equality and inequality constraints from a constraint set"""
+    return [constraint for constraint in cs.constraints if isinstance(constraint, LogicalConstraint)]
 
 
 if __name__ == '__main__':
@@ -94,11 +151,10 @@ if __name__ == '__main__':
     constraint_set = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InclusionConstraint(variables[0], domains[0]),
-                      InclusionConstraint(variables[1], domains[1])
+                      InclusionConstraint(variables[1], domains[1]),
+                      NotInclusionConstraint(variables[0], domains[1])
                       ])
     print(get_solutions(constraint_set, variables[:2]))
-
-
 
     u_clause = UnconstrainedClause(literals)
     c_clause = ConstrainedClause(u_clause, variables[:2], constraint_set)
