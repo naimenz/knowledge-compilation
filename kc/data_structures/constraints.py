@@ -32,7 +32,15 @@ class Constraint(ABC):
     This covers equality constraints, inclusion constraints, and their negations (plus more if needed).
     """
 
-class EqualityConstraint(Constraint):
+class LogicalConstraint(Constraint):
+    """Abstract base class for constraints that only involve logical terms.
+    This covers equality constraints and ineqality constraints."""
+
+class SetConstraint(Constraint):
+    """Abstract base class for constraints that involve domain terms (i.e. sets of constants and variables representing sets)
+    This covers inclusion constraints and non-inclusion constraints."""
+
+class EqualityConstraint(LogicalConstraint):
     """
     A FOL-DC equality constraint (between logical terms).
     This consists of two logical terms
@@ -48,7 +56,7 @@ class EqualityConstraint(Constraint):
     def __repr__(self) -> str:
         return self.__str__()
 
-class InequalityConstraint(Constraint):
+class InequalityConstraint(LogicalConstraint):
     """
     A FOL-DC inequality constraint (between logical terms).
     This consists of two logical terms
@@ -64,7 +72,7 @@ class InequalityConstraint(Constraint):
     def __repr__(self) -> str:
         return self.__str__()
 
-class InclusionConstraint(Constraint):
+class InclusionConstraint(SetConstraint):
     """
     A FOL-DC inclusion constraint (between a logical term and a domain term).
     This consists of a logical term and a domain term.
@@ -82,7 +90,7 @@ class InclusionConstraint(Constraint):
     def __repr__(self) -> str:
         return self.__str__()
 
-class NotInclusionConstraint(Constraint):
+class NotInclusionConstraint(SetConstraint):
     """
     A FOL-DC negated inclusion constraint (between a logical term and a domain term).
     This consists of a logical term and a domain term.
