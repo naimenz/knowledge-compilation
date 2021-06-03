@@ -27,6 +27,8 @@ class UnconstrainedClause(Clause):
         literal_strs = [str(literal) for literal in self.literals]
         return f"({' OR '.join(literal_strs)})"
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class ConstrainedClause(Clause):
     """An FOL-DC constrained clause.
@@ -45,6 +47,9 @@ class ConstrainedClause(Clause):
     def __str__(self) -> str:
         bound_vars_strs = [str(var) for var in self.bound_vars]
         return f"FORALL {{{', '.join(bound_vars_strs)}}}, {self.cs} : {self.unconstrained_clause}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class UnitClause(ConstrainedClause):

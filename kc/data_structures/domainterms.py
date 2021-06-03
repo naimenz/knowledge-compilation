@@ -32,6 +32,8 @@ class SetOfConstants(DomainTerm):
         constant_strs = [str(constant) for constant in self.constants]
         return f"{{{', '.join(constant_strs)}}}"
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class DomainVariable(DomainTerm):
     """
@@ -43,6 +45,8 @@ class DomainVariable(DomainTerm):
     def __str__(self) -> str:
         return f'{self.symbol}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 if __name__ == '__main__':
     c1 = Constant('a')

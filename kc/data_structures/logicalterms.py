@@ -24,9 +24,11 @@ class Constant(LogicalTerm):
         never be changed once set."""
         return self._value
 
-
     def __str__(self) -> str:
         return f'{self.value}'
+    
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 
@@ -40,6 +42,8 @@ class LogicalVariable(LogicalTerm):
     def __str__(self) -> str:
         return f'{self.symbol}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 if __name__ == '__main__':
@@ -50,6 +54,7 @@ if __name__ == '__main__':
     x = LogicalVariable('X')
     print(x.symbol)
     print(x)
+    print([x])
 
 
 

@@ -21,6 +21,8 @@ class Literal:
         prefix = '¬' if not self.polarity else ''
         return f'{prefix}{self.atom}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class Atom:
     """
@@ -37,6 +39,8 @@ class Atom:
         term_strs = [str(term) for term in self.terms]
         return f"{self.predicate.name}({', '.join(term_strs)})"
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class Predicate:
     """
@@ -51,6 +55,8 @@ class Predicate:
     def __str__(self) -> str:
         return f"{self.name}({self.arity})"
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 if __name__ == '__main__':
     pred = Predicate('smokes', 4)

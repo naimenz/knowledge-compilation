@@ -23,6 +23,8 @@ class ConstraintSet:
         constraint_strs = [f'({str(constraint)})' for constraint in self.constraints]
         return f"({' AND '.join(constraint_strs)})"
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class Constraint(ABC):
     """
@@ -43,6 +45,8 @@ class EqualityConstraint(Constraint):
     def __str__(self) -> str:
         return f'{self.left_term} == {self.right_term}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class InequalityConstraint(Constraint):
     """
@@ -57,6 +61,8 @@ class InequalityConstraint(Constraint):
     def __str__(self) -> str:
         return f'{self.left_term} != {self.right_term}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class InclusionConstraint(Constraint):
     """
@@ -73,6 +79,8 @@ class InclusionConstraint(Constraint):
     def __str__(self) -> str:
         return f'{self.logical_term} IN {self.domain_term}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class NotInclusionConstraint(Constraint):
     """
@@ -89,6 +97,8 @@ class NotInclusionConstraint(Constraint):
     def __str__(self) -> str:
         return f'{self.logical_term} NOT IN {self.domain_term}'
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 if __name__ == '__main__':
     v1 = LogicalVariable('X')

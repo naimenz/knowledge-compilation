@@ -19,6 +19,8 @@ class FO_CNF:
         clause_strs = [f'({str(clause)})' for clause in self.clauses]
         return '\nAND\n'.join(clause_strs)
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
 if __name__ == '__main__':
     pred1 = Predicate('smokes', 1)
