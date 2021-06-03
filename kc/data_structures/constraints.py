@@ -64,7 +64,9 @@ class InclusionConstraint(Constraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'DomainTerm') -> None:
+    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'SetOfConstants') -> None:
+        """NOTE: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
+        for the domain term"""
         self.logical_term = logical_term
         self.domain_term = domain_term
 
@@ -78,7 +80,9 @@ class NotInclusionConstraint(Constraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'DomainTerm') -> None:
+    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'SetOfConstants') -> None:
+        """NOTE: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
+        for the domain term"""
         self.logical_term = logical_term
         self.domain_term = domain_term
 
