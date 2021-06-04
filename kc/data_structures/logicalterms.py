@@ -30,6 +30,12 @@ class Constant(LogicalTerm):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __eq__(self, other) -> bool:
+        """We say constants are equal if they have the same value"""
+        return isinstance(other, Constant) and self.value == other.value
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
 
 class LogicalVariable(LogicalTerm):
