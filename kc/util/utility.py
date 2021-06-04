@@ -6,7 +6,10 @@ from kc.data_structures.cnf import *
 from kc.data_structures.literals import *
 from kc.data_structures.constraints import *
 
-from typing import List, Tuple, Set
+from copy import deepcopy
+from itertools import chain
+
+from typing import List, Tuple, Set, Dict
 
 
 def get_constrained_atoms(clause: 'ConstrainedClause') -> List['ConstrainedAtom']:
@@ -50,28 +53,81 @@ def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> Li
     # extract the equality and inequality constraints from the constraint set
     logical_constraints = get_all_logical_constraints(cs)
     sols: List[List['Constant']] = initiate_variable_recursion(variables, variable_domains, logical_constraints)
+    return sols
 
 
 def initiate_variable_recursion(variables: List['LogicalVariable'],
                                 domains: List[Set['Constant']],
                                 constraints: List['LogicalConstraint']) -> List[List['Constant']]:
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
-    return recurse(variables[0], variables, domains, constraints)
+    # we pass through a dictionary that accumulates information about the variables
+    variable_dict = {variable: {'domain': domain, 'equal_constants': set()} for variable, domain in zip(variables, domains)}
+    return recurse(variables, variable_dict, constraints)
 
 
-def recurse(variable: 'LogicalVariable',
-            remaining_variables: List['LogicalVariable'],
-            remaining_domains: List[Set['Constant']],
+def recurse(remaining_variables: List['LogicalVariable'],
+            variable_dict: Dict,
             constraints: List['LogicalConstraint']) -> List[List['Constant']]:
     """Recursively construct the solutions for each substitution to 'variable'"""
-    partial_sols: List[List['Constant']] = []
-    for subsitution in remaining_domains[0]: # iterate over allowed constants for current variable
+
+    # base case of recursion: no variables left
+    if len(remaining_variables) == 0:
+        return [[]]
+
+    variable = remaining_variables[0]
+    partial_sols: List[Tuple[List['Constant'], Dict]] = []
+    for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
+        print(substitution)
+        valid_substitution = True # to start with, assume the substitution will work out
+        # create a copy of the dictionary to change for the new solution
+        # NOTE: we don't copy the dict keys because these are LogicalVariables and we need them to be the same
+        next_variable_dict = {key: deepcopy(value) for key, value in variable_dict.items()}
         constraints_involving_variable = get_relevant_logical_constraints(constraints, variable)
+
         # now follows a lot of messy logic to update the allowed constants for each variable
         for constraint in constraints_involving_variable:
             # first, deal with equality constraints that involve the current variable
             if isinstance(constraint, EqualityConstraint):
+                if constraint.left_term == variable:
+                    if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+                        next_variable_dict[constraint.right_term]['equal_constants'].add(substitution)
+                    elif isinstance(constraint.right_term, Constant) and constraint.right_term != substitution:
+                        valid_substitution = False
+                        break # exit this substitution and go back to substitution loop
 
+                elif constraint.right_term == variable:
+                    if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
+                        next_variable_dict[constraint.left_term]['equal_constants'].add(substitution)
+                    elif isinstance(constraint.left_term, Constant) and constraint.left_term != substitution:
+                        valid_substitution = False
+                        break # exit this substitution and go back to substitution loop
+
+            elif isinstance(constraint, InequalityConstraint):
+                if constraint.left_term == variable:
+                    if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+                        next_variable_dict[constraint.right_term]['domain'].discard(substitution)
+                    elif isinstance(constraint.right_term, Constant) and constraint.right_term == substitution:
+                        valid_substitution = False
+                        break # exit this substitution and go back to substitution loop
+
+                elif constraint.right_term == variable:
+                    if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
+                        next_variable_dict[constraint.left_term]['domain'].discard(substitution)
+                    elif isinstance(constraint.left_term, Constant) and constraint.left_term == substitution:
+                        valid_substitution = False
+                        break # exit this substitution and go back to substitution loop
+        # after all constraints are done, we check if this solution is still feasible
+        if valid_substitution:
+            partial_sols.append((substitution, next_variable_dict))
+
+    # finally, we recurse on each partial solution
+    all_solutions = []
+    for sub, next_variable_dict in partial_sols:
+        recursive_solutions = recurse(remaining_variables[1:], next_variable_dict, constraints)
+        solutions = [[sub] + sol for sol in recursive_solutions]
+        all_solutions += solutions
+    # add all solutions together and return
+    return all_solutions
 
 
 def get_relevant_logical_constraints(constraints: List['LogicalConstraint'],
@@ -151,10 +207,11 @@ if __name__ == '__main__':
     constraint_set = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InclusionConstraint(variables[0], domains[0]),
-                      InclusionConstraint(variables[1], domains[1]),
-                      NotInclusionConstraint(variables[0], domains[1])
+                      InclusionConstraint(variables[1], domains[0]),
+                      NotInclusionConstraint(variables[1], domains[1])
                       ])
-    print(get_solutions(constraint_set, variables[:2]))
+    print(constraint_set)
+    print("get sol",get_solutions(constraint_set, variables[:2]))
 
     u_clause = UnconstrainedClause(literals)
     c_clause = ConstrainedClause(u_clause, variables[:2], constraint_set)
