@@ -67,17 +67,24 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
 
 def recurse(remaining_variables: List['LogicalVariable'],
             variable_dict: Dict,
-            constraints: List['LogicalConstraint']) -> List[List['Constant']]:
-    """Recursively construct the solutions for each substitution to 'variable'"""
+            constraints: List['LogicalConstraint']) -> Tuple[List[List['Constant']], bool]:
+    """Recursively construct the solutions for each substitution to 'variable'
+    Returns a list of lists of constants and a flag for satisfiability or unsatisfiability"""
 
     # base case of recursion: no variables left
     if len(remaining_variables) == 0:
-        return [[]]
+        return [([], True)]
 
     variable = remaining_variables[0]
     partial_sols: List[Tuple[List['Constant'], Dict]] = []
+    
+    # before considering substitutions, we need to process equality constraints on the variable
+    if len(variable_dict[variable]['equal_constants']) > 1:
+        return [([], False)]
+    if len(variable_dict[variable]['equal_constants']) == 1:
+        variable_dict[variable]['domain'] = variable_dict[variable]['domain'].intersection(variable_dict[variable]['equal_constants'])
+
     for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
-        print(substitution)
         valid_substitution = True # to start with, assume the substitution will work out
         # create a copy of the dictionary to change for the new solution
         # NOTE: we don't copy the dict keys because these are LogicalVariables and we need them to be the same
@@ -123,8 +130,8 @@ def recurse(remaining_variables: List['LogicalVariable'],
     # finally, we recurse on each partial solution
     all_solutions = []
     for sub, next_variable_dict in partial_sols:
-        recursive_solutions = recurse(remaining_variables[1:], next_variable_dict, constraints)
-        solutions = [[sub] + sol for sol in recursive_solutions]
+        recursive_solutions = [sol for sol, flag in recurse(remaining_variables[1:], next_variable_dict, constraints) if flag]
+        solutions = [([sub] + sol, True) for sol in recursive_solutions]
         all_solutions += solutions
     # add all solutions together and return
     return all_solutions
@@ -206,19 +213,32 @@ if __name__ == '__main__':
 
     constraint_set = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
+                      InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
                       InclusionConstraint(variables[1], domains[0]),
-                      NotInclusionConstraint(variables[1], domains[1])
+                      # NotInclusionConstraint(variables[1], domains[1])
                       ])
     print(constraint_set)
     print("get sol",get_solutions(constraint_set, variables[:2]))
+
+    constraint_set2 = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
+                      # EqualityConstraint(variables[1], constants[1]),
+                      # InequalityConstraint(variables[0], variables[2]),
+                      EqualityConstraint(variables[1], variables[2]),
+                      InclusionConstraint(variables[0], domains[0]),
+                      InclusionConstraint(variables[1], domains[0]),
+                      InclusionConstraint(variables[2], domains[0]),
+                      # NotInclusionConstraint(variables[1], domains[1])
+                      ])
+    print(constraint_set2)
+    print("get sol",get_solutions(constraint_set2, variables))
 
     u_clause = UnconstrainedClause(literals)
     c_clause = ConstrainedClause(u_clause, variables[:2], constraint_set)
 
     c_atoms = get_constrained_atoms(c_clause)
-    for c_atom in c_atoms:
-        print(c_atom)
+    # for c_atom in c_atoms:
+    #     print(c_atom)
 
-    print(have_same_predicate(c_atoms[1], c_atoms[2]))
+    # print(have_same_predicate(c_atoms[1], c_atoms[2]))
 
