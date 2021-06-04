@@ -79,55 +79,101 @@ def recurse(remaining_variables: List['LogicalVariable'],
     partial_sols: List[Tuple[List['Constant'], Dict]] = []
     
     # before considering substitutions, we need to process equality constraints on the variable
+    process_equalities(variable, variable_dict)
+
+    constraints_involving_variable = get_relevant_logical_constraints(constraints, remaining_variables[0])
+    for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
+        next_variable_dict, valid_substitution = update_variable_dict_with_sub(remaining_variables, variable_dict, constraints_involving_variable, substitution)
+        if valid_substitution:
+            partial_sols.append((substitution, next_variable_dict))
+
+    # finally, we recurse on each partial solution
+    return build_solutions(remaining_variables, constraints, partial_sols)
+
+
+def process_equalities(variable, variable_dict):
+    """This function is called before calculating solutions for 'variable'.
+    It propagates the repurcussions of equality constraints on the allowed values of 'variable'.
+
+    NOTE: It acts in-place on 'variable_dict'"""
+
     if len(variable_dict[variable]['equal_constants']) > 1:
         return [([], False)]
     if len(variable_dict[variable]['equal_constants']) == 1:
         variable_dict[variable]['domain'] = variable_dict[variable]['domain'].intersection(variable_dict[variable]['equal_constants'])
 
-    for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
-        valid_substitution = True # to start with, assume the substitution will work out
-        # create a copy of the dictionary to change for the new solution
-        # NOTE: we don't copy the dict keys because these are LogicalVariables and we need them to be the same
-        next_variable_dict = {key: deepcopy(value) for key, value in variable_dict.items()}
-        constraints_involving_variable = get_relevant_logical_constraints(constraints, variable)
 
-        # now follows a lot of messy logic to update the allowed constants for each variable
-        for constraint in constraints_involving_variable:
-            # first, deal with equality constraints that involve the current variable
-            if isinstance(constraint, EqualityConstraint):
-                if constraint.left_term == variable:
-                    if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
-                        next_variable_dict[constraint.right_term]['equal_constants'].add(substitution)
-                    elif isinstance(constraint.right_term, Constant) and constraint.right_term != substitution:
-                        valid_substitution = False
-                        break # exit this substitution and go back to substitution loop
+def copy_variable_dict(variable_dict):
+    """Copies a variable dict to be mutated for the next recursion step.
+    This is somewhere between a shallow and a deep copy -- the LogicalVariable keys stay the same
+    but the sets of Constants are deep copied"""
+    return {key: deepcopy(value) for key, value in variable_dict.items()}
 
-                elif constraint.right_term == variable:
-                    if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
-                        next_variable_dict[constraint.left_term]['equal_constants'].add(substitution)
-                    elif isinstance(constraint.left_term, Constant) and constraint.left_term != substitution:
-                        valid_substitution = False
-                        break # exit this substitution and go back to substitution loop
 
-            elif isinstance(constraint, InequalityConstraint):
-                if constraint.left_term == variable:
-                    if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
-                        next_variable_dict[constraint.right_term]['domain'].discard(substitution)
-                    elif isinstance(constraint.right_term, Constant) and constraint.right_term == substitution:
-                        valid_substitution = False
-                        break # exit this substitution and go back to substitution loop
+def update_variable_dict_with_sub(remaining_variables: List['LogicalVariable'],
+                                  variable_dict: Dict,
+                                  constraints: List['LogicalConstraint'],
+                                  substitution: 'Constant') -> Tuple['Constant', Dict]:
+    """Update a variable dict with constraint information for a given substitution.
+    Returns an updated variable dict and a flag to say whether the constraint set is satisfiable with this substitution"""
+    # now follows a lot of messy logic to update the allowed constants for each variable
+    next_variable_dict, valid_substitution = process_all_constraints(remaining_variables, variable_dict, constraints, substitution)
+    # after all constraints are done, we check if this solution is still feasible
+    return next_variable_dict, valid_substitution
 
-                elif constraint.right_term == variable:
-                    if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
-                        next_variable_dict[constraint.left_term]['domain'].discard(substitution)
-                    elif isinstance(constraint.left_term, Constant) and constraint.left_term == substitution:
-                        valid_substitution = False
-                        break # exit this substitution and go back to substitution loop
-        # after all constraints are done, we check if this solution is still feasible
-        if valid_substitution:
-            partial_sols.append((substitution, next_variable_dict))
 
-    # finally, we recurse on each partial solution
+def process_constraint(remaining_variables: List['LogicalVariable'], variable_dict: Dict, constraint: 'LogicalConstraint', substitution: 'Constant') -> Tuple[Dict, bool]:
+    """Update a variable dict with the implications of a specific constraint for a specific substitution
+    and return the new variable dict and a flag indicating if the constraint is satisfiable"""
+    variable = remaining_variables[0]
+    valid_substitution = True
+
+    variable_dict = copy_variable_dict(variable_dict)
+    # TODO: refactor this horrible nested if-else structure
+    if isinstance(constraint, EqualityConstraint):
+        if constraint.left_term == variable:
+            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+                variable_dict[constraint.right_term]['equal_constants'].add(substitution)
+            elif isinstance(constraint.right_term, Constant) and constraint.right_term != substitution:
+                valid_substitution = False
+
+        elif constraint.right_term == variable:
+            if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
+                variable_dict[constraint.left_term]['equal_constants'].add(substitution)
+            elif isinstance(constraint.left_term, Constant) and constraint.left_term != substitution:
+                valid_substitution = False
+
+    elif isinstance(constraint, InequalityConstraint):
+        if constraint.left_term == variable:
+            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+                variable_dict[constraint.right_term]['domain'].discard(substitution)
+            elif isinstance(constraint.right_term, Constant) and constraint.right_term == substitution:
+                valid_substitution = False
+
+        elif constraint.right_term == variable:
+            if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
+                variable_dict[constraint.left_term]['domain'].discard(substitution)
+            elif isinstance(constraint.left_term, Constant) and constraint.left_term == substitution:
+                valid_substitution = False
+    return variable_dict, valid_substitution
+
+
+def process_all_constraints(remaining_variables: List['LogicalVariable'],
+                            variable_dict: Dict,
+                            constraints: List['LogicalConstraint'],
+                            substitution: 'Constant') -> Tuple[Dict, bool]:
+    """Process a batch of constraints and return an updated variable dict"""
+    for constraint in constraints:
+        next_variable_dict, valid_substitution = process_constraint(remaining_variables, variable_dict, constraint, substitution)
+        if not valid_substitution: # save time by moving on to next substitution
+            return dict(), False
+    return next_variable_dict, True
+
+
+def build_solutions(remaining_variables: List['LogicalVariable'],
+                    constraints: List['LogicalConstraint'],
+                    partial_sols: List[Tuple['Constant', Dict]]) -> List[Tuple[List['Constant'], bool]]:
+    """Construct solutions recursively using the valid substitutions found and the information propagated in the variable dicts"""
     all_solutions = []
     for sub, next_variable_dict in partial_sols:
         recursive_solutions = [sol for sol, flag in recurse(remaining_variables[1:], next_variable_dict, constraints) if flag]
