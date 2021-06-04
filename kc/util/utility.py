@@ -42,7 +42,7 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
     return predicate1 == predicate2
 
 
-def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> List[List['Constant']]:
+def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> List[Tuple[List['Constant'], bool]]:
     """Get a list of solutions to the constraint set cs for specific variables.
 
     NOTE: This assumes that cs constains at least one InclusionConstraint.
@@ -52,13 +52,13 @@ def get_solutions(cs: 'ConstraintSet', variables: List['LogicalVariable']) -> Li
 
     # extract the equality and inequality constraints from the constraint set
     logical_constraints = get_all_logical_constraints(cs)
-    sols: List[List['Constant']] = initiate_variable_recursion(variables, variable_domains, logical_constraints)
+    sols: List[Tuple[List['Constant'], bool]] = initiate_variable_recursion(variables, variable_domains, logical_constraints)
     return sols
 
 
 def initiate_variable_recursion(variables: List['LogicalVariable'],
                                 domains: List[Set['Constant']],
-                                constraints: List['LogicalConstraint']) -> List[List['Constant']]:
+                                constraints: List['LogicalConstraint']) -> List[Tuple[List['Constant'], bool]]:
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set()} for variable, domain in zip(variables, domains)}
@@ -67,7 +67,7 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
 
 def recurse(remaining_variables: List['LogicalVariable'],
             variable_dict: Dict,
-            constraints: List['LogicalConstraint']) -> Tuple[List[List['Constant']], bool]:
+            constraints: List['LogicalConstraint']) -> List[Tuple[List['Constant'], bool]]:
     """Recursively construct the solutions for each substitution to 'variable'
     Returns a list of lists of constants and a flag for satisfiability or unsatisfiability"""
 
@@ -76,10 +76,12 @@ def recurse(remaining_variables: List['LogicalVariable'],
         return [([], True)]
 
     variable = remaining_variables[0]
-    partial_sols: List[Tuple[List['Constant'], Dict]] = []
+    partial_sols: List[Tuple['Constant', Dict]] = []
     
     # before considering substitutions, we need to process equality constraints on the variable
-    process_equalities(variable, variable_dict)
+    variable_dict, satisfiable = process_equalities(variable, variable_dict)
+    if not satisfiable:
+        return [([], False)]
 
     constraints_involving_variable = get_relevant_logical_constraints(constraints, remaining_variables[0])
     for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
@@ -91,16 +93,16 @@ def recurse(remaining_variables: List['LogicalVariable'],
     return build_solutions(remaining_variables, constraints, partial_sols)
 
 
-def process_equalities(variable, variable_dict):
+def process_equalities(variable: 'LogicalVariable', variable_dict: Dict) -> Tuple[Dict, bool]:
     """This function is called before calculating solutions for 'variable'.
-    It propagates the repurcussions of equality constraints on the allowed values of 'variable'.
-
-    NOTE: It acts in-place on 'variable_dict'"""
+    It propagates the repurcussions of equality constraints on the allowed values of 'variable'."""
+    variable_dict = copy_variable_dict(variable_dict)
 
     if len(variable_dict[variable]['equal_constants']) > 1:
-        return [([], False)]
+        return dict(), False
     if len(variable_dict[variable]['equal_constants']) == 1:
         variable_dict[variable]['domain'] = variable_dict[variable]['domain'].intersection(variable_dict[variable]['equal_constants'])
+    return variable_dict, True
 
 
 def copy_variable_dict(variable_dict):
@@ -113,7 +115,7 @@ def copy_variable_dict(variable_dict):
 def update_variable_dict_with_sub(remaining_variables: List['LogicalVariable'],
                                   variable_dict: Dict,
                                   constraints: List['LogicalConstraint'],
-                                  substitution: 'Constant') -> Tuple['Constant', Dict]:
+                                  substitution: 'Constant') -> Tuple[Dict, bool]:
     """Update a variable dict with constraint information for a given substitution.
     Returns an updated variable dict and a flag to say whether the constraint set is satisfiable with this substitution"""
     # now follows a lot of messy logic to update the allowed constants for each variable
