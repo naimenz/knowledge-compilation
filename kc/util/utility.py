@@ -96,10 +96,10 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set()} for variable, domain in zip(variables, domains)}
-    return recurse(variables, variable_dict, constraints)
+    return recursively_construct_partial_sols(variables, variable_dict, constraints)
 
 
-def recurse(remaining_variables: List['LogicalVariable'],
+def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
             variable_dict: Dict,
             constraints: List['LogicalConstraint']) -> List[Tuple[List['Constant'], bool]]:
     """Recursively construct the solutions for each substitution to 'variable'
@@ -119,7 +119,7 @@ def recurse(remaining_variables: List['LogicalVariable'],
 
     constraints_involving_variable = get_relevant_logical_constraints(constraints, remaining_variables[0])
     for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
-        next_variable_dict, valid_substitution = update_variable_dict_with_sub(remaining_variables, variable_dict, constraints_involving_variable, substitution)
+        next_variable_dict, valid_substitution = update_variable_dict_with_substitution(remaining_variables, variable_dict, constraints_involving_variable, substitution)
         if valid_substitution:
             partial_sols.append((substitution, next_variable_dict))
 
@@ -146,7 +146,7 @@ def copy_variable_dict(variable_dict: Dict) -> Dict:
     return {key: deepcopy(value) for key, value in variable_dict.items()}
 
 
-def update_variable_dict_with_sub(remaining_variables: List['LogicalVariable'],
+def update_variable_dict_with_substitution(remaining_variables: List['LogicalVariable'],
                                   variable_dict: Dict,
                                   constraints: List['LogicalConstraint'],
                                   substitution: 'Constant') -> Tuple[Dict, bool]:
@@ -212,7 +212,7 @@ def build_solutions(remaining_variables: List['LogicalVariable'],
     """Construct solutions recursively using the valid substitutions found and the information propagated in the variable dicts"""
     all_solutions = []
     for sub, next_variable_dict in partial_sols:
-        recursive_solutions = [sol for sol, flag in recurse(remaining_variables[1:], next_variable_dict, constraints) if flag]
+        recursive_solutions = [sol for sol, flag in recursively_construct_partial_sols(remaining_variables[1:], next_variable_dict, constraints) if flag]
         solutions = [([sub] + sol, True) for sol in recursive_solutions]
         all_solutions += solutions
     # add all solutions together and return

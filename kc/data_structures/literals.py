@@ -18,7 +18,7 @@ class Literal:
         self.polarity = polarity
 
     def __str__(self) -> str:
-        prefix = '¬' if not self.polarity else ''
+        prefix = '¬' if self.polarity == False else ''
         return f'{prefix}{self.atom}'
 
     def __repr__(self) -> str:
@@ -53,7 +53,7 @@ class Predicate:
         self.arity = arity
 
     def __str__(self) -> str:
-        return f"{self.name}({self.arity})"
+        return f"{self.name}/{self.arity}"
 
     def __repr__(self) -> str:
         return self.__str__()
