@@ -33,9 +33,9 @@ def build_constrained_atom_from_literal(literal: 'Literal', clause: 'Constrained
     return constrained_atom
 
 
-def independent_constrained_atoms(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
+def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
     """Are the constrained atoms c_atom1 and c_atom2 independent?
-    This is checked by seeing if they have the same predicate and same solutions.
+    This is checked by seeing if they have the same predicate and then whether they have the same groundings.
     Returns a boolean indicating whether they are.
 
     NOTE: currently assumes there are no constants in the arguments to either atom"""
@@ -46,18 +46,35 @@ def independent_constrained_atoms(c_atom1: 'ConstrainedAtom', c_atom2: 'Constrai
     # next, get the solutions to each constrained atom
     sols1 = get_solutions_to_constrained_atom(c_atom1)
     sols2 = get_solutions_to_constrained_atom(c_atom2)
+    print(sols1,'\n', sols2)
 
     # TODO: make this intersection checking more elegant
     for sol in sols1:
+        # ground_atom = 
         if sol in sols2:
             return False
     return True
 
-def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List[List['Constant']]:
+
+def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: 'ConstrainedClause') -> bool:
+    """Are the constrained clauses c_clause1 and c_clause2 independent?
+    This is checked by checking if every c-atom in the first clause is independent of every c-atom in the second.
+    Returns a boolean indicating whether they are.
+
+    NOTE: There may be ways to make this more efficient"""
+    c_atoms1 = get_constrained_atoms(c_clause1)
+    c_atoms2 = get_constrained_atoms(c_clause2)
+    for c_atom1 in c_atoms1:
+        for c_atom2 in c_atoms2:
+            if not constrained_atoms_independent(c_atom1, c_atom2):
+                return False
+    return True
+
+def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List[List[Tuple['LogicalVariable', 'Constant']]]:
     """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
     terms = c_atom.unconstrained_clause.literals[0].atom.terms
 
-    # TODO: remove this, it's just a hack for type-checkinge while I can't handle Constants
+    # TODO: remove this, it's just a hack for type-checking while I can't handle Constants
     assert(all(isinstance(term, LogicalVariable) for term in terms)) # just ensuring that we only pass variables
     variables: List['LogicalVariable'] = cast(List['LogicalVariable'], terms)
 
@@ -76,8 +93,10 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
 
 
 def get_solutions(cs: 'ConstraintSet',
-                  variables: List['LogicalVariable']) -> List[List['Constant']]:
+                  variables: List['LogicalVariable']
+                 ) -> List[List[Tuple['LogicalVariable', 'Constant']]]:
     """Get a list of solutions to the constraint set cs for specific variables.
+    Returns a list of lists of tuples of (variable, substitution) pairs
 
     NOTE: This assumes that cs constains at least one InclusionConstraint.
     Also, we assume that there are no domain variables anywhere.
@@ -86,17 +105,18 @@ def get_solutions(cs: 'ConstraintSet',
 
     # extract the equality and inequality constraints from the constraint set
     logical_constraints = get_all_logical_constraints(cs)
-    sols: List[Tuple[List['Constant'], bool]] = initiate_variable_recursion(variables, variable_domains, logical_constraints)
-    return [sol for sol, flag in sols if flag] # TODO: check if flag can ever be False here
+    return initiate_variable_recursion(variables, variable_domains, logical_constraints)
 
 
 def initiate_variable_recursion(variables: List['LogicalVariable'],
                                 domains: List[Set['Constant']],
-                                constraints: List['LogicalConstraint']) -> List[Tuple[List['Constant'], bool]]:
+                                constraints: List['LogicalConstraint']
+                                ) -> List[List[Tuple['LogicalVariable', 'Constant']]]:
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
-    variable_dict = {variable: {'domain': domain, 'equal_constants': set()} for variable, domain in zip(variables, domains)}
-    return recursively_construct_partial_sols(variables, variable_dict, constraints)
+    variable_dict = {variable: {'domain': domain, 'equal_constants': set(), 'substitution': None} for variable, domain in zip(variables, domains)}
+    sols: List[Tuple[List['Constant'], bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
+    return [sol for sol, flag in sols if flag] # TODO: check if flag can ever be False here
 
 
 def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
@@ -287,7 +307,7 @@ if __name__ == '__main__':
     atoms = [Atom(preds[0], [variables[0], variables[1]]),
              Atom(preds[1], [variables[1], constants[0]]),
              Atom(preds[2], [constants[0]]),
-             Atom(preds[1], [variables[1], variables[0]]),
+             Atom(preds[1], [variables[0], variables[1]]),
              Atom(preds[1], [variables[1], variables[0]]),
             ]
 
@@ -304,29 +324,29 @@ if __name__ == '__main__':
     # print(constraint_set)
     # print("get sol",get_solutions(constraint_set, variables[:2]))
 
+
     constraint_set2 = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
-                      # EqualityConstraint(variables[1], constants[1]),
-                      # InequalityConstraint(variables[0], variables[2]),
-                      EqualityConstraint(variables[1], variables[2]),
+                      InequalityConstraint(variables[1], constants[1]),
+                      InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
                       InclusionConstraint(variables[1], domains[0]),
-                      InclusionConstraint(variables[2], domains[0]),
                       # NotInclusionConstraint(variables[1], domains[1])
                       ])
     # print(constraint_set2)
     # print("get sol",get_solutions(constraint_set2, variables))
 
 
-    u_clause = UnconstrainedClause(literals)
-    c_clause = ConstrainedClause(u_clause, variables[:2], constraint_set)
-
-    c_atoms = get_constrained_atoms(c_clause)
+    u_clause = UnconstrainedClause(literals[0:1] + literals[3:])
+    c_clause1 = ConstrainedClause(u_clause, variables[:2], constraint_set)
+    c_clause2 = ConstrainedClause(u_clause, variables[:2], constraint_set2)
 
     c_atom1 = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
-    c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set)
+    c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set2)
     print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
-    print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
-    print("ARGUMENTS:", independent_constrained_atoms(c_atom1, c_atom2))
+    # print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
+    print("indep atom",constrained_atoms_independent(c_atom1, c_atom2))
 
     # print(have_same_predicate(c_atoms[1], c_atoms[2]))
+    print("C_Clauses:\n", c_clause1,'\n',c_clause2)
+    print("indep clause", constrained_clauses_independent(c_clause1, c_clause2))
 
