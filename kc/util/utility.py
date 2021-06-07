@@ -6,6 +6,7 @@ from kc.data_structures.cnf import *
 from kc.data_structures.literals import *
 from kc.data_structures.constraints import *
 from kc.data_structures.logicalterms import *
+from kc.data_structures.substitutions import *
 
 from copy import deepcopy
 from itertools import chain
@@ -117,17 +118,16 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set(), 'substitution': None} for variable, domain in zip(variables, domains)}
     sols: List[Tuple[Dict, bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
-    return [build_solution_dict_from_variable_dict(sol) for sol, flag in sols]
+    return [build_substitution_from_variable_dict(sol) for sol, flag in sols]
 
 
-def build_solution_dict_from_variable_dict(variable_dict: Dict) -> Dict:
+def build_substitution_from_variable_dict(variable_dict: Dict) -> Dict:
     """The variable dict is the state that is modified during recursion.
-    This function extracts just the solution (a substitution of constants for variables) from that.
+    This function creates a Substitution object from that variable dict
     """
-    solution_dict = dict()
-    for variable in variable_dict.keys():
-        solution_dict[variable] = variable_dict[variable]['substitution']
-    return solution_dict
+    variable_constant_pairs = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
+    substitution = Substitution(variable_constant_pairs)
+    return substitution
 
 
 
@@ -151,8 +151,8 @@ def recursively_construct_partial_sols(remaining_variables: List['LogicalVariabl
         return [(dict(), False)]
 
     constraints_involving_variable = get_relevant_logical_constraints(constraints, remaining_variables[0])
-    for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
-        next_variable_dict, valid_substitution = update_variable_dict_with_substitution(remaining_variables, variable_dict, constraints_involving_variable, substitution)
+    for potential_constant in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
+        next_variable_dict, valid_substitution = update_variable_dict_with_potential_constant(remaining_variables, variable_dict, constraints_involving_variable, potential_constant)
         if valid_substitution:
             partial_sols.append(next_variable_dict)
 
@@ -179,19 +179,19 @@ def copy_variable_dict(variable_dict: Dict) -> Dict:
     return {key: deepcopy(value) for key, value in variable_dict.items()}
 
 
-def update_variable_dict_with_substitution(remaining_variables: List['LogicalVariable'],
+def update_variable_dict_with_potential_constant(remaining_variables: List['LogicalVariable'],
                                   variable_dict: Dict,
                                   constraints: List['LogicalConstraint'],
-                                  substitution: 'Constant') -> Tuple[Dict, bool]:
-    """Update a variable dict with constraint information for a given substitution.
-    Returns an updated variable dict and a flag to say whether the constraint set is satisfiable with this substitution"""
-    next_variable_dict, valid_substitution = process_all_constraints(remaining_variables, variable_dict, constraints, substitution)
+                                  potential_constant: 'Constant') -> Tuple[Dict, bool]:
+    """Update a variable dict with constraint information for a given potential constant.
+    Returns an updated variable dict and a flag to say whether the constraint set is satisfiable with this potential constant"""
+    next_variable_dict, valid_substitution = process_all_constraints(remaining_variables, variable_dict, constraints, potential_constant)
     if valid_substitution: # only update the dict if the substitution is valid (otherwise next_variable_dict isn't used)
-        next_variable_dict[remaining_variables[0]]['substitution'] = substitution
+        next_variable_dict[remaining_variables[0]]['substitution'] = potential_constant
     return next_variable_dict, valid_substitution
 
 
-def process_constraint(remaining_variables: List['LogicalVariable'], variable_dict: Dict, constraint: 'LogicalConstraint', substitution: 'Constant') -> Tuple[Dict, bool]:
+def process_constraint(remaining_variables: List['LogicalVariable'], variable_dict: Dict, constraint: 'LogicalConstraint', potential_constant: 'Constant') -> Tuple[Dict, bool]:
     """Update a variable dict with the implications of a specific constraint for a specific substitution
     and return the new variable dict and a flag indicating if the constraint is satisfiable"""
     variable = remaining_variables[0]
@@ -202,27 +202,27 @@ def process_constraint(remaining_variables: List['LogicalVariable'], variable_di
     if isinstance(constraint, EqualityConstraint):
         if constraint.left_term == variable:
             if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
-                variable_dict[constraint.right_term]['equal_constants'].add(substitution)
-            elif isinstance(constraint.right_term, Constant) and constraint.right_term != substitution:
+                variable_dict[constraint.right_term]['equal_constants'].add(potential_constant)
+            elif isinstance(constraint.right_term, Constant) and constraint.right_term != potential_constant:
                 valid_substitution = False
 
         elif constraint.right_term == variable:
             if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
-                variable_dict[constraint.left_term]['equal_constants'].add(substitution)
-            elif isinstance(constraint.left_term, Constant) and constraint.left_term != substitution:
+                variable_dict[constraint.left_term]['equal_constants'].add(potential_constant)
+            elif isinstance(constraint.left_term, Constant) and constraint.left_term != potential_constant:
                 valid_substitution = False
 
     elif isinstance(constraint, InequalityConstraint):
         if constraint.left_term == variable:
             if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
-                variable_dict[constraint.right_term]['domain'].discard(substitution)
-            elif isinstance(constraint.right_term, Constant) and constraint.right_term == substitution:
+                variable_dict[constraint.right_term]['domain'].discard(potential_constant)
+            elif isinstance(constraint.right_term, Constant) and constraint.right_term == potential_constant:
                 valid_substitution = False
 
         elif constraint.right_term == variable:
             if isinstance(constraint.left_term, LogicalVariable) and constraint.left_term in remaining_variables: 
-                variable_dict[constraint.left_term]['domain'].discard(substitution)
-            elif isinstance(constraint.left_term, Constant) and constraint.left_term == substitution:
+                variable_dict[constraint.left_term]['domain'].discard(potential_constant)
+            elif isinstance(constraint.left_term, Constant) and constraint.left_term == potential_constant:
                 valid_substitution = False
     return variable_dict, valid_substitution
 
@@ -230,10 +230,10 @@ def process_constraint(remaining_variables: List['LogicalVariable'], variable_di
 def process_all_constraints(remaining_variables: List['LogicalVariable'],
                             variable_dict: Dict,
                             constraints: List['LogicalConstraint'],
-                            substitution: 'Constant') -> Tuple[Dict, bool]:
+                            potential_constant: 'Constant') -> Tuple[Dict, bool]:
     """Process a batch of constraints and return an updated variable dict"""
     for constraint in constraints:
-        next_variable_dict, valid_substitution = process_constraint(remaining_variables, variable_dict, constraint, substitution)
+        next_variable_dict, valid_substitution = process_constraint(remaining_variables, variable_dict, constraint, potential_constant)
         if not valid_substitution: # save time by moving on to next substitution
             return dict(), False
     return next_variable_dict, True
