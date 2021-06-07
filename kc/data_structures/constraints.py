@@ -21,7 +21,8 @@ class ConstraintSet:
 
     def __str__(self) -> str:
         constraint_strs = [f'({str(constraint)})' for constraint in self.constraints]
-        return f"({' AND '.join(constraint_strs)})"
+        logical_and_string = ' \u2227 '
+        return f"({logical_and_string.join(constraint_strs)})"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -61,7 +62,7 @@ class EqualityConstraint(LogicalConstraint):
         self.right_term = right_term
 
     def __str__(self) -> str:
-        return f'{self.left_term} == {self.right_term}'
+        return f'{self.left_term} = {self.right_term}'
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -77,7 +78,8 @@ class InequalityConstraint(LogicalConstraint):
         self.right_term = right_term
 
     def __str__(self) -> str:
-        return f'{self.left_term} != {self.right_term}'
+        not_equal_string = ' \u2260 '
+        return f'{self.left_term}{not_equal_string}{self.right_term}'
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -95,7 +97,8 @@ class InclusionConstraint(SetConstraint):
         self.domain_term = domain_term
 
     def __str__(self) -> str:
-        return f'{self.logical_term} IN {self.domain_term}'
+        element_of_string = ' \u2208 '
+        return f'{self.logical_term}{element_of_string}{self.domain_term}'
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -113,7 +116,8 @@ class NotInclusionConstraint(SetConstraint):
         self.domain_term = domain_term
 
     def __str__(self) -> str:
-        return f'{self.logical_term} NOT IN {self.domain_term}'
+        not_element_of_string = ' \u2209 '
+        return f'{self.logical_term}{not_element_of_string}{self.domain_term}'
 
     def __repr__(self) -> str:
         return self.__str__()

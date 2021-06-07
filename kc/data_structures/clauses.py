@@ -25,7 +25,8 @@ class UnconstrainedClause(Clause):
 
     def __str__(self) -> str:
         literal_strs = [str(literal) for literal in self.literals]
-        return f"({' OR '.join(literal_strs)})"
+        logical_or_string = ' \u2228 '
+        return f"({logical_or_string.join(literal_strs)})"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -46,7 +47,8 @@ class ConstrainedClause(Clause):
 
     def __str__(self) -> str:
         bound_vars_strs = [str(var) for var in self.bound_vars]
-        return f"FORALL {{{', '.join(bound_vars_strs)}}}, {self.cs} : {self.unconstrained_clause}"
+        for_all_string = '\u2200'
+        return f"{for_all_string}{{{', '.join(bound_vars_strs)}}}, {self.cs} : {self.unconstrained_clause}"
 
     def __repr__(self) -> str:
         return self.__str__()

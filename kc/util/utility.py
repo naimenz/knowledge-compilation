@@ -324,7 +324,7 @@ if __name__ == '__main__':
 
     c_atom1 = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
     c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set)
-    print("C_ATOMs:", c_atom1, c_atom2)
+    print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
     print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
     print("ARGUMENTS:", independent_constrained_atoms(c_atom1, c_atom2))
 
