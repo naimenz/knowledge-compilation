@@ -70,7 +70,8 @@ def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: '
                 return False
     return True
 
-def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List[List[Tuple['LogicalVariable', 'Constant']]]:
+
+def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List[Dict]:
     """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
     terms = c_atom.unconstrained_clause.literals[0].atom.terms
 
@@ -94,7 +95,7 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
 
 def get_solutions(cs: 'ConstraintSet',
                   variables: List['LogicalVariable']
-                 ) -> List[List[Tuple['LogicalVariable', 'Constant']]]:
+                 ) -> List[Dict]:
     """Get a list of solutions to the constraint set cs for specific variables.
     Returns a list of lists of tuples of (variable, substitution) pairs
 
@@ -111,37 +112,49 @@ def get_solutions(cs: 'ConstraintSet',
 def initiate_variable_recursion(variables: List['LogicalVariable'],
                                 domains: List[Set['Constant']],
                                 constraints: List['LogicalConstraint']
-                                ) -> List[List[Tuple['LogicalVariable', 'Constant']]]:
+                                ) -> List[Dict]:
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set(), 'substitution': None} for variable, domain in zip(variables, domains)}
-    sols: List[Tuple[List['Constant'], bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
-    return [sol for sol, flag in sols if flag] # TODO: check if flag can ever be False here
+    sols: List[Tuple[Dict, bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
+    return [build_solution_dict_from_variable_dict(sol) for sol, flag in sols]
+
+
+def build_solution_dict_from_variable_dict(variable_dict: Dict) -> Dict:
+    """The variable dict is the state that is modified during recursion.
+    This function extracts just the solution (a substitution of constants for variables) from that.
+    """
+    solution_dict = dict()
+    for variable in variable_dict.keys():
+        solution_dict[variable] = variable_dict[variable]['substitution']
+    return solution_dict
+
 
 
 def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
             variable_dict: Dict,
-            constraints: List['LogicalConstraint']) -> List[Tuple[List['Constant'], bool]]:
+            constraints: List['LogicalConstraint']
+            ) -> List[Tuple[Dict, bool]]:
     """Recursively construct the solutions for each substitution to 'variable'
-    Returns a list of lists of constants and a flag for satisfiability or unsatisfiability"""
+    Returns a list of tuples of a state dict and a flag for satisfiability or unsatisfiability"""
 
     # base case of recursion: no variables left
     if len(remaining_variables) == 0:
-        return [([], True)]
+        return [(variable_dict, True)]
 
     variable = remaining_variables[0]
-    partial_sols: List[Tuple['Constant', Dict]] = []
+    partial_sols: List[Dict] = []
     
     # before considering substitutions, we need to process equality constraints on the variable
     variable_dict, satisfiable = process_equalities(variable, variable_dict)
     if not satisfiable:
-        return [([], False)]
+        return [(dict(), False)]
 
     constraints_involving_variable = get_relevant_logical_constraints(constraints, remaining_variables[0])
     for substitution in variable_dict[variable]['domain']: # iterate over allowed constants for current variable
         next_variable_dict, valid_substitution = update_variable_dict_with_substitution(remaining_variables, variable_dict, constraints_involving_variable, substitution)
         if valid_substitution:
-            partial_sols.append((substitution, next_variable_dict))
+            partial_sols.append(next_variable_dict)
 
     # finally, we recurse on each partial solution
     return build_solutions(remaining_variables, constraints, partial_sols)
@@ -172,9 +185,9 @@ def update_variable_dict_with_substitution(remaining_variables: List['LogicalVar
                                   substitution: 'Constant') -> Tuple[Dict, bool]:
     """Update a variable dict with constraint information for a given substitution.
     Returns an updated variable dict and a flag to say whether the constraint set is satisfiable with this substitution"""
-    # now follows a lot of messy logic to update the allowed constants for each variable
     next_variable_dict, valid_substitution = process_all_constraints(remaining_variables, variable_dict, constraints, substitution)
-    # after all constraints are done, we check if this solution is still feasible
+    if valid_substitution: # only update the dict if the substitution is valid (otherwise next_variable_dict isn't used)
+        next_variable_dict[remaining_variables[0]]['substitution'] = substitution
     return next_variable_dict, valid_substitution
 
 
@@ -228,13 +241,12 @@ def process_all_constraints(remaining_variables: List['LogicalVariable'],
 
 def build_solutions(remaining_variables: List['LogicalVariable'],
                     constraints: List['LogicalConstraint'],
-                    partial_sols: List[Tuple['Constant', Dict]]) -> List[Tuple[List['Constant'], bool]]:
+                    partial_sols: List[Dict]) -> List[Tuple[Dict, bool]]:
     """Construct solutions recursively using the valid substitutions found and the information propagated in the variable dicts"""
     all_solutions = []
-    for sub, next_variable_dict in partial_sols:
-        recursive_solutions = [sol for sol, flag in recursively_construct_partial_sols(remaining_variables[1:], next_variable_dict, constraints) if flag]
-        solutions = [([sub] + sol, True) for sol in recursive_solutions]
-        all_solutions += solutions
+    for next_variable_dict in partial_sols:
+        recursive_solutions = recursively_construct_partial_sols(remaining_variables[1:], next_variable_dict, constraints)
+        all_solutions += recursive_solutions
     # add all solutions together and return
     return all_solutions
 
