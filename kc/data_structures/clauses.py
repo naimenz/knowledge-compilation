@@ -102,6 +102,11 @@ class ConstrainedAtom(UnitClause):
         assert(unconstrained_clause.literals[0].polarity) # ensure that it is not negated
         super(ConstrainedAtom, self).__init__(unconstrained_clause, bound_vars, cs)
 
+    @property
+    def atom(self) -> 'Atom':
+        """Get the atom from the unconstrained clause"""
+        return self.unconstrained_clause.literals[0].atom
+
 
 if __name__ == '__main__':
     pred1 = Predicate('smokes', 1)

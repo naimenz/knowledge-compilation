@@ -44,14 +44,15 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'Constrai
     if not have_same_predicate(c_atom1, c_atom2):
         return True
     
-    # next, get the solutions to each constrained atom
     sols1 = get_solutions_to_constrained_atom(c_atom1)
     sols2 = get_solutions_to_constrained_atom(c_atom2)
 
+    ground_atoms1 = [GroundAtom.build_from_atom_substitution(c_atom1.atom, sol) for sol in sols1]
+    ground_atoms2 = [GroundAtom.build_from_atom_substitution(c_atom2.atom, sol) for sol in sols2]
     # TODO: make this intersection checking more elegant
-    for sol in sols1:
-        # ground_atom = 
-        if sol in sols2:
+    print(ground_atoms1, '\n', ground_atoms2)
+    for ground_atom in ground_atoms1:
+        if ground_atom in ground_atoms2:
             return False
     return True
 
@@ -88,8 +89,8 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
 
     NOTE: As currently written, the two predicates must be literally the same object, not just have the same
     name and arity"""
-    predicate1 = c_atom1.unconstrained_clause.literals[0].atom.predicate
-    predicate2 = c_atom2.unconstrained_clause.literals[0].atom.predicate
+    predicate1 = c_atom1.atom.predicate
+    predicate2 = c_atom2.atom.predicate
     return predicate1 == predicate2
 
 
@@ -325,7 +326,8 @@ if __name__ == '__main__':
     literals = [Literal(atoms[0], True), Literal(atoms[1], False), Literal(atoms[2], False), Literal(atoms[3], True), Literal(atoms[4], True) ]
     domains = [SetOfConstants(constants), SetOfConstants(constants[:2])]
 
-    constraint_set = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
+    constraint_set = ConstraintSet([
+                      # EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
@@ -336,7 +338,8 @@ if __name__ == '__main__':
     # print("get sol",get_solutions(constraint_set, variables[:2]))
 
 
-    constraint_set2 = ConstraintSet([EqualityConstraint(variables[0], constants[0]),
+    constraint_set2 = ConstraintSet([
+                      # EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
@@ -355,9 +358,9 @@ if __name__ == '__main__':
     c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set2)
     print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
     # print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
-    print("indep atom",constrained_atoms_independent(c_atom1, c_atom2))
+    print("Are the c-atoms independent?",constrained_atoms_independent(c_atom1, c_atom2))
 
     # print(have_same_predicate(c_atoms[1], c_atoms[2]))
     print("C_Clauses:\n", c_clause1,'\n',c_clause2)
-    print("indep clause", constrained_clauses_independent(c_clause1, c_clause2))
+    print("Are the c-clauses independent?", constrained_clauses_independent(c_clause1, c_clause2))
 
