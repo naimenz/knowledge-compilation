@@ -44,15 +44,36 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'Constrai
     if not have_same_predicate(c_atom1, c_atom2):
         return True
     
-    sols1 = get_solutions_to_constrained_atom(c_atom1)
-    sols2 = get_solutions_to_constrained_atom(c_atom2)
+    ground_atoms1 = get_constrained_atom_grounding(c_atom1)
+    ground_atoms2 = get_constrained_atom_grounding(c_atom2)
 
-    ground_atoms1 = [GroundAtom.build_from_atom_substitution(c_atom1.atom, sol) for sol in sols1]
-    ground_atoms2 = [GroundAtom.build_from_atom_substitution(c_atom2.atom, sol) for sol in sols2]
-    # TODO: make this intersection checking more elegant
-    print(ground_atoms1, '\n', ground_atoms2)
+    # if they share a ground atom, then they are not independent
     for ground_atom in ground_atoms1:
         if ground_atom in ground_atoms2:
+            return False
+    return True
+
+def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAtom']:
+    """Return a list of all ground atoms in the grounding of a constrained atom"""
+    sols = get_solutions_to_constrained_atom(c_atom)
+    ground_atoms = [GroundAtom.build_from_atom_substitution(c_atom.atom, sol) for sol in sols]
+
+    return ground_atoms
+
+def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
+    """Check whether one constrained atom implies another.
+    I.e. check whether the subsumer subsumes the subsumed"""
+    # first, check if they have the same predicate, otherwise they cannot subsume
+    if not have_same_predicate(subsumer, subsumed):
+        return False
+    
+    subsumer_ground_atoms = get_constrained_atom_grounding(subsumer)
+    subsumed_ground_atoms = get_constrained_atom_grounding(subsumed)
+
+    # if there is a ground atom in the subsumed that does not appear in the subsumer, then
+    # it is not subsumed
+    for ground_atom in subsumed_ground_atoms:
+        if not ground_atom in subsumer_ground_atoms:
             return False
     return True
 
@@ -128,7 +149,6 @@ def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution'
     variable_constant_pairs: List[Tuple['LogicalVariable', 'Constant']] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
     substitution = Substitution(variable_constant_pairs)
     return substitution
-
 
 
 def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
@@ -326,26 +346,29 @@ if __name__ == '__main__':
     literals = [Literal(atoms[0], True), Literal(atoms[1], False), Literal(atoms[2], False), Literal(atoms[3], True), Literal(atoms[4], True) ]
     domains = [SetOfConstants(constants), SetOfConstants(constants[:2])]
 
-    constraint_set = ConstraintSet([
+    constraints = [
                       # EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
                       InclusionConstraint(variables[1], domains[0]),
                       # NotInclusionConstraint(variables[1], domains[1])
-                      ])
+                      ]
+    constraint_set = ConstraintSet(constraints)
     # print(constraint_set)
     # print("get sol",get_solutions(constraint_set, variables[:2]))
 
 
-    constraint_set2 = ConstraintSet([
+    constraints2 =[
                       # EqualityConstraint(variables[0], constants[0]),
                       InequalityConstraint(variables[1], constants[1]),
                       InequalityConstraint(variables[0], variables[1]),
                       InclusionConstraint(variables[0], domains[0]),
                       InclusionConstraint(variables[1], domains[0]),
                       # NotInclusionConstraint(variables[1], domains[1])
-                      ])
+                      ]
+
+    constraint_set2 = ConstraintSet(constraints2)
     # print(constraint_set2)
     # print("get sol",get_solutions(constraint_set2, variables))
 
@@ -359,8 +382,16 @@ if __name__ == '__main__':
     print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
     # print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
     print("Are the c-atoms independent?",constrained_atoms_independent(c_atom1, c_atom2))
+    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(c_atom1, c_atom2))
+    print(get_constrained_atom_grounding(c_atom1))
+    print(get_constrained_atom_grounding(c_atom2))
 
     # print(have_same_predicate(c_atoms[1], c_atoms[2]))
     print("C_Clauses:\n", c_clause1,'\n',c_clause2)
     print("Are the c-clauses independent?", constrained_clauses_independent(c_clause1, c_clause2))
+
+    subsumed = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set)
+    subsumer = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], ConstraintSet(constraints[1:]))
+    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumer, subsumed))
+    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumed, subsumer))
 
