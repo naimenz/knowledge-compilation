@@ -10,7 +10,7 @@ class Substitution:
     """A FOL substitution.
     This contains a dictionary of logical variables and their constants
     """
-    def __init__(self, variable_constant_pairs: List[Tuple['LogicalVariable, Constant']]) -> None:
+    def __init__(self, variable_constant_pairs: List[Tuple['LogicalVariable', 'Constant']]) -> None:
         """The substitution dict is private and shouldn't be changed after creation"""
         self._substitution_dict = {var: const for var, const in variable_constant_pairs}
 

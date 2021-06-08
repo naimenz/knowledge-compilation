@@ -47,7 +47,6 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'Constrai
     # next, get the solutions to each constrained atom
     sols1 = get_solutions_to_constrained_atom(c_atom1)
     sols2 = get_solutions_to_constrained_atom(c_atom2)
-    print(sols1,'\n', sols2)
 
     # TODO: make this intersection checking more elegant
     for sol in sols1:
@@ -72,7 +71,7 @@ def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: '
     return True
 
 
-def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List[Dict]:
+def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> List['Substitution']:
     """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
     terms = c_atom.unconstrained_clause.literals[0].atom.terms
 
@@ -96,7 +95,7 @@ def have_same_predicate(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') 
 
 def get_solutions(cs: 'ConstraintSet',
                   variables: List['LogicalVariable']
-                 ) -> List[Dict]:
+                 ) -> List['Substitution']:
     """Get a list of solutions to the constraint set cs for specific variables.
     Returns a list of lists of tuples of (variable, substitution) pairs
 
@@ -113,7 +112,7 @@ def get_solutions(cs: 'ConstraintSet',
 def initiate_variable_recursion(variables: List['LogicalVariable'],
                                 domains: List[Set['Constant']],
                                 constraints: List['LogicalConstraint']
-                                ) -> List[Dict]:
+                                ) -> List['Substitution']:
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set(), 'substitution': None} for variable, domain in zip(variables, domains)}
@@ -121,11 +120,11 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
     return [build_substitution_from_variable_dict(sol) for sol, flag in sols]
 
 
-def build_substitution_from_variable_dict(variable_dict: Dict) -> Dict:
+def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution':
     """The variable dict is the state that is modified during recursion.
     This function creates a Substitution object from that variable dict
     """
-    variable_constant_pairs = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
+    variable_constant_pairs: List[Tuple['LogicalVariable', 'Constant']] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
     substitution = Substitution(variable_constant_pairs)
     return substitution
 
