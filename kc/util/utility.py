@@ -14,6 +14,15 @@ from itertools import chain
 from typing import List, Tuple, Set, Dict, cast
 
 
+def get_constrained_atom_mgu(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> Substitution:
+    """Get the mgu (most general unifier) between two constrained atoms, and return it as a substitution.
+
+    NOTE: This assumes that the two c_atoms are not independent, which should have been checked earlier."""
+    # we check each term in turn, seeing if they are the same or different, and whether they can be reconciled
+    for term1, term2 in zip(c_atom1.atom.terms, c_atom2.atom.terms):
+        print(term1, term2)
+
+
 def get_constrained_atoms(clause: 'ConstrainedClause') -> List['ConstrainedAtom']:
     """For a given clause, return a list of all the constrained atoms in the clause"""
     constrained_atoms = []
@@ -146,7 +155,7 @@ def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution'
     """The variable dict is the state that is modified during recursion.
     This function creates a Substitution object from that variable dict
     """
-    variable_constant_pairs: List[Tuple['LogicalVariable', 'Constant']] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
+    variable_constant_pairs: List[Tuple['LogicalVariable', 'LogicalTerm']] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
     substitution = Substitution(variable_constant_pairs)
     return substitution
 
@@ -333,7 +342,7 @@ def get_all_logical_constraints(cs: 'ConstraintSet') -> List['LogicalConstraint'
 
 if __name__ == '__main__':
     preds = [Predicate('smokes', 2), Predicate('friends', 2), Predicate('fun', 1)]
-    constants = [Constant('a'), Constant('b'), Constant('c')]
+    constants: List['Constant'] = [Constant('a'), Constant('b'), Constant('c')]
     variables = [LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')]
 
     atoms = [Atom(preds[0], [variables[0], variables[1]]),
@@ -390,8 +399,9 @@ if __name__ == '__main__':
     print("C_Clauses:\n", c_clause1,'\n',c_clause2)
     print("Are the c-clauses independent?", constrained_clauses_independent(c_clause1, c_clause2))
 
-    subsumed = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set)
-    subsumer = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], ConstraintSet(constraints[1:]))
+    subsumed = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
+    subsumer = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], ConstraintSet(constraints[1:]))
     print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumer, subsumed))
     print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumed, subsumer))
 
+    print(get_constrained_atom_mgu(subsumer, subsumed))
