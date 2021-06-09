@@ -18,9 +18,29 @@ def get_constrained_atom_mgu(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAt
     """Get the mgu (most general unifier) between two constrained atoms, and return it as a substitution.
 
     NOTE: This assumes that the two c_atoms are not independent, which should have been checked earlier."""
-    # we check each term in turn, seeing if they are the same or different, and whether they can be reconciled
-    for term1, term2 in zip(c_atom1.atom.terms, c_atom2.atom.terms):
-        print(term1, term2)
+    # first, try to unify the unconstrained atoms
+    u_atom1 = c_atom1.atom
+    u_atom2 = c_atom2.atom
+    var_term_pairs: List[Tuple['LogicalVariable', 'LogicalTerm']] = []
+    # TODO: Really think through how I should construct this substitution
+    for term1, term2 in zip(u_atom1.terms, u_atom2.terms):
+        if term1 != term2:
+            # since we assumed the two aren't independent, at least one of these terms must be a variable
+            if isinstance(term1, LogicalVariable):
+                # check that we aren't already substituting these variables
+                if any(term1 in pair for pair in var_term_pair):
+                    continue
+                if isinstance(term2, LogicalVariable):
+                    if any(term2 in pair for pair in var_term_pair):
+                        continue
+                var_term_pair = (term1, term2)
+            elif isinstance(term1, Constant) and isinstance(term2, LogicalVariable):
+                if any(term1 in pair for pair in var_term_pair):
+                var_term_pair = (term2, term1)
+            else:
+                raise ValueError('c_atoms {c_atom1}, {c_atom2} should not be independent')
+            var_term_pairs.append(var_term_pair)
+
 
 
 def get_constrained_atoms(clause: 'ConstrainedClause') -> List['ConstrainedAtom']:
@@ -404,4 +424,5 @@ if __name__ == '__main__':
     print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumer, subsumed))
     print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumed, subsumer))
 
+    print("MGU print")
     print(get_constrained_atom_mgu(subsumer, subsumed))
