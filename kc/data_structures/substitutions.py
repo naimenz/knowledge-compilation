@@ -3,19 +3,26 @@ Classes for substitutions.
 """
 from kc.data_structures.logicalterms import *
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Iterable
+
+# defining type alias to simplify type hinting
+VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
 
 class Substitution:
     """A FOL substitution.
     This contains a dictionary of logical variables and their substitutions (which are terms)
     """
-    def __init__(self, variable_term_pairs: List[Tuple['LogicalVariable', 'LogicalTerm']]) -> None:
+    def __init__(self, variable_term_pairs: List[VarTermPair]) -> None:
         """The substitution dict is private and shouldn't be changed after creation"""
         self._substitution_dict = {var: term for var, term in variable_term_pairs}
 
     def __getitem__(self, key: 'LogicalVariable') -> 'LogicalTerm':
         """Return the term associated with a given variable"""
         return self._substitution_dict[key]
+
+    def mappings(self) -> Iterable[VarTermPair]:
+        """Return an iterator of the mappings in this substitution."""
+        return self._substitution_dict.items()
 
     def __eq__(self, other: Any) -> bool:
         """Two substitutions are equal if they have all the same (variable, term) pairs"""

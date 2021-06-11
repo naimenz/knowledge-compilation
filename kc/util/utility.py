@@ -13,33 +13,137 @@ from itertools import chain
 
 from typing import List, Tuple, Set, Dict, cast
 
+# defining type alias to simplify type hinting
+VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
 
-def get_constrained_atom_mgu(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> Substitution:
+
+def get_constrained_atom_mgu(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> 'Substitution':
     """Get the mgu (most general unifier) between two constrained atoms, and return it as a substitution.
 
     NOTE: This assumes that the two c_atoms are not independent, which should have been checked earlier."""
     # first, try to unify the unconstrained atoms
     u_atom1 = c_atom1.atom
     u_atom2 = c_atom2.atom
-    var_term_pairs: List[Tuple['LogicalVariable', 'LogicalTerm']] = []
+    var_term_pair: VarTermPair
+    var_term_pairs: List[VarTermPair] = []
     # TODO: Really think through how I should construct this substitution
     for term1, term2 in zip(u_atom1.terms, u_atom2.terms):
         if term1 != term2:
             # since we assumed the two aren't independent, at least one of these terms must be a variable
             if isinstance(term1, LogicalVariable):
                 # check that we aren't already substituting these variables
-                if any(term1 in pair for pair in var_term_pair):
+                if any(term1 in pair for pair in var_term_pairs):
                     continue
                 if isinstance(term2, LogicalVariable):
-                    if any(term2 in pair for pair in var_term_pair):
+                    if any(term2 in pair for pair in var_term_pairs):
                         continue
                 var_term_pair = (term1, term2)
             elif isinstance(term1, Constant) and isinstance(term2, LogicalVariable):
-                if any(term1 in pair for pair in var_term_pair):
+                if any(term1 in pair for pair in var_term_pairs):
+                    var_term_pair = (term2, term1)
+            else:
+                raise ValueError('c_atoms {c_atom1}, {c_atom2} should not be independent')
+            var_term_pairs.append(var_term_pair)
+
+
+def get_unconstrained_atom_mgu(u_atom1: 'Atom', u_atom2: 'Atom') -> 'Substitution':
+    """Get the mgu between two unconstrained atoms and return it as a substitution.
+
+    NOTE: This assumes that the two u_atoms are not independent"""
+    var_term_pair: VarTermPair
+    var_term_pairs: List[VarTermPair] = []
+    # TODO: Really think through how I should construct this substitution
+    for term1, term2 in zip(u_atom1.terms, u_atom2.terms):
+        if term1 != term2:
+            # since we assumed the two aren't independent, at least one of these terms must be a variable
+            if isinstance(term1, LogicalVariable):
+                # check that we aren't already substituting the left variable
+                if variable_already_substituted_incompatibly(term1, term2, var_term_pairs):
+                    pass
+                var_term_pair = (term1, term2)
+            elif isinstance(term1, Constant) and isinstance(term2, LogicalVariable):
                 var_term_pair = (term2, term1)
             else:
                 raise ValueError('c_atoms {c_atom1}, {c_atom2} should not be independent')
             var_term_pairs.append(var_term_pair)
+
+    print(var_term_pairs)
+    print(Substitution(var_term_pairs))
+    return simplify_substitution(Substitution(var_term_pairs))
+
+def variable_already_substituted_incompatibly(variable: 'LogicalVariable',
+                                 term: 'LogicalTerm',
+                                 var_term_pairs: List[VarTermPair]
+                                 ) -> bool:
+    """Given a variable, a term and a list of tuples for substitutions, return True if the variable is 
+    already being substituted to some term that is not 'term'"""
+    for pair in var_term_pairs:
+        if pair[0] == variable:
+            return True
+    return False
+
+
+def simplify_substitution(substitution: 'Substitution') -> 'Substitution':
+    """Sometimes substitutions contain redundancies that can be removed with transitivity.
+    This function finds those redundancies and returns an equivalent substitution with them removed.
+
+    NOTE: This assumes that substitutions are applied 'iteratively' until the formula doesn't change any more.
+    """
+    # the key here is to identify variables that appear on the left of some mapping and the right of some other mapping
+    overlap = find_repeated_variables_in_substitution(substitution)
+    while len(overlap) > 0:
+        # grab a random variable that appears on both sides
+        current_var = overlap.pop() 
+        substitution = remove_transitivity_redundant_mappings(substitution, current_var)
+        substitution = remove_equality_redundant_mappings(substitution)
+        overlap = find_repeated_variables_in_substitution(substitution)
+    # if there is no overlap, we are done and return straight away
+    return substitution
+
+def find_repeated_variables_in_substitution(substitution: 'Substitution') -> Set['LogicalVariable']:
+    """Return a set of variables that appear on the left of some mapping and on the right of some other mapping
+    in the substitution"""
+    left_vars = set()
+    right_vars = set()
+    for mapping in substitution.mappings():
+        left_var = mapping[0]
+        right_term = mapping[1]
+        left_vars.add(left_var)
+        if isinstance(right_term, LogicalVariable):
+            right_vars.add(right_term)
+    overlap = left_vars.intersection(right_vars)
+    return overlap
+
+def remove_transitivity_redundant_mappings(substitution: 'Substitution', variable: 'LogicalVariable') -> 'Substitution':
+    """Return a substitution with transitivity redundant (e.g. X -> Y, Y -> Z)  mappings involving a specific variable removed"""
+    # find mappings where variable is on the right and one where it is on the left
+    # and save the rest to a new list
+    saved_mappings = []
+    right_mappings = []
+    for mapping in substitution.mappings():
+        if mapping[0] == variable:
+            found_transitive_redundancy = True
+            left_mapping = mapping
+            saved_mappings.append(left_mapping)
+        elif mapping[1] == variable:
+            right_mappings.append(mapping)
+        else:
+            saved_mappings.append(mapping)
+    # add a new mapping for each right mapping that we remove,
+    # simplifying by transitivity
+    new_mappings = [(right_mapping[0], left_mapping[1]) for right_mapping in right_mappings]
+    # build a new simplified substitution
+    substitution = Substitution(saved_mappings + new_mappings)
+    return substitution
+
+def remove_equality_redundant_mappings(substitution: 'Substitution') -> 'Substitution':
+    """Return a substitution with all equality redundant (e.g. X = X) mapping removed"""
+    saved_mappings = []
+    for mapping in substitution.mappings():
+        if mapping[0] != mapping[1]:
+            saved_mappings.append(mapping)
+    return Substitution(saved_mappings)
+
 
 
 
@@ -175,7 +279,7 @@ def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution'
     """The variable dict is the state that is modified during recursion.
     This function creates a Substitution object from that variable dict
     """
-    variable_constant_pairs: List[Tuple['LogicalVariable', 'LogicalTerm']] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
+    variable_constant_pairs: List[VarTermPair] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
     substitution = Substitution(variable_constant_pairs)
     return substitution
 
@@ -361,68 +465,76 @@ def get_all_logical_constraints(cs: 'ConstraintSet') -> List['LogicalConstraint'
 
 
 if __name__ == '__main__':
-    preds = [Predicate('smokes', 2), Predicate('friends', 2), Predicate('fun', 1)]
-    constants: List['Constant'] = [Constant('a'), Constant('b'), Constant('c')]
-    variables = [LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')]
+    # preds = [Predicate('smokes', 2), Predicate('friends', 2), Predicate('fun', 1)]
+    # constants: List['Constant'] = [Constant('a'), Constant('b'), Constant('c')]
+    # variables = [LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')]
 
-    atoms = [Atom(preds[0], [variables[0], variables[1]]),
-             Atom(preds[1], [variables[1], constants[0]]),
-             Atom(preds[2], [constants[0]]),
-             Atom(preds[1], [variables[0], variables[1]]),
-             Atom(preds[1], [variables[1], variables[0]]),
-            ]
+    # atoms = [Atom(preds[0], [variables[0], variables[1]]),
+    #          Atom(preds[1], [variables[1], constants[0]]),
+    #          Atom(preds[2], [constants[0]]),
+    #          Atom(preds[1], [variables[0], variables[1]]),
+    #          Atom(preds[1], [variables[1], variables[0]]),
+    #         ]
 
-    literals = [Literal(atoms[0], True), Literal(atoms[1], False), Literal(atoms[2], False), Literal(atoms[3], True), Literal(atoms[4], True) ]
-    domains = [SetOfConstants(constants), SetOfConstants(constants[:2])]
+    # literals = [Literal(atoms[0], True), Literal(atoms[1], False), Literal(atoms[2], False), Literal(atoms[3], True), Literal(atoms[4], True) ]
+    # domains = [SetOfConstants(constants), SetOfConstants(constants[:2])]
 
-    constraints = [
-                      # EqualityConstraint(variables[0], constants[0]),
-                      InequalityConstraint(variables[1], constants[1]),
-                      InequalityConstraint(variables[0], variables[1]),
-                      InclusionConstraint(variables[0], domains[0]),
-                      InclusionConstraint(variables[1], domains[0]),
-                      # NotInclusionConstraint(variables[1], domains[1])
-                      ]
-    constraint_set = ConstraintSet(constraints)
-    # print(constraint_set)
-    # print("get sol",get_solutions(constraint_set, variables[:2]))
-
-
-    constraints2 =[
-                      # EqualityConstraint(variables[0], constants[0]),
-                      InequalityConstraint(variables[1], constants[1]),
-                      InequalityConstraint(variables[0], variables[1]),
-                      InclusionConstraint(variables[0], domains[0]),
-                      InclusionConstraint(variables[1], domains[0]),
-                      # NotInclusionConstraint(variables[1], domains[1])
-                      ]
-
-    constraint_set2 = ConstraintSet(constraints2)
-    # print(constraint_set2)
-    # print("get sol",get_solutions(constraint_set2, variables))
+    # constraints = [
+    #                   # EqualityConstraint(variables[0], constants[0]),
+    #                   InequalityConstraint(variables[1], constants[1]),
+    #                   InequalityConstraint(variables[0], variables[1]),
+    #                   InclusionConstraint(variables[0], domains[0]),
+    #                   InclusionConstraint(variables[1], domains[0]),
+    #                   # NotInclusionConstraint(variables[1], domains[1])
+    #                   ]
+    # constraint_set = ConstraintSet(constraints)
+    # # print(constraint_set)
+    # # print("get sol",get_solutions(constraint_set, variables[:2]))
 
 
-    u_clause = UnconstrainedClause(literals[0:1] + literals[3:])
-    c_clause1 = ConstrainedClause(u_clause, variables[:2], constraint_set)
-    c_clause2 = ConstrainedClause(u_clause, variables[:2], constraint_set2)
+    # constraints2 =[
+    #                   # EqualityConstraint(variables[0], constants[0]),
+    #                   InequalityConstraint(variables[1], constants[1]),
+    #                   InequalityConstraint(variables[0], variables[1]),
+    #                   InclusionConstraint(variables[0], domains[0]),
+    #                   InclusionConstraint(variables[1], domains[0]),
+    #                   # NotInclusionConstraint(variables[1], domains[1])
+    #                   ]
 
-    c_atom1 = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
-    c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set2)
-    print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
-    # print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
-    print("Are the c-atoms independent?",constrained_atoms_independent(c_atom1, c_atom2))
-    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(c_atom1, c_atom2))
-    print(get_constrained_atom_grounding(c_atom1))
-    print(get_constrained_atom_grounding(c_atom2))
+    # constraint_set2 = ConstraintSet(constraints2)
+    # # print(constraint_set2)
+    # # print("get sol",get_solutions(constraint_set2, variables))
 
-    # print(have_same_predicate(c_atoms[1], c_atoms[2]))
-    print("C_Clauses:\n", c_clause1,'\n',c_clause2)
-    print("Are the c-clauses independent?", constrained_clauses_independent(c_clause1, c_clause2))
 
-    subsumed = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
-    subsumer = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], ConstraintSet(constraints[1:]))
-    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumer, subsumed))
-    print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumed, subsumer))
+    # u_clause = UnconstrainedClause(literals[0:1] + literals[3:])
+    # c_clause1 = ConstrainedClause(u_clause, variables[:2], constraint_set)
+    # c_clause2 = ConstrainedClause(u_clause, variables[:2], constraint_set2)
 
+    # c_atom1 = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
+    # c_atom2 = ConstrainedAtom(UnconstrainedClause([literals[-1]]), variables[:2], constraint_set2)
+    # print("C_ATOMs:\n", c_atom1,'\n', c_atom2)
+    # # print("ARGUMENTS:", get_solutions_to_constrained_atom(c_atom1))
+    # print("Are the c-atoms independent?",constrained_atoms_independent(c_atom1, c_atom2))
+    # print("Are the c-atoms subsumed?",constrained_atoms_subsumed(c_atom1, c_atom2))
+    # print(get_constrained_atom_grounding(c_atom1))
+    # print(get_constrained_atom_grounding(c_atom2))
+
+    # # print(have_same_predicate(c_atoms[1], c_atoms[2]))
+    # print("C_Clauses:\n", c_clause1,'\n',c_clause2)
+    # print("Are the c-clauses independent?", constrained_clauses_independent(c_clause1, c_clause2))
+
+    # subsumed = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], constraint_set)
+    # subsumer = ConstrainedAtom(UnconstrainedClause([literals[-2]]), variables[:2], ConstraintSet(constraints[1:]))
+    # print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumer, subsumed))
+    # print("Are the c-atoms subsumed?",constrained_atoms_subsumed(subsumed, subsumer))
+
+    p_pred = Predicate('p', 3)
+    a, b = Constant('a'), Constant('b')
+    X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
+    u_atom1 = Atom(p_pred, [X, X, a])
+    u_atom2 = Atom(p_pred, [Y, Z, Z])
     print("MGU print")
-    print(get_constrained_atom_mgu(subsumer, subsumed))
+    sub = get_unconstrained_atom_mgu(u_atom1, u_atom2)
+    print(sub)
+
+    # print(get_constrained_atom_mgu(subsumer, subsumed))
