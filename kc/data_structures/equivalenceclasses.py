@@ -17,6 +17,7 @@ class EquivalenceClass:
     def members(self) -> Set['LogicalTerm']:
         return self._members
 
+    @property
     def is_consistent(self) -> bool:
         """If this equivalence class contains an obvious contradiction (i.e. two different constants)
         then it is inconsistent and we return False"""
@@ -27,9 +28,14 @@ class EquivalenceClass:
                         return False
         return True
 
+    @property
     def is_inconsistent(self) -> bool:
         """Negation of is_consistent (for convenience)"""
-        return not self.is_consistent()
+        return not self.is_consistent
+
+    def overlaps(self, other: 'EquivalenceClass') -> bool:
+        """Returns True if there is an element shared by this EquivalenceClass and the other"""
+        return len(self.members.intersection(other.members)) > 0
 
     def join(self, other: 'EquivalenceClass') -> 'EquivalenceClass':
         """Create a larger equivalence class by adding the members of another"""
@@ -41,14 +47,4 @@ class EquivalenceClass:
 
     def __repr__(self) -> str:
         return self.__str__()
-
-if __name__ == '__main__': 
-    a, b, c = Constant('a'), Constant('b'), Constant('c')
-    X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z') 
-    eq_class1 = EquivalenceClass([a, b])
-    eq_class2 = EquivalenceClass([X, Y])
-    print(eq_class1.is_inconsistent())
-    print(eq_class2.is_inconsistent())
-    print(eq_class1.join(eq_class2).is_consistent())
-
 

@@ -110,25 +110,3 @@ class Predicate:
     def __repr__(self) -> str:
         return self.__str__()
 
-if __name__ == '__main__':
-    pred = Predicate('smokes', 4)
-    pred2 = Predicate('smokes', 4)
-    print(pred)
-    print(pred == pred2)
-
-    terms: List[Any] = [Constant('a'), LogicalVariable('X'), Constant('b'), LogicalVariable('Y')]
-    atom = Atom(pred, terms)
-    print(atom)
-
-    ground_atom = Atom(pred, [terms[0], terms[2], terms[0], terms[0]])
-    print("ground atom",ground_atom)
-
-    substitution = Substitution([(terms[1], terms[0]), (terms[3], terms[2])])
-    built_atom = GroundAtom.build_from_atom_substitution(atom, substitution)
-    print("built atom", built_atom)
-
-    literal = Literal(atom, False)
-    print(literal)
-
-
-

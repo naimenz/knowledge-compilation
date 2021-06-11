@@ -24,11 +24,19 @@ class Substitution:
         """Return an iterator of the mappings in this substitution."""
         return self._substitution_dict.items()
 
+    def __iter__(self):
+        return iter(self.mappings())
+
     def __eq__(self, other: Any) -> bool:
         """Two substitutions are equal if they have all the same (variable, term) pairs"""
         if not isinstance(other, Substitution):
             return False
         return self._substitution_dict == other._substitution_dict
+
+    def __hash__(self) -> int:
+        """Hashing so I can remove duplicates with sets"""
+        return hash(tuple((key, val) for key, val in self._substitution_dict.items()))
+
     def __str__(self) -> str:
         rightarrow_string = ' \u2192 '
         substitution_strings = [str(v) + rightarrow_string + str(t) for v, t in self._substitution_dict.items()]
@@ -36,21 +44,5 @@ class Substitution:
 
     def __repr__(self) -> str:
         return self.__str__()
-
-
-if __name__ == '__main__': 
-    variables = [LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')]
-    sub_constants: List['LogicalTerm'] = [Constant('a'), Constant('b'), Constant('a')]
-
-    pairs = [(v, c) for v, c in zip(variables, sub_constants)]
-    substitution = Substitution(pairs)
-    print(substitution)
-    print(substitution[variables[0]])
-    print(substitution == substitution)
-    sub2 = Substitution(pairs[1::-1])
-    print(sub2)
-    print(substitution == sub2)
-    
-
 
 

@@ -7,17 +7,30 @@ are considered.
 
 from kc.data_structures.logicalterms import *
 from kc.data_structures.domainterms import *
+
 from abc import ABC
 
-from typing import List, Any
+from typing import List, Iterable, Any
 
 class ConstraintSet:
     """A FOL-DC constraint set.
     This consists of a set of constraints, which form a conjunction.
     """
 
-    def __init__(self, constraints: List['Constraint']) -> None:
-        self.constraints = constraints
+    def __init__(self, constraints: Iterable['Constraint']) -> None:
+        self._constraints = set(constraints)
+
+    @property
+    def constraints(self) -> Set['Constraint']:
+        return self._constraints
+
+    def join(self, other: 'ConstraintSet') -> 'ConstraintSet':
+        """Create a ConstraintSet by joining together the constraints of two constraint sets"""
+        new_constraints = self.constraints.union(other.constraints)
+        return ConstraintSet(new_constraints)
+
+    def __iter__(self):
+        return iter(self.constraints)
 
     def __eq__(self, other: Any) -> bool:
         """Two constraint sets are equal if their constraints are equal.
@@ -45,12 +58,20 @@ class Constraint(ABC):
     This covers equality constraints, inclusion constraints, and their negations (plus more if needed).
     """
 
+    @abstractmethod
+    def __hash__(self) -> int:
+        """Constraints need to be hashable so we can put them in sets"""
+        pass
+
 class LogicalConstraint(Constraint):
     """Abstract base class for constraints that only involve logical terms.
     This covers equality constraints and ineqality constraints."""
     left_term: 'LogicalTerm'
 
     right_term: 'LogicalTerm'
+
+    def __hash__(self) -> int:
+        return hash((self.left_term, self.right_term))
 
 
 class SetConstraint(Constraint):
@@ -62,6 +83,10 @@ class SetConstraint(Constraint):
     logical_term: 'LogicalTerm'
 
     domain_term: 'SetOfConstants'
+
+    def __hash__(self) -> int:
+        """TODO: see if this makes sense as a hash function"""
+        return hash((self.logical_term, self.domain_term))
 
 
 class EqualityConstraint(LogicalConstraint):
@@ -81,6 +106,13 @@ class EqualityConstraint(LogicalConstraint):
         same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
         flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
         return same_way or flipped
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
+        return super().__hash__()
 
     def __str__(self) -> str:
         return f'{self.left_term} = {self.right_term}'
@@ -105,6 +137,13 @@ class InequalityConstraint(LogicalConstraint):
         same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
         flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
         return same_way or flipped
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
+        return super().__hash__()
 
     def __str__(self) -> str:
         not_equal_string = ' \u2260 '
@@ -131,6 +170,13 @@ class InclusionConstraint(SetConstraint):
             return False
         return self.logical_term == other.logical_term and self.domain_term == other.domain_term
 
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
+        return super().__hash__()
+
     def __str__(self) -> str:
         element_of_string = ' \u2208 '
         return f'{self.logical_term}{element_of_string}{self.domain_term}'
@@ -156,37 +202,17 @@ class NotInclusionConstraint(SetConstraint):
             return False
         return self.logical_term == other.logical_term and self.domain_term == other.domain_term
 
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
+        return super().__hash__()
+
     def __str__(self) -> str:
         not_element_of_string = ' \u2209 '
         return f'{self.logical_term}{not_element_of_string}{self.domain_term}'
 
     def __repr__(self) -> str:
         return self.__str__()
-
-if __name__ == '__main__':
-    v1 = LogicalVariable('X')
-    c1 = Constant('bob')
-    c2 = Constant('a')
-
-    eq_constraint = EqualityConstraint(v1, c2)
-    print(eq_constraint)
-    eq_constraint1 = EqualityConstraint(c2, v1)
-    print(eq_constraint1)
-    ineq_constraint = InequalityConstraint(v1, c2)
-    print(ineq_constraint)
-    print(eq_constraint == ineq_constraint)
-    print(eq_constraint == eq_constraint1)
-
-    d = SetOfConstants([c1, c2])
-    in_constraint = InclusionConstraint(c1, d)
-    print(in_constraint)
-
-    notin_constraint = NotInclusionConstraint(c1, d)
-    print(notin_constraint)
-
-    cs = ConstraintSet([eq_constraint, ineq_constraint, in_constraint, notin_constraint])
-    print(cs)
-
-
-
 

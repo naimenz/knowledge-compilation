@@ -77,15 +77,3 @@ class LogicalVariable(LogicalTerm):
         return hash(self.__repr__())
 
 
-if __name__ == '__main__':
-    c = Constant('a')
-    print(c.value)
-    print(c)
-
-    x = LogicalVariable('X')
-    print(x.symbol)
-    print(x)
-    print([x])
-
-
-
