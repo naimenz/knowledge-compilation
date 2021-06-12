@@ -73,6 +73,9 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'Constrain
             return False
     return True
 
+def constrained_atoms_not_independent_and_not_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
+    return not constrained_atoms_independent(subsumer, subsumed) and not constrained_atoms_subsumed(subsumer, subsumed)
+
 
 def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: 'ConstrainedClause') -> bool:
     """Are the constrained clauses c_clause1 and c_clause2 independent?
@@ -93,9 +96,9 @@ def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> Set['Substit
     """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
     terms = c_atom.unconstrained_clause.literals[0].atom.terms
 
-    # TODO: remove this, it's just a hack for type-checking while I can't handle Constants
-    assert(all(isinstance(term, LogicalVariable) for term in terms)) # just ensuring that we only pass variables
-    variables: List['LogicalVariable'] = cast(List['LogicalVariable'], terms)
+    # NOTE: we can only get solutions to variables, not constants
+    # TODO: check we can just ignore constants like this
+    variables: List['LogicalVariable'] = [term for term in terms if isinstance(term, LogicalVariable)]
 
     # now we get the solutions for its constraint set with its variables
     return get_solutions(c_atom.cs, variables)

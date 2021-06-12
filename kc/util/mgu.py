@@ -25,7 +25,6 @@ def get_constrained_atom_mgu_substitution(c_atom1: 'ConstrainedAtom',
         return None
     cs_mgu = substitution_to_constraint_set(unconstrained_mgu)
     combined_constraint_set = c_atom1.cs.join(c_atom2.cs).join(cs_mgu)
-    print(combined_constraint_set)
     if is_satisfiable(combined_constraint_set):
         return unconstrained_mgu
     else:

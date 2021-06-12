@@ -83,25 +83,32 @@ a, b, c = Constant('a'), Constant('b'), Constant('c')
 X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
 D, E = SetOfConstants([a, b, c]), SetOfConstants([b, c])
 
-pred = Predicate('p', 3)
-atom1 = Atom(pred, [X, X, a])
-atom2 = Atom(pred, [Z, Z, a])
+pred1 = Predicate('p', 3)
+pred2 = Predicate('q', 2)
+atom1 = Atom(pred1, [X, Y, a])
+atom2 = Atom(pred1, [Z, Z, a])
+atom3 = Atom(pred2, [X, Y])
 
 XeqY = EqualityConstraint(X, Y)
 YeqX = EqualityConstraint(X, Y)
+
 Yeqa = EqualityConstraint(Y, a)
+Yeqb = EqualityConstraint(Y, b)
+Yeqc = EqualityConstraint(Y, c)
+
 Xeqa = EqualityConstraint(X, a)
 Xeqb = EqualityConstraint(X, b)
 Xeqc = EqualityConstraint(X, c)
+
 XinD = InclusionConstraint(X, D)
 YinD = InclusionConstraint(Y, D)
 ZinD = InclusionConstraint(Z, D)
-ZninE = NotInclusionConstraint(Z, E)
+
 XinE = InclusionConstraint(X, E)
 YinE = InclusionConstraint(Y, E)
 ZinE = InclusionConstraint(Z, E)
-XninE = NotInclusionConstraint(X, E)
-cs1 = ConstraintSet([XinD, YinD, ZinD, ~YinE])
+
+cs1 = ConstraintSet([XinD, YinD, ZinD, YinE])
 cs2 = ConstraintSet([~Yeqa, XinD, YinD, ZinD])
 # cs1 = ConstraintSet([XinD, ~Xeqa, ~Xeqb, ])
 # cs2 = ConstraintSet([XinD, ])
@@ -118,4 +125,42 @@ if not sub is None:
 else:
     print("NOT SATISFIABLE!")
 
+# splitting.py 
+print('splitting.py')
+cs1 = ConstraintSet([~Xeqc, XinD, YinD])
+cs2 = ConstraintSet([~Xeqb, XinD, YinD])
+atom = ConstrainedAtom(UnconstrainedClause([Literal(atom1, True)]), [X, Y], cs1)
+gamma = ConstrainedClause(UnconstrainedClause([Literal(atom1, False), Literal(atom3, True)]), [X, Y], cs2)
+print(gamma)
+print(split(gamma, atom))
 
+# example 4.1
+kiwi = Constant('kiwi')
+penguin = Constant('penguin')
+dog = Constant('dog')
+pigeon = Constant('pigeon')
+
+Animal = SetOfConstants([kiwi, penguin, pigeon, dog])
+Bird = SetOfConstants([kiwi, penguin, pigeon])
+
+X = LogicalVariable('X')
+
+flies = Predicate('flies', 1)
+haswings = Predicate('haswings', 1)
+
+flies_literal = Literal(Atom(flies, [X]), True)
+not_haswings_literal = Literal(Atom(haswings, [X]), False)
+
+Xeqkiwi = EqualityConstraint(X, kiwi)
+Xeqpenguin = EqualityConstraint(X, penguin)
+XinAnimal = InclusionConstraint(X, Animal)
+XinBird = InclusionConstraint(X, Bird)
+
+cs_gamma = ConstraintSet([~Xeqkiwi, XinAnimal])
+cs_a = ConstraintSet([~Xeqpenguin, XinBird])
+
+gamma = ConstrainedClause(UnconstrainedClause([flies_literal, not_haswings_literal]), [X], cs_gamma)
+atom = ConstrainedAtom(UnconstrainedClause([flies_literal]), [X], cs_a)
+print("HERE WE GO")
+for clause in split(gamma, atom):
+    print(clause)

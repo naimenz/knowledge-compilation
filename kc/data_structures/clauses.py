@@ -51,10 +51,10 @@ class ConstrainedClause(Clause):
 
     def __init__(self,
             unconstrained_clause: 'UnconstrainedClause',
-            bound_vars: List['LogicalVariable'],
+            bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         self.unconstrained_clause = unconstrained_clause
-        self.bound_vars = bound_vars
+        self.bound_vars = set(bound_vars)
         self.cs = cs
 
     def __eq__(self, other: Any) -> bool:
@@ -84,7 +84,7 @@ class UnitClause(ConstrainedClause):
     """
     def __init__(self,
             unconstrained_clause: 'UnconstrainedClause',
-            bound_vars: List['LogicalVariable'],
+            bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
         super(UnitClause, self).__init__(unconstrained_clause, bound_vars, cs)
@@ -96,7 +96,7 @@ class ConstrainedAtom(UnitClause):
     """
     def __init__(self,
             unconstrained_clause: 'UnconstrainedClause',
-            bound_vars: List['LogicalVariable'],
+            bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
         assert(unconstrained_clause.literals[0].polarity) # ensure that it is not negated
