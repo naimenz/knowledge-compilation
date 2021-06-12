@@ -49,7 +49,6 @@ def is_satisfiable(constraint_set: 'ConstraintSet') -> bool:
                 logical_variables.add(constraint.logical_term)
     # now we find solutions for those variables and see if there are any
     solutions = get_solutions(constraint_set, list(logical_variables))
-    print("sol",solutions)
     return len(solutions) > 0
 
 

@@ -135,7 +135,7 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'substitution': None} for variable, domain in zip(variables, domains)}
     sols: List[Tuple[Dict, bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
-    return [build_substitution_from_variable_dict(sol) for sol, flag in sols]
+    return [build_substitution_from_variable_dict(sol) for sol, flag in sols if flag]
 
 
 def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
