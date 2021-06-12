@@ -114,6 +114,11 @@ class EqualityConstraint(LogicalConstraint):
         NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
         return super().__hash__()
 
+    def __invert__(self) -> 'InequalityConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return InequalityConstraint(self.left_term, self.right_term)
+
     def __str__(self) -> str:
         return f'{self.left_term} = {self.right_term}'
 
@@ -144,6 +149,11 @@ class InequalityConstraint(LogicalConstraint):
 
         NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
         return super().__hash__()
+
+    def __invert__(self) -> 'EqualityConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return EqualityConstraint(self.left_term, self.right_term)
 
     def __str__(self) -> str:
         not_equal_string = ' \u2260 '
@@ -177,6 +187,11 @@ class InclusionConstraint(SetConstraint):
         NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
         return super().__hash__()
 
+    def __invert__(self) -> 'NotInclusionConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return NotInclusionConstraint(self.logical_term, self.domain_term)
+
     def __str__(self) -> str:
         element_of_string = ' \u2208 '
         return f'{self.logical_term}{element_of_string}{self.domain_term}'
@@ -208,6 +223,11 @@ class NotInclusionConstraint(SetConstraint):
 
         NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
         return super().__hash__()
+
+    def __invert__(self) -> 'InclusionConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return InclusionConstraint(self.logical_term, self.domain_term)
 
     def __str__(self) -> str:
         not_element_of_string = ' \u2209 '

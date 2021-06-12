@@ -75,6 +75,7 @@ print(in_constraint)
 
 notin_constraint = NotInclusionConstraint(c1, d)
 print(notin_constraint)
+print("negated",~notin_constraint)
 
 cs = ConstraintSet([eq_constraint, ineq_constraint, in_constraint, notin_constraint])
 print(cs)
