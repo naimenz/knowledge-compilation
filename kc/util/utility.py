@@ -134,17 +134,10 @@ def initiate_variable_recursion(variables: List['LogicalVariable'],
     """Start recursion on each variable in turn to construct all the valid solutions to a constraint set"""
     # we pass through a dictionary that accumulates information about the variables
     variable_dict = {variable: {'domain': domain, 'equal_constants': set(), 'substitution': None} for variable, domain in zip(variables, domains)}
+    print(f"Initial variable dict {variable_dict}")
+    print(f"Initial constraints {constraints}")
     sols: List[Tuple[Dict, bool]] = recursively_construct_partial_sols(variables, variable_dict, constraints)
     return [build_substitution_from_variable_dict(sol) for sol, flag in sols]
-
-
-def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution':
-    """The variable dict is the state that is modified during recursion.
-    This function creates a Substitution object from that variable dict
-    """
-    variable_constant_pairs: List[VarTermPair] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
-    substitution = Substitution(variable_constant_pairs)
-    return substitution
 
 
 def recursively_construct_partial_sols(remaining_variables: List['LogicalVariable'],
@@ -185,6 +178,7 @@ def process_equalities(variable: 'LogicalVariable', variable_dict: Dict) -> Tupl
         return dict(), False
     if len(variable_dict[variable]['equal_constants']) == 1:
         variable_dict[variable]['domain'] = variable_dict[variable]['domain'].intersection(variable_dict[variable]['equal_constants'])
+
     return variable_dict, True
 
 
@@ -223,7 +217,7 @@ def process_constraint(remaining_variables: List['LogicalVariable'], variable_di
     # TODO: refactor this horrible nested if-else structure
     if isinstance(constraint, EqualityConstraint):
         if constraint.left_term == variable:
-            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables:
                 variable_dict[constraint.right_term]['equal_constants'].add(potential_constant)
             elif isinstance(constraint.right_term, Constant) and constraint.right_term != potential_constant:
                 valid_substitution = False
@@ -236,7 +230,7 @@ def process_constraint(remaining_variables: List['LogicalVariable'], variable_di
 
     elif isinstance(constraint, InequalityConstraint):
         if constraint.left_term == variable:
-            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables: 
+            if isinstance(constraint.right_term, LogicalVariable) and constraint.right_term in remaining_variables:
                 variable_dict[constraint.right_term]['domain'].discard(potential_constant)
             elif isinstance(constraint.right_term, Constant) and constraint.right_term == potential_constant:
                 valid_substitution = False
@@ -258,6 +252,7 @@ def process_all_constraints(remaining_variables: List['LogicalVariable'],
         next_variable_dict, valid_substitution = process_constraint(remaining_variables, variable_dict, constraint, potential_constant)
         if not valid_substitution: # save time by moving on to next substitution
             return dict(), False
+    print("process_all_constraints return", next_variable_dict)
     return next_variable_dict, True
 
 
@@ -332,3 +327,10 @@ def get_all_logical_constraints(cs: 'ConstraintSet') -> List['LogicalConstraint'
     return [constraint for constraint in cs.constraints if isinstance(constraint, LogicalConstraint)]
 
 
+def build_substitution_from_variable_dict(variable_dict: Dict) -> 'Substitution':
+    """The variable dict is the state that is modified during recursion.
+    This function creates a Substitution object from that variable dict
+    """
+    variable_constant_pairs: List[VarTermPair] = [(var, subdict['substitution']) for var, subdict in variable_dict.items()]
+    substitution = Substitution(variable_constant_pairs)
+    return substitution

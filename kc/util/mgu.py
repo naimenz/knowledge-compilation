@@ -19,10 +19,15 @@ def get_constrained_atom_mgu_substitution(c_atom1: 'ConstrainedAtom',
                                           ) -> Optional['Substitution']:
     """Get the mgu of two constrained atoms.
     This is the same as the mgu for two unconstrained atoms, with an additional check 
-    to see if the constraint sets conjoined are satisfiable."""
-    combined_constraint_set = c_atom1.cs.join(c_atom2.cs)
+    to see if the constraint sets conjoined with the mgu are satisfiable."""
+    unconstrained_mgu = get_unconstrained_atom_mgu_substitution(c_atom1.atom, c_atom2.atom)
+    if unconstrained_mgu is None:
+        return None
+    cs_mgu = substitution_to_constraint_set(unconstrained_mgu)
+    combined_constraint_set = c_atom1.cs.join(c_atom2.cs).join(cs_mgu)
+    print(combined_constraint_set)
     if is_satisfiable(combined_constraint_set):
-        return get_unconstrained_atom_mgu_substitution(c_atom1.atom, c_atom2.atom)
+        return unconstrained_mgu
     else:
         return None
 
@@ -44,7 +49,8 @@ def is_satisfiable(constraint_set: 'ConstraintSet') -> bool:
                 logical_variables.add(constraint.logical_term)
     # now we find solutions for those variables and see if there are any
     solutions = get_solutions(constraint_set, list(logical_variables))
-    print(solutions)
+    print("sol",solutions)
+    return len(solutions) > 0
 
 
 def get_unconstrained_atom_mgu_substitution(atom1: 'Atom', atom2: 'Atom') -> Optional['Substitution']:
