@@ -297,14 +297,13 @@ def get_variable_domain(cs: 'ConstraintSet', variable: 'LogicalVariable') -> Set
     inclusion_constraints, notinclusion_constraints = get_relevant_set_constraints(cs.constraints, variable)
     assert(len(inclusion_constraints) > 0) # this should be true by assumption
 
-    inclusion_constants = [ic.domain_term.constants for ic in inclusion_constraints]
-    emptyset: Set['Constant'] = set() # a hack for type checking
-    included_constants = emptyset.union(*inclusion_constants)
+    inclusion_constants = [set(ic.domain_term.constants) for ic in inclusion_constraints]
+    included_constants = set.intersection(*inclusion_constants)
 
     # notinclusion constraints are optional
     if len(notinclusion_constraints) > 0: 
-        notinclusion_constants = [nc.domain_term.constants for nc in notinclusion_constraints]
-        notincluded_constants = emptyset.union(*notinclusion_constants)
+        notinclusion_constants = [set(nc.domain_term.constants) for nc in notinclusion_constraints]
+        notincluded_constants = set.union(*notinclusion_constants)
     else:
         notincluded_constants = set()
 
