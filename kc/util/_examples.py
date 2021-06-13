@@ -196,10 +196,42 @@ split_clauses = split(gamma, atom)
 # print(constrained_clauses_subsumed(atom, gamma))
 
 # conditioning.py
-print('conditioning.py')
-clause = split_clauses[0]
-print(clause)
-print(atom)
-conditioned_clause = condition(clause, atom)
-print(conditioned_clause)
+# print('conditioning.py')
+# clause = split_clauses[0]
+# print(clause)
+# print(atom)
+# conditioned_clause = condition(clause, atom)
+# print(conditioned_clause)
+
+# unitprop.py
+print('unitprop.py')
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+friends = Predicate('friends', 2)
+likes = Predicate('likes', 2)
+dislikes = Predicate('dislikes', 2)
+
+a, b, c = Constant('a'), Constant('b'), Constant('c')
+People = SetOfConstants([a, b, c])
+
+friendsXX = Literal(Atom(friends, [X, X]), True)
+friendsXY = Literal(Atom(friends, [X, Y]), True)
+likesXY = Literal(Atom(likes, [X, Y]), True)
+dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
+
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
+
+
+clause1 = ConstrainedClause(UnconstrainedClause([friendsXY, dislikesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
+clause2 = ConstrainedClause(UnconstrainedClause([~friendsXY, likesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
+u = UnitClause(UnconstrainedClause([friendsXX]), [X], ConstraintSet([XinPeople]))
+
+delta = CNF([clause1, clause2, u])
+
+clause1_split = split(clause1, get_constrained_atoms(u)[0])
+# for c1 in clause1_split:
+#     print(c1)
+deltap = unitprop(delta, u)
+print(deltap)
 

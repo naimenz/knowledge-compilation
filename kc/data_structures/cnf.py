@@ -6,7 +6,7 @@ from kc.data_structures.clauses import *
 
 from typing import List, Any
 
-class FO_CNF:
+class CNF:
     """
     A FOL-DC CNF.
     This consists of a set of constrained clauses, which form a conjunction.
@@ -20,7 +20,7 @@ class FO_CNF:
 
         NOTE: for now the ordering of the clauses is important.
         TODO: make clauses hashable so I can compare sets"""
-        if not isinstance(other, FO_CNF):
+        if not isinstance(other, CNF):
             return False
         same_clauses = all(self_clause == other_clause for self_clause, other_clause in zip(self.clauses, other.clauses))
         return same_clauses

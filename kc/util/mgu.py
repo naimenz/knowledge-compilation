@@ -31,26 +31,6 @@ def get_constrained_atom_mgu_substitution(c_atom1: 'ConstrainedAtom',
         return None
 
 
-def is_satisfiable(constraint_set: 'ConstraintSet') -> bool:
-    """Check if a constraint set is satisfiable by constructing solutions to it
-    and seeing if there are any"""
-    # extract just the variables from each constraint
-    logical_variables: Set['LogicalVariable'] = set()
-    for constraint in constraint_set:
-        # messy logic for isolating logical variables TODO: clean this somehow
-        if isinstance(constraint, LogicalConstraint):
-            if isinstance(constraint.left_term, LogicalVariable):
-                logical_variables.add(constraint.left_term)
-            if isinstance(constraint.right_term, LogicalVariable):
-                logical_variables.add(constraint.right_term)
-        elif isinstance(constraint, SetConstraint):
-            if isinstance(constraint.logical_term, LogicalVariable):
-                logical_variables.add(constraint.logical_term)
-    # now we find solutions for those variables and see if there are any
-    solutions = get_solutions(constraint_set, list(logical_variables))
-    return len(solutions) > 0
-
-
 def get_unconstrained_atom_mgu_substitution(atom1: 'Atom', atom2: 'Atom') -> Optional['Substitution']:
     """Compute the mgu of two unconstrained atoms using equivalence classes,
     as done in Forclift. Before returning, I convert the equivalence classes into a
