@@ -29,6 +29,21 @@ def build_constrained_atom_from_literal(literal: 'Literal', clause: 'Constrained
     constrained_atom = ConstrainedAtom(unconstrained_atom, clause.bound_vars, clause.cs)
     return constrained_atom
 
+def get_constrained_literals(clause: 'ConstrainedClause') -> List['UnitClause']:
+    """For a given clause, return a list of all the constrained literals in the clause"""
+    constrained_literals = []
+    for literal in clause.unconstrained_clause.literals:
+        constrained_literal = build_constrained_literal_from_literal(literal, clause)
+        constrained_literals.append(constrained_literal)
+    return constrained_literals
+
+
+def build_constrained_literal_from_literal(literal: 'Literal', clause: 'ConstrainedClause') -> 'UnitClause':
+    """Build a constrained literal given a specific literal and its parent clause"""
+    unconstrained_literal = UnconstrainedClause([literal])
+    constrained_literal = UnitClause(unconstrained_literal, clause.bound_vars, clause.cs)
+    return constrained_literal
+
 
 def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
     """Are the constrained atoms c_atom1 and c_atom2 independent?
@@ -72,6 +87,30 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'Constrain
         if not ground_atom in subsumer_ground_atoms:
             return False
     return True
+
+def constrained_literals_subsumed(subsumer: 'UnitClause', subsumed: 'UnitClause') -> bool:
+    """Check whther one constrained literal implies another.
+    This builds on constrained_atoms_subsumed with a check for polarity"""
+    subsumer_constrained_atom = get_constrained_atoms(subsumer)[0] # only one literal
+    subsumed_constrained_atom = get_constrained_atoms(subsumed)[0] # only one literal
+    subsumed_as_atoms = constrained_atoms_subsumed(subsumer_constrained_atom, subsumed_constrained_atom)
+    polarity_same = subsumer.unconstrained_clause.literals[0].polarity == subsumed.unconstrained_clause.literals[0].polarity
+    return subsumed_as_atoms and polarity_same
+
+
+def constrained_clauses_subsumed(subsumer: 'ConstrainedClause', subsumed: 'ConstrainedClause') -> bool:
+    """Check whether one constrained clause implies another.
+    This works by noticing that if any constrained literal of the subsumer implies any
+    constrained literal of the subsumed, then it is subsumed."""
+    subsumer_constrained_literals = get_constrained_literals(subsumer)
+    subsumed_constrained_literals = get_constrained_literals(subsumed)
+
+    for subsumer_literal in subsumer_constrained_literals:
+        for subsumed_literal in subsumed_constrained_literals:
+            if constrained_literals_subsumed(subsumer_literal, subsumed_literal):
+                return True
+    return False
+
 
 def constrained_atoms_not_independent_and_not_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
     return not constrained_atoms_independent(subsumer, subsumed) and not constrained_atoms_subsumed(subsumer, subsumed)
