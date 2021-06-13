@@ -11,7 +11,7 @@ def unitprop(delta: 'CNF', u: 'UnitClause') -> 'CNF':
     Assumes that there is a unit clause in delta.
     TODO: make this work with free and domain vars.
     TODO: Add Compile call to return statement"""
-    unitpropagated_clauses: List['ConstrainedClause'] = [u] # u is not unitpropagated but we need it anyway
+    unitpropagated_clauses: List['ConstrainedClause'] = []
     u_atom = get_constrained_atoms(u)[0] # only one literal
     for gamma in delta.clauses:
         split_gammas = split(gamma, u_atom)
@@ -19,4 +19,5 @@ def unitprop(delta: 'CNF', u: 'UnitClause') -> 'CNF':
             conditioned_clause = condition(gamma_s, u)
             if not conditioned_clause is None:
                 unitpropagated_clauses.append(conditioned_clause)
-    return CNF(unitpropagated_clauses)
+    # TODO: make circuit nodes
+    return compile_theory(CNF(unitpropagated_clauses)).join(compile_theory(CNF([u])))

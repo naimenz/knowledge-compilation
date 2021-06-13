@@ -2,6 +2,7 @@
 
 from kc.data_structures import *
 from kc.util import *
+from inspect import getmembers, isfunction
 
 import random
 random.seed(0)
@@ -221,7 +222,6 @@ dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
-
 
 clause1 = ConstrainedClause(UnconstrainedClause([friendsXY, dislikesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
 clause2 = ConstrainedClause(UnconstrainedClause([~friendsXY, likesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))

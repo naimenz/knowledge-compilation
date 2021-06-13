@@ -13,7 +13,13 @@ class CNF:
     """
 
     def __init__(self, clauses: List['ConstrainedClause']) -> None:
+        """TODO: replace list with set"""
         self.clauses = clauses
+
+    def join(self, other: 'CNF') -> 'CNF':
+        """Combine two CNFs into one.
+        TODO: Eventually this will probably be done with circuit nodes and/or sets"""
+        return CNF(self.clauses + other.clauses)
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses
@@ -24,6 +30,7 @@ class CNF:
             return False
         same_clauses = all(self_clause == other_clause for self_clause, other_clause in zip(self.clauses, other.clauses))
         return same_clauses
+
 
     def __str__(self) -> str:
         clause_strs = [f'({str(clause)})' for clause in self.clauses]
