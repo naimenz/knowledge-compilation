@@ -27,6 +27,10 @@ class Literal:
         same_polarity = self.polarity == other.polarity
         return same_atom and same_polarity
 
+    def __invert__(self) -> 'Literal':
+        """Return a literal with the opposite polarity to this one."""
+        return Literal(self.atom, not self.polarity)
+
     def __str__(self) -> str:
         prefix = '¬' if self.polarity == False else ''
         return f'{prefix}{self.atom}'

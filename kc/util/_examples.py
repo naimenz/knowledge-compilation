@@ -8,6 +8,7 @@ random.seed(0)
 
 # # utility.py
 # print('utility.py')
+
 # preds = [Predicate('smokes', 2), Predicate('friends', 2), Predicate('fun', 1)]
 # constants: List['Constant'] = [Constant('a'), Constant('b'), Constant('c')]
 # variables = [LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')]
@@ -135,58 +136,70 @@ random.seed(0)
 # print(split(gamma, atom))
 
 # example 4.1
-# kiwi = Constant('kiwi')
-# penguin = Constant('penguin')
-# dog = Constant('dog')
-# pigeon = Constant('pigeon')
+kiwi = Constant('kiwi')
+penguin = Constant('penguin')
+dog = Constant('dog')
+pigeon = Constant('pigeon')
 
-# Animal = SetOfConstants([kiwi, penguin, pigeon, dog])
-# Bird = SetOfConstants([kiwi, penguin, pigeon])
+Animal = SetOfConstants([kiwi, penguin, pigeon, dog])
+Bird = SetOfConstants([kiwi, penguin, pigeon])
 
-# X = LogicalVariable('X')
-# Y = LogicalVariable('Y')
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
 
-# flies = Predicate('flies', 1)
-# haswings = Predicate('haswings', 1)
+flies = Predicate('flies', 1)
+haswings = Predicate('haswings', 1)
 
-# flies_literalX = Literal(Atom(flies, [X]), True)
-# not_haswings_literalX = Literal(Atom(haswings, [X]), False)
-# flies_literalY = Literal(Atom(flies, [Y]), True)
-# not_haswings_literalY = Literal(Atom(haswings, [Y]), False)
+flies_literalX = Literal(Atom(flies, [X]), True)
+not_haswings_literalX = Literal(Atom(haswings, [X]), False)
+flies_literalY = Literal(Atom(flies, [Y]), True)
+not_haswings_literalY = Literal(Atom(haswings, [Y]), False)
 
-# Xeqkiwi = EqualityConstraint(X, kiwi)
-# Xeqpenguin = EqualityConstraint(X, penguin)
-# XinAnimal = InclusionConstraint(X, Animal)
-# XinBird = InclusionConstraint(X, Bird)
+Xeqkiwi = EqualityConstraint(X, kiwi)
+Xeqpenguin = EqualityConstraint(X, penguin)
+XinAnimal = InclusionConstraint(X, Animal)
+XinBird = InclusionConstraint(X, Bird)
 
-# Yeqpenguin = EqualityConstraint(Y, penguin)
-# YinBird = InclusionConstraint(Y, Bird)
+Yeqpenguin = EqualityConstraint(Y, penguin)
+YinBird = InclusionConstraint(Y, Bird)
 
-# cs_gamma = ConstraintSet([~Xeqkiwi, XinAnimal])
-# # cs_a = ConstraintSet([~Yeqpenguin, YinBird])
-# cs_a = ConstraintSet([~Xeqpenguin, XinBird])
+cs_gamma = ConstraintSet([~Xeqkiwi, XinAnimal])
+# cs_a = ConstraintSet([~Yeqpenguin, YinBird])
+cs_a = ConstraintSet([~Xeqpenguin, XinBird])
 
-# gamma = ConstrainedClause(UnconstrainedClause([flies_literalX, not_haswings_literalX]), [X], cs_gamma)
-# atom = ConstrainedAtom(UnconstrainedClause([flies_literalX]), [X], cs_a)
+gamma = ConstrainedClause(UnconstrainedClause([~flies_literalX, not_haswings_literalX]), [X], cs_gamma)
+atom = ConstrainedAtom(UnconstrainedClause([flies_literalX]), [X], cs_a)
 # print("HERE WE GO")
-# for clause in split(gamma, atom):
+split_clauses = split(gamma, atom)
+# for clause in split_clauses:
 #     print(clause)
 
 # example 4.2 (DOESN'T WORK BECAUSE OF FREE VARIABLES)
-a, b, c = Constant('a'), Constant('b'), Constant('c')
-X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
-p, q = Predicate('p', 1), Predicate('q', 1)
-D = SetOfConstants([a, b, c])
+# a, b, c = Constant('a'), Constant('b'), Constant('c')
+# X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
+# p, q = Predicate('p', 1), Predicate('q', 1)
+# D = SetOfConstants([a, b, c])
 
-XinD = InclusionConstraint(X, D)
-YeqZ = EqualityConstraint(Y, Z)
+# XinD = InclusionConstraint(X, D)
+# YeqZ = EqualityConstraint(Y, Z)
+# Xeqa = EqualityConstraint(X, a)
 
-p_literal = Literal(Atom(p, [X]), True)
-q_literal = Literal(Atom(q, [X]), True)
+# p_literal = Literal(Atom(p, [X]), True)
+# q_literal = Literal(Atom(q, [X]), True)
 
-cs_gamma = ConstraintSet([XinD])
-cs_a = ConstraintSet([XinD, ~YeqZ])
+# cs_gamma = ConstraintSet([XinD, Xeqa])
+# cs_a = ConstraintSet([XinD])
 
-gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
-atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
-print(split(gamma, atom))
+# gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
+# atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
+
+# print(constrained_clauses_subsumed(atom, gamma))
+
+# conditioning.py
+print('conditioning.py')
+clause = split_clauses[0]
+print(clause)
+print(atom)
+conditioned_clause = condition(clause, atom)
+print(conditioned_clause)
+
