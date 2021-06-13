@@ -31,6 +31,8 @@ class CNF:
         same_clauses = (self.clauses == other.clauses)
         return same_clauses
 
+    def __hash__(self) -> int:
+        return hash(self.clauses)
 
     def __str__(self) -> str:
         clause_strs = [f'({str(clause)})' for clause in self.clauses]
