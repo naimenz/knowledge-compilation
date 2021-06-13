@@ -8,7 +8,6 @@ def split(gamma: 'ConstrainedClause', a: 'ConstrainedAtom') -> List['Constrained
     """Split the constrained clause gamma with respect to the constrained atom a.
     Returns a sequence of constrained clauses that are split with respect to a"""
     constrained_atoms = get_constrained_atoms(gamma)
-    c = constrained_atoms[0]
     viable_atoms = [a_gamma for a_gamma in constrained_atoms if constrained_atoms_not_independent_and_not_subsumed(a, a_gamma)]
     if len(viable_atoms) == 0: # we are done if all are independent or subsumed
         return [gamma]
@@ -18,7 +17,7 @@ def split(gamma: 'ConstrainedClause', a: 'ConstrainedAtom') -> List['Constrained
     cs_a = a.cs
     theta = get_constrained_atom_mgu_substitution(a, a_gamma)
     if theta is None:
-        raise ValueError("a_gamma and a are independent but shouldn't be")
+        raise ValueError(f"a_gamma = {a_gamma} and a = {a} are independent but shouldn't be")
     cs_theta = substitution_to_constraint_set(theta)
     joint_constraint_set = cs_gamma.join(cs_theta).join(cs_a)
 
