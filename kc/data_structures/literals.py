@@ -31,6 +31,9 @@ class Literal:
         """Return a literal with the opposite polarity to this one."""
         return Literal(self.atom, not self.polarity)
 
+    def __hash__(self) -> int:
+        return hash((self.atom, self.polarity))
+
     def __str__(self) -> str:
         prefix = '¬' if self.polarity == False else ''
         return f'{prefix}{self.atom}'
@@ -44,10 +47,10 @@ class Atom:
     This consists of a predicate and a tuple of terms.
     """
 
-    def __init__(self, predicate: 'Predicate', terms: List['LogicalTerm']) -> None:
+    def __init__(self, predicate: 'Predicate', terms: Sequence['LogicalTerm']) -> None:
         assert(len(terms) == predicate.arity)
         self.predicate = predicate
-        self.terms = terms
+        self.terms = tuple(terms)
 
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""
@@ -56,6 +59,9 @@ class Atom:
         same_predicate = (self.predicate == other.predicate)
         same_terms = all(self_term == other_term for self_term, other_term in zip(self.terms, other.terms))
         return same_predicate and same_terms
+
+    def __hash__(self) -> int:
+        return hash((self.predicate, self.terms))
 
     def __str__(self) -> str:
         term_strs = [str(term) for term in self.terms]
@@ -86,7 +92,10 @@ class GroundAtom(Atom):
                 ground_terms.append(term)
             else:
                 variable = cast(LogicalVariable, term) # hack for type checking 
-                ground_terms.append(substitution[variable])
+                sub = substitution[variable]
+                if not isinstance(sub, Constant):
+                    raise ValueError('Substitution for ground atom should be closing (i.e. no variables)')
+                ground_terms.append(sub)
         return GroundAtom(atom.predicate, ground_terms)
 
 
@@ -107,6 +116,9 @@ class Predicate:
         same_name = (self.name == other.name)
         same_arity = (self.arity == other.arity)
         return same_name and same_arity
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.arity))
 
     def __str__(self) -> str:
         return f"{self.name}/{self.arity}"

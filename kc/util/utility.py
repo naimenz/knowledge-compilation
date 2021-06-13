@@ -115,7 +115,7 @@ def constrained_literals_subsumed(subsumer: 'UnitClause', subsumed: 'UnitClause'
     subsumer_constrained_atom = get_constrained_atoms(subsumer)[0] # only one literal
     subsumed_constrained_atom = get_constrained_atoms(subsumed)[0] # only one literal
     subsumed_as_atoms = constrained_atoms_subsumed(subsumer_constrained_atom, subsumed_constrained_atom)
-    polarity_same = subsumer.unconstrained_clause.literals[0].polarity == subsumed.unconstrained_clause.literals[0].polarity
+    polarity_same = subsumer.literal.polarity == subsumed.literal.polarity
     return subsumed_as_atoms and polarity_same
 
 
@@ -154,7 +154,7 @@ def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: '
 
 def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> Set['Substitution']:
     """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
-    terms = c_atom.unconstrained_clause.literals[0].atom.terms
+    terms = c_atom.atom.terms
 
     # NOTE: we can only get solutions to variables, not constants
     # TODO: check we can just ignore constants like this
@@ -351,7 +351,7 @@ def get_variable_domain(cs: 'ConstraintSet', variable: 'LogicalVariable') -> Set
     return allowed_constants
 
 
-def get_relevant_set_constraints(cs: Set['Constraint'], variable: 'LogicalVariable') -> Tuple[List['InclusionConstraint'], List['NotInclusionConstraint']]:
+def get_relevant_set_constraints(cs: FrozenSet['Constraint'], variable: 'LogicalVariable') -> Tuple[List['InclusionConstraint'], List['NotInclusionConstraint']]:
     """Get lists of the inclusion and negated inclusion constraints from a constraint set for a specific variable"""
     inclusion_condition = lambda c: isinstance(c, InclusionConstraint) and c.logical_term == variable
     notinclusion_condition = lambda c: isinstance(c, NotInclusionConstraint) and c.logical_term == variable

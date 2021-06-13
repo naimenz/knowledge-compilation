@@ -10,7 +10,7 @@ from kc.data_structures.domainterms import *
 
 from abc import ABC
 
-from typing import List, Iterable, Any
+from typing import List, Iterable, Any, FrozenSet
 
 class ConstraintSet:
     """A FOL-DC constraint set.
@@ -18,10 +18,10 @@ class ConstraintSet:
     """
 
     def __init__(self, constraints: Iterable['Constraint']) -> None:
-        self._constraints = set(constraints)
+        self._constraints = frozenset(constraints)
 
     @property
-    def constraints(self) -> Set['Constraint']:
+    def constraints(self) -> FrozenSet['Constraint']:
         return self._constraints
 
     def join(self, other: 'ConstraintSet') -> 'ConstraintSet':
@@ -33,16 +33,16 @@ class ConstraintSet:
         return iter(self.constraints)
 
     def __eq__(self, other: Any) -> bool:
-        """Two constraint sets are equal if their constraints are equal.
+        """Two constraint sets are equal if their constraints are equal."""
 
-        NOTE: for now, the order of the constraints is important.
-        TODO: make constraints hashable so I can compare sets"""
+
         if not isinstance(other, ConstraintSet):
             return False
-        if len(self.constraints) != len(other.constraints):
-            return False
-        same_constraints = all(self_c == other_c for self_c, other_c in zip(self.constraints, other.constraints))
+        same_constraints = (self.constraints == other.constraints)
         return same_constraints
+
+    def __hash__(self) -> int:
+        return hash(self.constraints)
 
     def __str__(self) -> str:
         constraint_strs = [f'({str(constraint)})' for constraint in self.constraints]

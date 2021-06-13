@@ -24,7 +24,7 @@ def discard_unsatisfied_literals(gamma: 'ConstrainedClause', literal: 'UnitClaus
     lambdas = get_constrained_literals(gamma)
     necessary_literals = []
     for lam in lambdas:
-        lam_literal = lam.unconstrained_clause.literals[0]
+        lam_literal = lam.literal
         negated_constrained_literal = UnitClause(UnconstrainedClause([~lam_literal]), gamma.bound_vars, gamma.cs)
         if not constrained_clauses_subsumed(literal, negated_constrained_literal):
             necessary_literals.append(lam_literal)

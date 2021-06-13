@@ -12,14 +12,14 @@ class CNF:
     This consists of a set of constrained clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: List['ConstrainedClause']) -> None:
+    def __init__(self, clauses: Iterable['ConstrainedClause']) -> None:
         """TODO: replace list with set"""
-        self.clauses = clauses
+        self.clauses = frozenset(clauses)
 
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one.
         TODO: Eventually this will probably be done with circuit nodes and/or sets"""
-        return CNF(self.clauses + other.clauses)
+        return CNF(self.clauses.union(other.clauses))
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses
@@ -28,7 +28,7 @@ class CNF:
         TODO: make clauses hashable so I can compare sets"""
         if not isinstance(other, CNF):
             return False
-        same_clauses = all(self_clause == other_clause for self_clause, other_clause in zip(self.clauses, other.clauses))
+        same_clauses = (self.clauses == other.clauses)
         return same_clauses
 
 

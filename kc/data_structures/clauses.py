@@ -20,8 +20,11 @@ class UnconstrainedClause(Clause):
     This consists of a set of FOL literals, which form a disjunction
     """
 
-    def __init__(self, literals: List['Literal']) -> None:
-        self.literals = literals
+    def __init__(self, literals: Iterable['Literal']) -> None:
+        """NOTE: using a set to represent literals.
+        This is justified because the order is unimportant and repeated literals 
+        in a clause are redundant (they cannot change the disjunction)"""
+        self.literals = frozenset(literals)
 
     def __eq__(self, other: Any) -> bool:
         """Two unconstrained clauses are equal if they have the same literals
@@ -34,6 +37,9 @@ class UnconstrainedClause(Clause):
             return False
         same_literals = all(self_l == other_l for self_l, other_l in zip(self.literals, other.literals))
         return same_literals
+
+    def __hash__(self) -> int:
+        return hash(self.literals)
 
     def __str__(self) -> str:
         literal_strs = [str(literal) for literal in self.literals]
@@ -54,7 +60,7 @@ class ConstrainedClause(Clause):
             bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         self.unconstrained_clause = unconstrained_clause
-        self.bound_vars = set(bound_vars)
+        self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
     def __eq__(self, other: Any) -> bool:
@@ -68,6 +74,9 @@ class ConstrainedClause(Clause):
         same_bound_vars = all(self_v == other_v for self_v, other_v in zip(self.bound_vars, other.bound_vars))
         same_cs = (self.cs == other.cs)
         return same_u_clause and same_bound_vars and same_cs
+
+    def __hash__(self) -> int:
+       return hash((self.unconstrained_clause, self.bound_vars, self.cs))
 
     def __str__(self) -> str:
         bound_vars_strs = [str(var) for var in self.bound_vars]
@@ -87,6 +96,7 @@ class UnitClause(ConstrainedClause):
             bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
+        self.literal = list(unconstrained_clause.literals)[0] # convert to 1-item list and get item
         super(UnitClause, self).__init__(unconstrained_clause, bound_vars, cs)
 
 
@@ -99,12 +109,12 @@ class ConstrainedAtom(UnitClause):
             bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
         assert(len(unconstrained_clause.literals) == 1) # ensure that this is a unit clause
-        assert(unconstrained_clause.literals[0].polarity) # ensure that it is not negated
         super(ConstrainedAtom, self).__init__(unconstrained_clause, bound_vars, cs)
+        assert(self.literal.polarity) # ensure that it is not negated
 
     @property
     def atom(self) -> 'Atom':
         """Get the atom from the unconstrained clause"""
-        return self.unconstrained_clause.literals[0].atom
+        return self.literal.atom
 
 
