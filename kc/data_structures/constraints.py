@@ -36,6 +36,19 @@ class ConstraintSet:
             new_constraints.append(new_constraint)
         return ConstraintSet(new_constraints)
 
+    def contains_contradiction(self) -> bool:
+        """Check if this constraint set contains a contradiction
+        TODO: cover all possible contradictions, probably using equivalence classes"""
+        for constraint in self:
+            # first check if any individual constraint contains a contradiction
+            if constraint.contains_contradiction():
+                return True
+            # then check if this constraint's negation is in the constraint set
+            if ~constraint in self:
+                return True
+        return False
+
+
     def __iter__(self):
         return iter(self.constraints)
 
@@ -148,9 +161,9 @@ class EqualityConstraint(LogicalConstraint):
         For EqualityConstraint, this means checking if the two sides are different constants"""
         both_terms_constants = isinstance(self.left_term, Constant) and isinstance(self.right_term, Constant)
         if both_terms_constants and self.left_term != self.right_term:
-            return False
-        else:
             return True
+        else:
+            return False
 
     def __eq__(self, other: Any) -> bool:
         """Two equality constraints are equal if they mention the same terms (note the order doesn't matter)"""

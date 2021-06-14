@@ -3,9 +3,10 @@ This file contains various useful functions for working with the formulas define
 """
 
 from kc.data_structures import *
+from kc.util import *
 
 from copy import deepcopy
-from itertools import chain
+from itertools import chain, product
 
 from typing import List, Tuple, Set, Dict, cast
 
@@ -29,6 +30,7 @@ def build_constrained_atom_from_literal(literal: 'Literal', clause: 'Constrained
     constrained_atom = ConstrainedAtom(unconstrained_atom, clause.bound_vars, clause.cs)
     return constrained_atom
 
+
 def get_constrained_literals(clause: 'ConstrainedClause') -> List['UnitClause']:
     """For a given clause, return a list of all the constrained literals in the clause"""
     constrained_literals = []
@@ -45,12 +47,43 @@ def build_constrained_literal_from_literal(literal: 'Literal', clause: 'Constrai
     return constrained_literal
 
 
-def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
+def constrained_atoms_independent(c_atom1: 'ConstrainedAtom',
+                                  c_atom2: 'ConstrainedAtom',
+                                  universe: 'SetOfConstants'
+                                  ) -> bool:
     """Are the constrained atoms c_atom1 and c_atom2 independent?
+    NOTE: this can handle both formulas and sentences, so needs a universe"""
+    # first, check if these are sentences (no free variables) or not
+    free_variables1 = get_free_logical_variables_in_clause(c_atom1)
+    free_variables2 = get_free_logical_variables_in_clause(c_atom2)
+    # if either are not sentences, construct all the possible sentences from that formula
+    if len(free_variables1) > 0:
+        closing_substitutions1 = get_closing_substitutions(c_atom1, universe)
+        c_atom1_sentences = [c_atom1.apply_substitution(sub) for sub in closing_substitutions1]
+    else:
+        c_atom1_sentences = [c_atom1]
+
+    if len(free_variables2) > 0:
+        closing_substitutions2 = get_closing_substitutions(c_atom2, universe)
+        c_atom2_sentences = [c_atom2.apply_substitution(sub) for sub in closing_substitutions2]
+    else:
+        c_atom2_sentences = [c_atom2]
+    # now check that all closing substitutions for the first are independent of all for the secone
+    for sentence1 in c_atom1_sentences:
+        for sentence2 in c_atom2_sentences:
+            print("here",sentence1, sentence2)
+            if not constrained_atoms_independent_sentences(sentence1, sentence2):
+                print("oops", sentence1, sentence2)
+                return False
+    return True
+
+
+def constrained_atoms_independent_sentences(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
+    """Are the SENTENCE constrained atoms c_atom1 and c_atom2 independent?
     This is checked by seeing if they have the same predicate and then whether they have the same groundings.
     Returns a boolean indicating whether they are.
 
-    NOTE: currently assumes there are no constants in the arguments to either atom"""
+    NOTE: currently assumes there are no free variables or domain variables"""
     # first, check if they have the same predicate, otherwise they are definitely independent
     if not have_same_predicate(c_atom1, c_atom2):
         return True
@@ -69,9 +102,8 @@ def is_satisfiable(constraint_set: 'ConstraintSet') -> bool:
     """Check if a constraint set is satisfiable by constructing solutions to it
     and seeing if there are any"""
     # first we check if any constraints contain a contradiction
-    for constraint in constraint_set:
-        if constraint.contains_contradiction():
-            return False
+    if constraint_set.contains_contradiction():
+        return False
     # extract just the variables from each constraint
     logical_variables = get_logical_variables_from_cs(constraint_set)
     # now we find solutions for those variables and see if there are any
@@ -87,6 +119,33 @@ def get_logical_variables_from_cs(constraint_set: 'ConstraintSet') -> Set['Logic
             if isinstance(term, LogicalVariable):
                 logical_variables.add(term)
     return logical_variables
+
+
+def get_free_logical_variables_in_clause(clause: 'ConstrainedClause') -> Set['LogicalVariable']:
+    """Get only the free LOGICAL variables that appear in a clause.
+    Free variables can appear in the constraint set OR the unconstrained clause."""
+
+    all_variables: Set['LogicalVariable'] = set()
+    for literal in clause.unconstrained_clause.literals:
+        all_variables.update(term for term in literal.atom.terms if isinstance(term, LogicalVariable))
+    cs_logical_variables = get_logical_variables_from_cs(clause.cs)
+    all_variables.update(cs_logical_variables)
+    # return only the variables that are not quantified over
+    return all_variables - clause.bound_vars
+
+
+def get_closing_substitutions(clause: 'ConstrainedClause', universe: 'SetOfConstants') -> Set['Substitution']:
+    """Get all satisfiable closing substitutions for a clause with free logical variables given a specific universe of constants."""
+    free_logical_variables = get_free_logical_variables_in_clause(clause)
+    # For a closing substitution, all free variables are substituted with constants or bound variables 
+    bound_vars: Set['LogicalTerm'] = cast(Set['LogicalTerm'], clause.bound_vars) # hack for type checking
+    universe_constants: Set['LogicalTerm'] =  cast(Set['LogicalTerm'], universe.constants) # hack for type checking
+    substitution_targets: Set['LogicalTerm'] = bound_vars.union(universe_constants)
+    # construct ALL possible closing substitutions first, then weed out the ones that are unsatisfiable
+    right_hand_sides = product(substitution_targets, repeat=len(free_logical_variables))
+    all_substitutions = set(Substitution(zip(free_logical_variables, rhs)) for rhs in right_hand_sides)
+    valid_substitutions = set(sub for sub in all_substitutions if is_satisfiable(clause.cs.apply_substitution(sub)))
+    return valid_substitutions
 
 
 def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAtom']:
@@ -139,7 +198,8 @@ def constrained_clauses_subsumed(subsumer: 'ConstrainedClause', subsumed: 'Const
 
 
 def constrained_atoms_not_independent_and_not_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
-    return not constrained_atoms_independent(subsumer, subsumed) and not constrained_atoms_subsumed(subsumer, subsumed)
+    """TODO: replace this with non-sentence version"""
+    return not constrained_atoms_independent_sentences(subsumer, subsumed) and not constrained_atoms_subsumed(subsumer, subsumed)
 
 
 def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: 'ConstrainedClause') -> bool:
@@ -147,22 +207,23 @@ def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: '
     This is checked by checking if every c-atom in the first clause is independent of every c-atom in the second.
     Returns a boolean indicating whether they are.
 
-    NOTE: There may be ways to make this more efficient"""
+    NOTE: There may be ways to make this more efficient
+    TODO: Replace this with non-sentence version"""
     c_atoms1 = get_constrained_atoms(c_clause1)
     c_atoms2 = get_constrained_atoms(c_clause2)
     for c_atom1 in c_atoms1:
         for c_atom2 in c_atoms2:
-            if not constrained_atoms_independent(c_atom1, c_atom2):
+            if not constrained_atoms_independent_sentences(c_atom1, c_atom2):
                 return False
     return True
 
 
 def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> Set['Substitution']:
-    """NOTE: for now we assume that all the arguments to the constrained atom are variables"""
+    """Get the solutions to a constrained atom.
+    NOTE: Assumes that the constrained atom contains no free or domain variables"""
     terms = c_atom.atom.terms
 
     # NOTE: we can only get solutions to variables, not constants
-    # TODO: check we can just ignore constants like this
     variables: List['LogicalVariable'] = [term for term in terms if isinstance(term, LogicalVariable)]
 
     # now we get the solutions for its constraint set with its variables

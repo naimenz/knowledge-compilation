@@ -68,11 +68,11 @@ class ConstrainedClause(Clause):
         self.cs = cs
 
     def apply_substitution(self, substitution: 'Substitution') -> 'ConstrainedClause':
-        """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause"""
+        """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
+        NOTE: assumes that the bound vars aren't substituted"""
         new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
-        new_bound_vars = set(substitution[var] for var in self.bound_vars)
         new_cs = self.cs.apply_substitution(substitution)
-        return ConstrainedClause(new_unconstrained_clause, new_bound_vars, new_cs)
+        return ConstrainedClause(new_unconstrained_clause, self.bound_vars, new_cs)
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
@@ -110,6 +110,13 @@ class UnitClause(ConstrainedClause):
         self.literal = list(unconstrained_clause.literals)[0] # convert to 1-item list and get item
         super(UnitClause, self).__init__(unconstrained_clause, bound_vars, cs)
 
+    def apply_substitution(self, substitution: 'Substitution') -> 'UnitClause':
+        """This should inherit from ConstrainedClause, but I don't know how to return the right subclass
+        NOTE: assumes that bound vars aren't substituted
+        TODO: make this abstract"""
+        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
+        new_cs = self.cs.apply_substitution(substitution)
+        return UnitClause(new_unconstrained_clause, self.bound_vars, new_cs)
 
 class ConstrainedAtom(UnitClause):
     """An FOL-DC constrained atom.
@@ -128,4 +135,11 @@ class ConstrainedAtom(UnitClause):
         """Get the atom from the unconstrained clause"""
         return self.literal.atom
 
+    def apply_substitution(self, substitution: 'Substitution') -> 'ConstrainedAtom':
+        """This should inherit from ConstrainedClause, but I don't know how to return the right subclass
+        NOTE: assumes that the bound vars aren't substituted
+        TODO: make this abstract"""
+        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
+        new_cs = self.cs.apply_substitution(substitution)
+        return ConstrainedAtom(new_unconstrained_clause, self.bound_vars, new_cs)
 
