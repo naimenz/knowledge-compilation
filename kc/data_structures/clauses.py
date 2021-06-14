@@ -26,6 +26,10 @@ class UnconstrainedClause(Clause):
         in a clause are redundant (they cannot change the disjunction)"""
         self.literals = frozenset(literals)
 
+    def apply_substitution(self, substitution: 'Substitution') -> 'UnconstrainedClause':
+        """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
+        return UnconstrainedClause(literal.apply_substitution(substitution) for literal in self.literals)
+
     def __eq__(self, other: Any) -> bool:
         """Two unconstrained clauses are equal if they have the same literals
 
@@ -62,6 +66,13 @@ class ConstrainedClause(Clause):
         self.unconstrained_clause = unconstrained_clause
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
+
+    def apply_substitution(self, substitution: 'Substitution') -> 'ConstrainedClause':
+        """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause"""
+        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
+        new_bound_vars = set(substitution[var] for var in self.bound_vars)
+        new_cs = self.cs.apply_substitution(substitution)
+        return ConstrainedClause(new_unconstrained_clause, new_bound_vars, new_cs)
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,

@@ -19,6 +19,10 @@ class Literal:
         self.atom = atom
         self.polarity = polarity
 
+    def apply_substitution(self, substitution: 'Substitution') -> 'Literal':
+        """Return a new Literal, the result of applying substitution to the current Literal"""
+        return Literal(self.atom.apply_substitution(substitution), self.polarity)
+
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
         if not isinstance(other, Literal):
@@ -51,6 +55,18 @@ class Atom:
         assert(len(terms) == predicate.arity)
         self.predicate = predicate
         self.terms = tuple(terms)
+
+    def apply_substitution(self, substitution: 'Substitution') -> 'Atom':
+        """Return a new Atom, the result of applying substitution to the current Atom."""
+        new_terms: List['LogicalTerm'] = []
+        for term in self.terms:
+            sub_value = substitution[term]
+            if not sub_value is None:
+                new_term = sub_value
+            else:
+                new_term = term
+            new_terms.append(new_term)
+        return Atom(self.predicate, new_terms)
 
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""

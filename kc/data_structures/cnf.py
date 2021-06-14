@@ -21,6 +21,11 @@ class CNF:
         TODO: Eventually this will probably be done with circuit nodes and/or sets"""
         return CNF(self.clauses.union(other.clauses))
 
+    def apply_substitution(self, substitution: 'Substitution') -> 'CNF':
+        """Return a new CNF, the result of applying substitution to this CNF"""
+        new_clauses = set(clause.apply_substitution(substitution) for clause in self.clauses)
+        return CNF(new_clauses)
+
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses
 

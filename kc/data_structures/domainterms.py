@@ -28,6 +28,10 @@ class SetOfConstants(DomainTerm):
         never be changed once set."""
         return self._constants
 
+    def __contains__(self, element: 'LogicalTerm') -> bool:
+        """Is a logical term in this set of constants?"""
+        return element in self.constants
+
     def __eq__(self, other: Any) -> bool:
         """Two sets of constants are equal if their constants are the same"""
         if not isinstance(other, SetOfConstants):
