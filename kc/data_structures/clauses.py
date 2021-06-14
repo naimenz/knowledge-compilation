@@ -5,15 +5,19 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures.logicalterms import *
-from kc.data_structures.literals import *
-from kc.data_structures.constraints import *
-from abc import ABC
+from kc.data_structures import *
 
-from typing import List
+from abc import ABC, abstractmethod
+
+from typing import List, TypeVar, Iterable, Any
+
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
+    @abstractmethod
+    def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+        pass
+
 
 class UnconstrainedClause(Clause):
     """An FOL unconstrained clause.
@@ -26,9 +30,9 @@ class UnconstrainedClause(Clause):
         in a clause are redundant (they cannot change the disjunction)"""
         self.literals = frozenset(literals)
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'UnconstrainedClause':
+    def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
         """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
-        return UnconstrainedClause(literal.apply_substitution(substitution) for literal in self.literals)
+        return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
 
     def __eq__(self, other: Any) -> bool:
         """Two unconstrained clauses are equal if they have the same literals
@@ -53,6 +57,7 @@ class UnconstrainedClause(Clause):
     def __repr__(self) -> str:
         return self.__str__()
 
+
 class ConstrainedClause(Clause):
     """An FOL-DC constrained clause.
     This consists of an unconstrained clause with a set of bound variables and a constraint set.
@@ -67,12 +72,12 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'ConstrainedClause':
+    def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: assumes that the bound vars aren't substituted"""
         new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
         new_cs = self.cs.apply_substitution(substitution)
-        return ConstrainedClause(new_unconstrained_clause, self.bound_vars, new_cs)
+        return self.__class__(new_unconstrained_clause, self.bound_vars, new_cs)
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
@@ -98,6 +103,7 @@ class ConstrainedClause(Clause):
         return self.__str__()
 
 
+
 class UnitClause(ConstrainedClause):
     """AN FOL-DC unit clause.
     This is a constrained clause with a single literal
@@ -110,13 +116,6 @@ class UnitClause(ConstrainedClause):
         self.literal = list(unconstrained_clause.literals)[0] # convert to 1-item list and get item
         super(UnitClause, self).__init__(unconstrained_clause, bound_vars, cs)
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'UnitClause':
-        """This should inherit from ConstrainedClause, but I don't know how to return the right subclass
-        NOTE: assumes that bound vars aren't substituted
-        TODO: make this abstract"""
-        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
-        new_cs = self.cs.apply_substitution(substitution)
-        return UnitClause(new_unconstrained_clause, self.bound_vars, new_cs)
 
 class ConstrainedAtom(UnitClause):
     """An FOL-DC constrained atom.
@@ -135,11 +134,8 @@ class ConstrainedAtom(UnitClause):
         """Get the atom from the unconstrained clause"""
         return self.literal.atom
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'ConstrainedAtom':
-        """This should inherit from ConstrainedClause, but I don't know how to return the right subclass
-        NOTE: assumes that the bound vars aren't substituted
-        TODO: make this abstract"""
-        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
-        new_cs = self.cs.apply_substitution(substitution)
-        return ConstrainedAtom(new_unconstrained_clause, self.bound_vars, new_cs)
+
+# Type variable for arbitrary clauses so I can reuse apply_substitution
+# ideally this would be defined above but I think mypy is bugged
+C = TypeVar('C', bound='ConstrainedClause') 
 

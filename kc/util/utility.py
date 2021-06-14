@@ -8,8 +8,11 @@ from kc.util import *
 from copy import deepcopy
 from itertools import chain, product
 
-from typing import List, Tuple, Set, Dict, cast
+from typing import List, Tuple, Set, Dict, cast, FrozenSet, Optional
+from typing import TypeVar
 
+VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
+C = TypeVar('C', bound='ConstrainedClause') # for functions that can operate on more than one type of clause
 
 def get_constrained_atoms(clause: 'ConstrainedClause') -> List['ConstrainedAtom']:
     """For a given clause, return a list of all the constrained atoms in the clause"""
@@ -53,27 +56,25 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom',
                                   ) -> bool:
     """Are the constrained atoms c_atom1 and c_atom2 independent?
     NOTE: this can handle both formulas and sentences, so needs a universe"""
-    # first, check if these are sentences (no free variables) or not
-    free_variables1 = get_free_logical_variables_in_clause(c_atom1)
-    free_variables2 = get_free_logical_variables_in_clause(c_atom2)
-    # if either are not sentences, construct all the possible sentences from that formula
-    if len(free_variables1) > 0:
-        closing_substitutions1 = get_closing_substitutions(c_atom1, universe)
-        c_atom1_sentences = [c_atom1.apply_substitution(sub) for sub in closing_substitutions1]
-    else:
-        c_atom1_sentences = [c_atom1]
-
-    if len(free_variables2) > 0:
-        closing_substitutions2 = get_closing_substitutions(c_atom2, universe)
-        c_atom2_sentences = [c_atom2.apply_substitution(sub) for sub in closing_substitutions2]
-    else:
-        c_atom2_sentences = [c_atom2]
+    c_atom1_sentences = build_sentences_from_open_formula(c_atom1, universe)
+    c_atom2_sentences = build_sentences_from_open_formula(c_atom2, universe)
     # now check that all closing substitutions for the first are independent of all for the secone
     for sentence1 in c_atom1_sentences:
         for sentence2 in c_atom2_sentences:
             if not constrained_atoms_independent_sentences(sentence1, sentence2):
                 return False
     return True
+
+def build_sentences_from_open_formula(formula: C, universe: 'SetOfConstants') -> List[C]:
+    """Build all possible sentences from a formula (either a sentence of non-sentence) and a given universe"""
+    free_variables = get_free_logical_variables_in_clause(formula)
+    # if not sentences, construct all the possible sentences from the formula
+    if len(free_variables) > 0:
+        closing_substitutions = get_closing_substitutions(formula, universe)
+        sentences = [formula.apply_substitution(sub) for sub in closing_substitutions]
+    else:
+        sentences = [formula]
+    return sentences
 
 
 def constrained_atoms_independent_sentences(c_atom1: 'ConstrainedAtom', c_atom2: 'ConstrainedAtom') -> bool:
@@ -123,13 +124,20 @@ def get_free_logical_variables_in_clause(clause: 'ConstrainedClause') -> Set['Lo
     """Get only the free LOGICAL variables that appear in a clause.
     Free variables can appear in the constraint set OR the unconstrained clause."""
 
+    all_variables = get_all_logical_variables_in_clause(clause)
+    return all_variables - clause.bound_vars
+
+def get_all_logical_variables_in_clause(clause: 'ConstrainedClause') -> Set['LogicalVariable']:
+    """Get only the free LOGICAL variables that appear in a clause.
+    Free variables can appear in the constraint set OR the unconstrained clause."""
+
     all_variables: Set['LogicalVariable'] = set()
     for literal in clause.unconstrained_clause.literals:
         all_variables.update(term for term in literal.atom.terms if isinstance(term, LogicalVariable))
     cs_logical_variables = get_logical_variables_from_cs(clause.cs)
     all_variables.update(cs_logical_variables)
     # return only the variables that are not quantified over
-    return all_variables - clause.bound_vars
+    return all_variables 
 
 
 def get_closing_substitutions(clause: 'ConstrainedClause', universe: 'SetOfConstants') -> Set['Substitution']:
@@ -146,9 +154,11 @@ def get_closing_substitutions(clause: 'ConstrainedClause', universe: 'SetOfConst
     return valid_substitutions
 
 
-def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAtom']:
+# DEBUG add variables argument
+def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom',
+        variables: Optional[List['LogicalVariable']]=None) -> List['GroundAtom']:
     """Return a list of all ground atoms in the grounding of a constrained atom"""
-    sols = get_solutions_to_constrained_atom(c_atom)
+    sols = get_solutions_to_constrained_atom(c_atom, variables)
     ground_atoms = [GroundAtom.build_from_atom_substitution(c_atom.atom, sol) for sol in sols]
     return ground_atoms
 
@@ -158,38 +168,35 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom',
                                   ) -> bool:
     """Does the constrained atom subsumer subsume  the subsumed?
     NOTE: this can handle both formulas and sentences, so needs a universe"""
-    # first, check if these are sentences (no free variables) or not
-    free_variables1 = get_free_logical_variables_in_clause(subsumer)
-    free_variables2 = get_free_logical_variables_in_clause(subsumed)
-    # if either are not sentences, construct all the possible sentences from that formula
-    if len(free_variables1) > 0:
-        closing_substitutions1 = get_closing_substitutions(subsumer, universe)
-        subsumer_sentences = [subsumer.apply_substitution(sub) for sub in closing_substitutions1]
-    else:
-        subsumer_sentences = [subsumer]
+    print(f"original formulas: {subsumer},\n {subsumed}")
+    # DEBUG
+    subsumer_vars = get_all_logical_variables_in_clause(subsumer)
+    subsumed_vars = get_all_logical_variables_in_clause(subsumed)
 
-    if len(free_variables2) > 0:
-        closing_substitutions2 = get_closing_substitutions(subsumed, universe)
-        subsumed_sentences = [subsumed.apply_substitution(sub) for sub in closing_substitutions2]
-    else:
-        subsumed_sentences = [subsumed]
+    subsumer_sentences = build_sentences_from_open_formula(subsumer, universe)
+    subsumed_sentences = build_sentences_from_open_formula(subsumed, universe)
     # now check that all closing substitutions for the first are independent of all for the secone
     for subsumer_sentence in subsumer_sentences:
         for subsumed_sentence in subsumed_sentences:
-            if not constrained_atoms_subsumed_sentences(subsumer_sentence, subsumed_sentence):
+            print(f"subsumer = {subsumer_sentence}\nsubsumed = {subsumed_sentence}")
+            if not constrained_atoms_subsumed_sentences(subsumer_sentence, subsumed_sentence, list(subsumed_vars)):
+                print("does NOT subsume\n")
                 return False
+            print("subsumes\n")
     return True
 
 
-def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
+# DEBUG
+def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom',
+        variables: Optional[List['LogicalVariable']]=None) -> bool:
     """Check whether one SENTENCE constrained atom implies another.
     I.e. check whether the subsumer subsumes the subsumed"""
     # first, check if they have the same predicate, otherwise they cannot subsume
     if not have_same_predicate(subsumer, subsumed):
         return False
     
-    subsumer_ground_atoms = get_constrained_atom_grounding(subsumer)
-    subsumed_ground_atoms = get_constrained_atom_grounding(subsumed)
+    subsumer_ground_atoms = get_constrained_atom_grounding(subsumer, variables)
+    subsumed_ground_atoms = get_constrained_atom_grounding(subsumed, variables)
 
     # if there is a ground atom in the subsumed that does not appear in the subsumer, then
     # it is not subsumed
@@ -199,17 +206,17 @@ def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 
     return True
 
 
-def constrained_literals_subsumed(subsumer: 'UnitClause', subsumed: 'UnitClause') -> bool:
-    """Check whther one constrained literal implies another.
+def constrained_literals_subsumed(subsumer: 'UnitClause', subsumed: 'UnitClause', universe: 'SetOfConstants') -> bool:
+    """Check whether one constrained literal implies another.
     This builds on constrained_atoms_subsumed with a check for polarity"""
     subsumer_constrained_atom = get_constrained_atoms(subsumer)[0] # only one literal
     subsumed_constrained_atom = get_constrained_atoms(subsumed)[0] # only one literal
-    subsumed_as_atoms = constrained_atoms_subsumed(subsumer_constrained_atom, subsumed_constrained_atom)
-    polarity_same = subsumer.literal.polarity == subsumed.literal.polarity
+    subsumed_as_atoms = constrained_atoms_subsumed(subsumer_constrained_atom, subsumed_constrained_atom, universe)
+    polarity_same = (subsumer.literal.polarity == subsumed.literal.polarity)
     return subsumed_as_atoms and polarity_same
 
 
-def constrained_clauses_subsumed(subsumer: 'ConstrainedClause', subsumed: 'ConstrainedClause') -> bool:
+def constrained_clauses_subsumed(subsumer: 'ConstrainedClause', subsumed: 'ConstrainedClause', universe: 'SetOfConstants') -> bool:
     """Check whether one constrained clause implies another.
     This works by noticing that if any constrained literal of the subsumer implies any
     constrained literal of the subsumed, then it is subsumed."""
@@ -218,17 +225,16 @@ def constrained_clauses_subsumed(subsumer: 'ConstrainedClause', subsumed: 'Const
 
     for subsumer_literal in subsumer_constrained_literals:
         for subsumed_literal in subsumed_constrained_literals:
-            if constrained_literals_subsumed(subsumer_literal, subsumed_literal):
+            if constrained_literals_subsumed(subsumer_literal, subsumed_literal, universe):
                 return True
     return False
 
 
-def constrained_atoms_not_independent_and_not_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
-    """TODO: replace this with non-sentence version"""
-    return not constrained_atoms_independent_sentences(subsumer, subsumed) and not constrained_atoms_subsumed(subsumer, subsumed)
+def constrained_atoms_not_independent_and_not_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom', universe: 'SetOfConstants') -> bool:
+    return not constrained_atoms_independent(subsumer, subsumed, universe) and not constrained_atoms_subsumed(subsumer, subsumed, universe)
 
 
-def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: 'ConstrainedClause') -> bool:
+def constrained_clauses_independent_sentences(c_clause1: 'ConstrainedClause', c_clause2: 'ConstrainedClause') -> bool:
     """Are the constrained clauses c_clause1 and c_clause2 independent?
     This is checked by checking if every c-atom in the first clause is independent of every c-atom in the second.
     Returns a boolean indicating whether they are.
@@ -244,13 +250,16 @@ def constrained_clauses_independent(c_clause1: 'ConstrainedClause', c_clause2: '
     return True
 
 
-def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> Set['Substitution']:
+# DEBUG added variables arg
+def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom',
+                                      variables: Optional[List['LogicalVariable']]=None) -> Set['Substitution']:
     """Get the solutions to a constrained atom.
     NOTE: Assumes that the constrained atom contains no free or domain variables"""
     terms = c_atom.atom.terms
 
-    # NOTE: we can only get solutions to variables, not constants
-    variables: List['LogicalVariable'] = [term for term in terms if isinstance(term, LogicalVariable)]
+    if variables is None:
+        # NOTE: we can only get solutions to variables, not constants
+        variables = [term for term in terms if isinstance(term, LogicalVariable)]
 
     # now we get the solutions for its constraint set with its variables
     return get_solutions(c_atom.cs, variables)

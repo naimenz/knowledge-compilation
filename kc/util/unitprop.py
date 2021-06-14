@@ -6,7 +6,7 @@ from kc.util import *
 
 from typing import List
 
-def unitprop(delta: 'CNF', u: 'UnitClause') -> 'CNF':
+def unitprop(delta: 'CNF', u: 'UnitClause', universe: 'SetOfConstants') -> 'CNF':
     """Perform unit propagation on a CNF theory delta. 
     Assumes that there is a unit clause in delta.
     TODO: make this work with free and domain vars.
@@ -14,9 +14,9 @@ def unitprop(delta: 'CNF', u: 'UnitClause') -> 'CNF':
     unitpropagated_clauses: List['ConstrainedClause'] = []
     u_atom = get_constrained_atoms(u)[0] # only one literal
     for gamma in delta.clauses:
-        split_gammas = split(gamma, u_atom)
+        split_gammas = split(gamma, u_atom, universe)
         for gamma_s in split_gammas:
-            conditioned_clause = condition(gamma_s, u)
+            conditioned_clause = condition(gamma_s, u, universe)
             if not conditioned_clause is None:
                 unitpropagated_clauses.append(conditioned_clause)
     # TODO: make circuit nodes
