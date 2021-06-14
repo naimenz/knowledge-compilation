@@ -68,29 +68,33 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom', c_atom2: 'Constrai
 def is_satisfiable(constraint_set: 'ConstraintSet') -> bool:
     """Check if a constraint set is satisfiable by constructing solutions to it
     and seeing if there are any"""
-    # extract just the variables from each constraint
-    logical_variables: Set['LogicalVariable'] = set()
+    # first we check if any constraints contain a contradiction
     for constraint in constraint_set:
-        # messy logic for isolating logical variables TODO: clean this somehow
-        if isinstance(constraint, LogicalConstraint):
-            if isinstance(constraint.left_term, LogicalVariable):
-                logical_variables.add(constraint.left_term)
-            if isinstance(constraint.right_term, LogicalVariable):
-                logical_variables.add(constraint.right_term)
-        elif isinstance(constraint, SetConstraint):
-            if isinstance(constraint.logical_term, LogicalVariable):
-                logical_variables.add(constraint.logical_term)
+        if constraint.contains_contradiction():
+            return False
+    # extract just the variables from each constraint
+    logical_variables = get_logical_variables_from_cs(constraint_set)
     # now we find solutions for those variables and see if there are any
     solutions = get_solutions(constraint_set, list(logical_variables))
     return len(solutions) > 0
+
+
+def get_logical_variables_from_cs(constraint_set: 'ConstraintSet') -> Set['LogicalVariable']:
+    """Extract just the variables from each constraint in the constraint set"""
+    logical_variables: Set['LogicalVariable'] = set()
+    for constraint in constraint_set:
+        for term in constraint.terms:
+            if isinstance(term, LogicalVariable):
+                logical_variables.add(term)
+    return logical_variables
 
 
 def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAtom']:
     """Return a list of all ground atoms in the grounding of a constrained atom"""
     sols = get_solutions_to_constrained_atom(c_atom)
     ground_atoms = [GroundAtom.build_from_atom_substitution(c_atom.atom, sol) for sol in sols]
-
     return ground_atoms
+
 
 def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
     """Check whether one constrained atom implies another.
@@ -108,6 +112,7 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'Constrain
         if not ground_atom in subsumer_ground_atoms:
             return False
     return True
+
 
 def constrained_literals_subsumed(subsumer: 'UnitClause', subsumed: 'UnitClause') -> bool:
     """Check whther one constrained literal implies another.
