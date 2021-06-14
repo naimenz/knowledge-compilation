@@ -25,21 +25,22 @@ cs_gamma = ConstraintSet([XinD, ~YeqZ])
 cs_gamma2 = ConstraintSet([XinD, YeqZ])
 cs_A = ConstraintSet([XinD])
 
-# sub = Substitution([(Z, Y)])
-# new_cs_gamma = cs_gamma.apply_substitution(sub)
-# print("hi",new_cs_gamma)
-
 gamma = ConstrainedClause(UnconstrainedClause([pX, qX]), [X], cs_gamma)
 A = ConstrainedAtom(UnconstrainedClause([pX]), [X], cs_A)
 
-# print(gamma)
-# print(get_free_logical_variables_in_clause(gamma))
-# print(get_closing_substitutions(gamma, Universe))
-cs1 = ConstraintSet([XinD, ~Xeqa])
-cs2 = ConstraintSet([XinD, XeqY, Yeqa])
+print(constrained_atoms_independent(get_constrained_atoms(gamma)[0], A, Universe))
+print(constrained_atoms_subsumed(get_constrained_atoms(gamma)[0], A, Universe))
 
-c_atom1 = ConstrainedAtom(UnconstrainedClause([pX]), [X], cs1)
-c_atom2 = ConstrainedAtom(UnconstrainedClause([pX]), [X], cs2)
-print(c_atom1,'\n',c_atom2)
-indep = constrained_atoms_independent(c_atom1, c_atom2, Universe)
-print(indep)
+# # print(gamma)
+# # print(get_free_logical_variables_in_clause(gamma))
+# # print(get_closing_substitutions(gamma, Universe))
+# cs1 = ConstraintSet([XinD, ~Xeqa])
+# cs2 = ConstraintSet([XinD, XeqY, Yeqa])
+
+# c_atom1 = ConstrainedAtom(UnconstrainedClause([pX]), [X], cs1)
+# c_atom2 = ConstrainedAtom(UnconstrainedClause([pX]), [X], cs2)
+# print(c_atom1,'\n',c_atom2)
+# indep = constrained_atoms_independent(c_atom1, c_atom2, Universe)
+# print(indep)
+
+

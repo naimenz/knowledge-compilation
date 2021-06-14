@@ -71,9 +71,7 @@ def constrained_atoms_independent(c_atom1: 'ConstrainedAtom',
     # now check that all closing substitutions for the first are independent of all for the secone
     for sentence1 in c_atom1_sentences:
         for sentence2 in c_atom2_sentences:
-            print("here",sentence1, sentence2)
             if not constrained_atoms_independent_sentences(sentence1, sentence2):
-                print("oops", sentence1, sentence2)
                 return False
     return True
 
@@ -154,9 +152,37 @@ def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAto
     ground_atoms = [GroundAtom.build_from_atom_substitution(c_atom.atom, sol) for sol in sols]
     return ground_atoms
 
+def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom',
+                                  subsumed: 'ConstrainedAtom',
+                                  universe: 'SetOfConstants'
+                                  ) -> bool:
+    """Does the constrained atom subsumer subsume  the subsumed?
+    NOTE: this can handle both formulas and sentences, so needs a universe"""
+    # first, check if these are sentences (no free variables) or not
+    free_variables1 = get_free_logical_variables_in_clause(subsumer)
+    free_variables2 = get_free_logical_variables_in_clause(subsumed)
+    # if either are not sentences, construct all the possible sentences from that formula
+    if len(free_variables1) > 0:
+        closing_substitutions1 = get_closing_substitutions(subsumer, universe)
+        subsumer_sentences = [subsumer.apply_substitution(sub) for sub in closing_substitutions1]
+    else:
+        subsumer_sentences = [subsumer]
 
-def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
-    """Check whether one constrained atom implies another.
+    if len(free_variables2) > 0:
+        closing_substitutions2 = get_closing_substitutions(subsumed, universe)
+        subsumed_sentences = [subsumed.apply_substitution(sub) for sub in closing_substitutions2]
+    else:
+        subsumed_sentences = [subsumed]
+    # now check that all closing substitutions for the first are independent of all for the secone
+    for subsumer_sentence in subsumer_sentences:
+        for subsumed_sentence in subsumed_sentences:
+            if not constrained_atoms_subsumed_sentences(subsumer_sentence, subsumed_sentence):
+                return False
+    return True
+
+
+def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
+    """Check whether one SENTENCE constrained atom implies another.
     I.e. check whether the subsumer subsumes the subsumed"""
     # first, check if they have the same predicate, otherwise they cannot subsume
     if not have_same_predicate(subsumer, subsumed):
