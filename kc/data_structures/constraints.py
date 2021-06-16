@@ -9,7 +9,10 @@ from kc.data_structures import *
 
 from abc import ABC, abstractmethod
 
-from typing import List, Iterable, Any, FrozenSet, Tuple, Union
+from typing import List, Iterable, Any, FrozenSet, Tuple, Union, Optional
+
+# defining type alias to simplify type hinting
+ECList = List['EquivalenceClass']
 
 class ConstraintSet:
     """A FOL-DC constraint set.
@@ -36,17 +39,57 @@ class ConstraintSet:
             new_constraints.append(new_constraint)
         return ConstraintSet(new_constraints)
 
-    def contains_contradiction(self) -> bool:
-        """Check if this constraint set contains a contradiction
-        TODO: cover all possible contradictions, probably using equivalence classes"""
-        for constraint in self:
-            # first check if any individual constraint contains a contradiction
-            if constraint.contains_contradiction():
-                return True
-            # then check if this constraint's negation is in the constraint set
-            if ~constraint in self:
-                return True
-        return False
+    def is_satisfiable(self) -> bool:
+        """Is this constraint set satisfiable?
+        I am basing this on the method used in Forclift, with some changes.
+        NOTE TODO: This currently does not work with domain variables"""
+        eq_classes = self._get_eq_classes()
+        variable_domains = self._get_variable_domains()
+        for eq_class in eq_classes:
+            if self._ineq_constraints_contradict_eq_class(eq_class):
+                return False
+            if self._any_variable_domain_empty(variable_domains):
+                return False
+            if self._variable_domains_contradict_eq_class(eq_class):
+                return False
+
+    def _get_eq_classes(self) -> ECList:
+        """Get the equivalence classes on variables specified by the equality constraints of this constraint set"""
+        final_eq_classes: ECList = []
+        initial_eq_classes: ECList = []
+        for constraint in self.constraints:
+            if isinstance(constraint, EqualityConstraint):
+                # we build up equivalence classes, starting from equivalences between terms in the same 
+                # equality constraint
+                # we only include equivalence classes with more than one unique element
+                initial_eq_classes = EquivalenceClass(constraint.terms)
+
+        remaining_eq_classes = initial_eq_classes
+        while len(remaining_eq_classes) > 0:
+            current_eq_class = remaining_eq_classes[0]
+            remaining_eq_classes = remaining_eq_classes[1:]
+
+            current_class_changed = True
+            while current_class_changed:
+                # split the equivalence classes into those that overlap with the current class and those that don't
+                overlapping, disjoint = partition_overlapping_disjoint_classes(current_eq_class, remaining_eq_classes)
+                # merge the overlapping eq classes into one big eq class
+                merger = lambda eq_class1, eq_class2: eq_class1.join(eq_class2)
+                current_eq_class = reduce(merger, overlapping, current_eq_class)
+                remaining_eq_classes = disjoint
+                current_class_changed = (len(overlapping) > 0)
+
+                if current_eq_class.is_inconsistent:
+                    return None
+
+            final_eq_classes.append(current_eq_class)
+        return final_eq_classes
+
+
+    def _ineq_constraints_contradict_eq_class(self, eq_class: 'EquivalenceClass') -> bool:
+        """Do the inequality constraints in this constraint set contradict an equivalence
+        class of variables?"""
+        raise NotImplementedError()
 
 
     def __iter__(self):
