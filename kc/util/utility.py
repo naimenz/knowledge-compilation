@@ -127,6 +127,7 @@ def get_free_logical_variables_in_clause(clause: 'ConstrainedClause') -> Set['Lo
     all_variables = get_all_logical_variables_in_clause(clause)
     return all_variables - clause.bound_vars
 
+
 def get_all_logical_variables_in_clause(clause: 'ConstrainedClause') -> Set['LogicalVariable']:
     """Get only the free LOGICAL variables that appear in a clause.
     Free variables can appear in the constraint set OR the unconstrained clause."""
@@ -154,11 +155,9 @@ def get_closing_substitutions(clause: 'ConstrainedClause', universe: 'SetOfConst
     return valid_substitutions
 
 
-# DEBUG add variables argument
-def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom',
-        variables: Optional[List['LogicalVariable']]=None) -> List['GroundAtom']:
+def get_constrained_atom_grounding(c_atom: 'ConstrainedAtom') -> List['GroundAtom']:
     """Return a list of all ground atoms in the grounding of a constrained atom"""
-    sols = get_solutions_to_constrained_atom(c_atom, variables)
+    sols = get_solutions_to_constrained_atom(c_atom)
     ground_atoms = [GroundAtom.build_from_atom_substitution(c_atom.atom, sol) for sol in sols]
     return ground_atoms
 
@@ -170,8 +169,6 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom',
     NOTE: this can handle both formulas and sentences, so needs a universe"""
     print(f"original formulas: {subsumer},\n {subsumed}")
     # DEBUG
-    subsumer_vars = get_all_logical_variables_in_clause(subsumer)
-    subsumed_vars = get_all_logical_variables_in_clause(subsumed)
 
     subsumer_sentences = build_sentences_from_open_formula(subsumer, universe)
     subsumed_sentences = build_sentences_from_open_formula(subsumed, universe)
@@ -179,24 +176,22 @@ def constrained_atoms_subsumed(subsumer: 'ConstrainedAtom',
     for subsumer_sentence in subsumer_sentences:
         for subsumed_sentence in subsumed_sentences:
             print(f"subsumer = {subsumer_sentence}\nsubsumed = {subsumed_sentence}")
-            if not constrained_atoms_subsumed_sentences(subsumer_sentence, subsumed_sentence, list(subsumed_vars)):
+            if not constrained_atoms_subsumed_sentences(subsumer_sentence, subsumed_sentence):
                 print("does NOT subsume\n")
                 return False
             print("subsumes\n")
     return True
 
 
-# DEBUG
-def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom',
-        variables: Optional[List['LogicalVariable']]=None) -> bool:
+def constrained_atoms_subsumed_sentences(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom',) -> bool:
     """Check whether one SENTENCE constrained atom implies another.
     I.e. check whether the subsumer subsumes the subsumed"""
     # first, check if they have the same predicate, otherwise they cannot subsume
     if not have_same_predicate(subsumer, subsumed):
         return False
     
-    subsumer_ground_atoms = get_constrained_atom_grounding(subsumer, variables)
-    subsumed_ground_atoms = get_constrained_atom_grounding(subsumed, variables)
+    subsumer_ground_atoms = get_constrained_atom_grounding(subsumer)
+    subsumed_ground_atoms = get_constrained_atom_grounding(subsumed)
 
     # if there is a ground atom in the subsumed that does not appear in the subsumer, then
     # it is not subsumed
@@ -250,16 +245,13 @@ def constrained_clauses_independent_sentences(c_clause1: 'ConstrainedClause', c_
     return True
 
 
-# DEBUG added variables arg
-def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom',
-                                      variables: Optional[List['LogicalVariable']]=None) -> Set['Substitution']:
+def get_solutions_to_constrained_atom(c_atom: 'ConstrainedAtom') -> Set['Substitution']:
     """Get the solutions to a constrained atom.
     NOTE: Assumes that the constrained atom contains no free or domain variables"""
     terms = c_atom.atom.terms
 
-    if variables is None:
-        # NOTE: we can only get solutions to variables, not constants
-        variables = [term for term in terms if isinstance(term, LogicalVariable)]
+    # NOTE: we can only get solutions to variables, not constants
+    variables = [term for term in terms if isinstance(term, LogicalVariable)]
 
     # now we get the solutions for its constraint set with its variables
     return get_solutions(c_atom.cs, variables)

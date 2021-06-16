@@ -176,21 +176,35 @@ a, b, c = Constant('a'), Constant('b'), Constant('c')
 X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
 p, q = Predicate('p', 1), Predicate('q', 1)
 D = SetOfConstants([a, b])
+E = SetOfConstants([b, c])
 Universe = SetOfConstants([a, b, c])
 
 XinD = InclusionConstraint(X, D)
+XinE = InclusionConstraint(X, E)
 YeqZ = EqualityConstraint(Y, Z)
 Xeqa = EqualityConstraint(X, a)
+YinE = InclusionConstraint(Y, E)
+XeqY = EqualityConstraint(X, Y)
+YinUniverse = InclusionConstraint(Y, Universe)
+ZinUniverse = InclusionConstraint(Z, Universe)
 
 p_literal = Literal(Atom(p, [X]), True)
 q_literal = Literal(Atom(q, [X]), True)
 
-cs_gamma = ConstraintSet([XinD, ~YeqZ])
-cs_a = ConstraintSet([XinD])
+# cs_gamma = ConstraintSet([XinD, ~YeqZ, YinUniverse, ZinUniverse])
+# cs_a = ConstraintSet([XinD, ~YeqZ, YinUniverse, ZinUniverse])
 
-gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
-atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
-print(split(gamma, atom, Universe))
+# gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
+# atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
+# print(split(gamma, atom, Universe))
+
+# another example
+# cs_gammap = ConstraintSet([XinE, YinE, XeqY])
+# cs_ap = ConstraintSet([XinD])
+
+# gammap = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gammap)
+# atomp = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_ap)
+# print(split(gammap, atomp, Universe))
 # print(constrained_clauses_subsumed(atom, gamma))
 
 # conditioning.py
@@ -202,34 +216,34 @@ print(split(gamma, atom, Universe))
 # print(conditioned_clause)
 
 # unitprop.py
-# print('unitprop.py')
-# X = LogicalVariable('X')
-# Y = LogicalVariable('Y')
-# friends = Predicate('friends', 2)
-# likes = Predicate('likes', 2)
-# dislikes = Predicate('dislikes', 2)
+print('unitprop.py')
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+friends = Predicate('friends', 2)
+likes = Predicate('likes', 2)
+dislikes = Predicate('dislikes', 2)
 
-# a, b, c = Constant('a'), Constant('b'), Constant('c')
-# People = SetOfConstants([a, b])
-# Universe = SetOfConstants([a, b, c])
+a, b, c = Constant('a'), Constant('b'), Constant('c')
+People = SetOfConstants([a, b])
+Universe = SetOfConstants([a, b, c])
 
-# friendsXX = Literal(Atom(friends, [X, X]), True)
-# friendsXY = Literal(Atom(friends, [X, Y]), True)
-# likesXY = Literal(Atom(likes, [X, Y]), True)
-# dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
+friendsXX = Literal(Atom(friends, [X, X]), True)
+friendsXY = Literal(Atom(friends, [X, Y]), True)
+likesXY = Literal(Atom(likes, [X, Y]), True)
+dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
 
-# XinPeople = InclusionConstraint(X, People)
-# YinPeople = InclusionConstraint(Y, People)
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
 
-# clause1 = ConstrainedClause(UnconstrainedClause([friendsXY, dislikesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
-# clause2 = ConstrainedClause(UnconstrainedClause([~friendsXY, likesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
-# u = UnitClause(UnconstrainedClause([friendsXX]), [X], ConstraintSet([XinPeople]))
+clause1 = ConstrainedClause(UnconstrainedClause([friendsXY, dislikesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
+clause2 = ConstrainedClause(UnconstrainedClause([~friendsXY, likesXY]), [X, Y], ConstraintSet([XinPeople, YinPeople]))
+u = UnitClause(UnconstrainedClause([friendsXX]), [X], ConstraintSet([XinPeople]))
 
-# delta = CNF([clause1, clause2, u])
+delta = CNF([clause1, clause2, u])
 
-# # clause1_split = split(clause1, get_constrained_atoms(u)[0])
-# # for c1 in clause1_split:
-# #     print(c1)
-# deltap = unitprop(delta, u, Universe)
-# print(deltap)
+# clause1_split = split(clause1, get_constrained_atoms(u)[0])
+# for c1 in clause1_split:
+#     print(c1)
+deltap = unitprop(delta, u, Universe)
+print(deltap)
 
