@@ -13,7 +13,6 @@ class CNF:
     """
 
     def __init__(self, clauses: Iterable['ConstrainedClause']) -> None:
-        """TODO: replace list with set"""
         self.clauses = frozenset(clauses)
         self.shattered = False # keep track of whether this cnf has undergone shattering
 
@@ -28,10 +27,7 @@ class CNF:
         return CNF(new_clauses)
 
     def __eq__(self, other: Any) -> bool:
-        """Two CNFs are equal if they have the same clauses
-
-        NOTE: for now the ordering of the clauses is important.
-        TODO: make clauses hashable so I can compare sets"""
+        """Two CNFs are equal if they have the same clauses"""
         if not isinstance(other, CNF):
             return False
         same_clauses = (self.clauses == other.clauses)
