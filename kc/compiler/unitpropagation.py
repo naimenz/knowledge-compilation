@@ -14,7 +14,8 @@ class UnitPropagation(KCRule):
                 return True
         return False
 
-    def apply(self, delta: 'CNF') -> 'NNFNode':
+    @staticmethod
+    def apply(delta: 'CNF') -> 'NNFNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
         raise NotImplementedError('UnitPropagation.apply not implemented')

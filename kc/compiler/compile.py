@@ -3,7 +3,7 @@ Compile algorithm. This algorithm calls various additional algorithms (rules)
 which operate on a CNF, as defined in the data_structures package."""
 
 from kc.data_structures import *
-from kc.compiler import KCRule, UnitPropagation
+from kc.compiler import KCRule, UnitPropagation, VacuousConjunction
 
 from typing import Dict, Optional, Tuple
 
@@ -66,8 +66,6 @@ class Compiler:
             if rule.is_applicable(delta):
                 return rule
         return None
-
-
 
     def apply_rule(self, delta: 'CNF', rule: 'KCRule') -> 'NNFNode':
         """Apply a given compilation rule to a cnf and return the constructed NNF"""
