@@ -15,6 +15,7 @@ class CNF:
     def __init__(self, clauses: Iterable['ConstrainedClause']) -> None:
         """TODO: replace list with set"""
         self.clauses = frozenset(clauses)
+        self.shattered = False # keep track of whether this cnf has undergone shattering
 
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one.
