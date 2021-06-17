@@ -3,7 +3,7 @@ Compile algorithm. This algorithm calls various additional algorithms (rules)
 which operate on a CNF, as defined in the data_structures package."""
 
 from kc.data_structures import *
-from kc.compiler import KCRule, UnitPropagation, VacuousConjunction
+from kc.compiler import KCRule, UnitPropagation, VacuousConjunction, Independence
 
 from typing import Dict, Optional, Tuple
 
