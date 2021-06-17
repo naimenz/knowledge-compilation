@@ -6,3 +6,4 @@ from kc.data_structures.cnf import CNF
 from kc.data_structures.clauses import Clause, UnconstrainedClause, ConstrainedClause, UnitClause, ConstrainedAtom
 from kc.data_structures.constraints import Constraint, LogicalConstraint, SetConstraint, EqualityConstraint, InequalityConstraint, InclusionConstraint, NotInclusionConstraint, ConstraintSet
 from kc.data_structures.equivalenceclasses import EquivalenceClass 
+from kc.data_structures.nnf import NNFNode
