@@ -273,6 +273,7 @@ uclause1 = UnconstrainedClause([friendsXY, dislikesXY])
 uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
 uclause3 = UnconstrainedClause([~friendsYY, likesYY])
 
+unitclause = UnconstrainedClause([friendsYY])
 
 People = SetOfConstants([alice, bob, charlie])
 XinPeople = InclusionConstraint(X, People)
@@ -292,19 +293,23 @@ clause1 = ConstrainedClause(uclause1, [X, Y], cs1)
 clause2 = ConstrainedClause(uclause2, [Z], cs2)
 clause3 = ConstrainedClause(uclause3, [Y], cs3)
 clause4 = ConstrainedClause(uclause2, [Z], cs4)
+clause4 = ConstrainedClause(uclause2, [Z], cs4)
+unitclause = ConstrainedClause(unitclause, [Y], cs3)
 
-def run(cnf):
-    res = tryIndependentSubtheories(cnf)
-    if res is None:
-        print(f"There are no independent subtheories in {cnf}")
-    else:
-        print("Recursing")
-        run(res[0])
-        run(res[1])
+# def run(cnf):
+#     res = tryIndependentSubtheories(cnf)
+#     if res is None:
+#         print(f"There are no independent subtheories in {cnf}")
+#     else:
+#         print("Recursing")
+#         run(res[0])
+#         run(res[1])
 
-cnf = CNF([clause1, clause3, clause4])
-run(cnf)
+# cnf = CNF([clause1, clause3, clause4])
+cnf = CNF([clause1, clause3, clause4, unitclause])
+# run(cnf)
 
 # compiler testing
 compiler = Compiler()
 compiler.compile(cnf)
+
