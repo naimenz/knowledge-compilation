@@ -6,7 +6,11 @@ Classes for types of domain terms, which are sets of constants and domain variab
 from abc import ABC, abstractmethod
 from kc.data_structures.logicalterms import *
 
-from typing import List, Set, Any, FrozenSet
+from typing import List, Set, Any, FrozenSet, Iterable
+from typing import cast, TypeVar
+
+# generic type for domain term or its subclasses
+TDomain = TypeVar('TDomain', bound='DomainTerm')
 
 class DomainTerm(ABC):
     """
@@ -14,12 +18,43 @@ class DomainTerm(ABC):
     Terms are either sets of constants or domain variables, so can never be instantiated directly.
     """
 
+    @staticmethod
+    def union(*args: 'DomainTerm') -> 'DomainTerm':
+        """Experimental function for taking the union of domain terms.
+        NOTE: at the moment we only deal with SetOfConstants"""
+        if all(isinstance(term, SetOfConstants) for term in args):
+            domains = cast(List['SetOfConstants'], args) # hack for type checking
+            constants: Set['Constant'] = set.union(*[set(domain.constants) for domain in domains])
+            return SetOfConstants(constants)
+
+        else:
+            raise NotImplementedError('union only works for SetOfConstants for now')
+
+    @staticmethod
+    def intersection(*args: 'DomainTerm') -> 'DomainTerm':
+        """Experimental function for taking the intersection of domain terms.
+        NOTE: at the moment we only deal with SetOfConstants"""
+        # TODO: maybe return a special EmptyDomain?
+        if len(args) == 0:
+            return SetOfConstants([])
+        if all(isinstance(term, SetOfConstants) for term in args):
+            domains = cast(List['SetOfConstants'], args) # hack for type checking
+            constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
+            return SetOfConstants(constants)
+        else:
+            raise NotImplementedError('intersection only works for SetOfConstants for now')
+
+    @property
+    @abstractmethod
+    def size(self) -> int:
+        """I think domain variables will need sizes too"""
+
 
 class SetOfConstants(DomainTerm):
     """
     A set of FOL constants. 
     """
-    def __init__(self, constants: List['Constant']) -> None:
+    def __init__(self, constants: Iterable['Constant']) -> None:
         self._constants = frozenset(constants)
 
     @property
@@ -28,9 +63,19 @@ class SetOfConstants(DomainTerm):
         never be changed once set."""
         return self._constants
 
-    def __contains__(self, element: 'LogicalTerm') -> bool:
-        """Is a logical term in this set of constants?"""
-        return element in self.constants
+    def difference(self, other: 'SetOfConstants') -> 'SetOfConstants':
+        """Return the set difference between this set of constants and the other
+        as a SetOfConstants"""
+        new_constants = self.constants - other.constants
+        return SetOfConstants(new_constants)
+
+    @property
+    def size(self) -> int:
+        return len(self.constants)
+
+    def __iter__(self) -> Iterable['Constant']:
+        """Replacing __contains__ with iter for more flexibility"""
+        return self.constants
 
     def __eq__(self, other: Any) -> bool:
         """Two sets of constants are equal if their constants are the same"""

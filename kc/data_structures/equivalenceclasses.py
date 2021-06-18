@@ -17,6 +17,10 @@ class EquivalenceClass:
     def members(self) -> Set['LogicalTerm']:
         return self._members
 
+    def overlaps(self, other: 'EquivalenceClass') -> bool:
+        """Returns True if there is an element shared by this EquivalenceClass and the other"""
+        return len(self.members.intersection(other.members)) > 0
+
     @property
     def is_consistent(self) -> bool:
         """If this equivalence class contains an obvious contradiction (i.e. two different constants)
@@ -33,18 +37,23 @@ class EquivalenceClass:
         """Negation of is_consistent (for convenience)"""
         return not self.is_consistent
 
-    def overlaps(self, other: 'EquivalenceClass') -> bool:
-        """Returns True if there is an element shared by this EquivalenceClass and the other"""
-        return len(self.members.intersection(other.members)) > 0
-
     def join(self, other: 'EquivalenceClass') -> 'EquivalenceClass':
         """Create a larger equivalence class by adding the members of another"""
         new_members = self.members.union(other.members)
         return EquivalenceClass(new_members)
+
+    def __iter__(self):
+        return iter(self.members)
 
     def __str__(self) -> str:
         return str(self._members)
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+class VariableEquivalenceClass(EquivalenceClass):
+    """A subclass of EquivalenceClass that can contain only logical variables"""
+    def __init__(self, members: Iterable['LogicalVariable']) -> None:
+        super().__init__(members)
 

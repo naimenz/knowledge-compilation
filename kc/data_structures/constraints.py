@@ -31,66 +31,13 @@ class ConstraintSet:
         new_constraints = self.constraints.union(other.constraints)
         return ConstraintSet(new_constraints)
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
-        """Create a ConstraintSet by applying a Substitution to the constraints"""
-        new_constraints: List['Constraint'] = []
-        for constraint in self.constraints:
-            new_constraint = constraint.apply_substitution(substitution)
-            new_constraints.append(new_constraint)
-        return ConstraintSet(new_constraints)
-
-    def is_satisfiable(self) -> bool:
-        """Is this constraint set satisfiable?
-        I am basing this on the method used in Forclift, with some changes.
-        NOTE TODO: This currently does not work with domain variables"""
-        eq_classes = self._get_eq_classes()
-        variable_domains = self._get_variable_domains()
-        for eq_class in eq_classes:
-            if self._ineq_constraints_contradict_eq_class(eq_class):
-                return False
-            if self._any_variable_domain_empty(variable_domains):
-                return False
-            if self._variable_domains_contradict_eq_class(eq_class):
-                return False
-
-    def _get_eq_classes(self) -> ECList:
-        """Get the equivalence classes on variables specified by the equality constraints of this constraint set"""
-        final_eq_classes: ECList = []
-        initial_eq_classes: ECList = []
-        for constraint in self.constraints:
-            if isinstance(constraint, EqualityConstraint):
-                # we build up equivalence classes, starting from equivalences between terms in the same 
-                # equality constraint
-                # we only include equivalence classes with more than one unique element
-                initial_eq_classes = EquivalenceClass(constraint.terms)
-
-        remaining_eq_classes = initial_eq_classes
-        while len(remaining_eq_classes) > 0:
-            current_eq_class = remaining_eq_classes[0]
-            remaining_eq_classes = remaining_eq_classes[1:]
-
-            current_class_changed = True
-            while current_class_changed:
-                # split the equivalence classes into those that overlap with the current class and those that don't
-                overlapping, disjoint = partition_overlapping_disjoint_classes(current_eq_class, remaining_eq_classes)
-                # merge the overlapping eq classes into one big eq class
-                merger = lambda eq_class1, eq_class2: eq_class1.join(eq_class2)
-                current_eq_class = reduce(merger, overlapping, current_eq_class)
-                remaining_eq_classes = disjoint
-                current_class_changed = (len(overlapping) > 0)
-
-                if current_eq_class.is_inconsistent:
-                    return None
-
-            final_eq_classes.append(current_eq_class)
-        return final_eq_classes
-
-
-    def _ineq_constraints_contradict_eq_class(self, eq_class: 'EquivalenceClass') -> bool:
-        """Do the inequality constraints in this constraint set contradict an equivalence
-        class of variables?"""
-        raise NotImplementedError()
-
+    # def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
+    #     """Create a ConstraintSet by applying a Substitution to the constraints"""
+    #     new_constraints: List['Constraint'] = []
+    #     for constraint in self.constraints:
+    #         new_constraint = constraint.apply_substitution(substitution)
+    #         new_constraints.append(new_constraint)
+    #     return ConstraintSet(new_constraints)
 
     def __iter__(self):
         return iter(self.constraints)
@@ -119,17 +66,17 @@ class Constraint(ABC):
     This covers equality constraints, inclusion constraints, and their negations (plus more if needed).
     """
     
-    terms: Tuple['LogicalTerm', Union['LogicalTerm', 'SetOfConstants']] # every constraint needs some terms
+    terms: Tuple['LogicalVariable', Union['LogicalVariable', 'SetOfConstants']] # every constraint needs some terms
 
     @abstractmethod
     def __hash__(self) -> int:
         """Constraints need to be hashable so we can put them in sets"""
         pass
 
-    @abstractmethod 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
-        """We need to be able to apply substitutions to constraints"""
-        pass
+    # @abstractmethod 
+    # def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    #     """We need to be able to apply substitutions to constraints"""
+    #     pass
 
     @abstractmethod
     def contains_contradiction(self) -> bool:
@@ -140,16 +87,18 @@ class Constraint(ABC):
 
 class LogicalConstraint(Constraint):
     """Abstract base class for constraints that only involve logical terms.
-    This covers equality constraints and ineqality constraints."""
+    This covers equality constraints and ineqality constraints.
+    NOTE: I am currently experimenting with only having logical variables in logical constraints,
+    no constants."""
 
     @property
     @abstractmethod
-    def left_term(self) -> 'LogicalTerm':
+    def left_term(self) -> 'LogicalVariable':
         pass
 
     @property
     @abstractmethod
-    def right_term(self) -> 'LogicalTerm':
+    def right_term(self) -> 'LogicalVariable':
         pass
 
     def __hash__(self) -> int:
@@ -164,7 +113,7 @@ class SetConstraint(Constraint):
 
     @property
     @abstractmethod
-    def logical_term(self) -> 'LogicalTerm':
+    def logical_term(self) -> 'LogicalVariable':
         pass
 
     @property
@@ -183,21 +132,21 @@ class EqualityConstraint(LogicalConstraint):
     This consists of two logical terms
     """
 
-    def __init__(self, left_term: 'LogicalTerm', right_term: 'LogicalTerm') -> None:
-        self.terms: Tuple['LogicalTerm', 'LogicalTerm'] = (left_term, right_term)
+    def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
 
     @property
-    def left_term(self) -> 'LogicalTerm':
+    def left_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
-    def right_term(self) -> 'LogicalTerm':
+    def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'EqualityConstraint':
-        """Apply a substitution to the constraint, returning a new constraint.
-        TODO: Figure out how to abstract this up the the base class"""
-        return EqualityConstraint(substitution[self.left_term], substitution[self.right_term])
+    # def apply_substitution(self, substitution: 'Substitution') -> 'EqualityConstraint':
+    #     """Apply a substitution to the constraint, returning a new constraint.
+    #     TODO: Figure out how to abstract this up the the base class"""
+    #     return EqualityConstraint(substitution[self.left_term], substitution[self.right_term])
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -240,21 +189,21 @@ class InequalityConstraint(LogicalConstraint):
     This consists of two logical terms
     """
 
-    def __init__(self, left_term: 'LogicalTerm', right_term: 'LogicalTerm') -> None:
-        self.terms: Tuple['LogicalTerm', 'LogicalTerm'] = (left_term, right_term)
+    def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
 
     @property
-    def left_term(self) -> 'LogicalTerm':
+    def left_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
-    def right_term(self) -> 'LogicalTerm':
+    def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'InequalityConstraint':
-        """Apply a substitution to the constraint, returning a new constraint.
-        TODO: Figure out how to abstract this up the the base class"""
-        return InequalityConstraint(substitution[self.left_term], substitution[self.right_term])
+    # def apply_substitution(self, substitution: 'Substitution') -> 'InequalityConstraint':
+    #     """Apply a substitution to the constraint, returning a new constraint.
+    #     TODO: Figure out how to abstract this up the the base class"""
+    #     return InequalityConstraint(substitution[self.left_term], substitution[self.right_term])
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -294,24 +243,24 @@ class InclusionConstraint(SetConstraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'SetOfConstants') -> None:
+    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'SetOfConstants') -> None:
         """NOTE TODO: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
         for the domain term"""
-        self.terms: Tuple['LogicalTerm', 'SetOfConstants'] = (logical_term, domain_term)
+        self.terms: Tuple['LogicalVariable', 'SetOfConstants'] = (logical_term, domain_term)
 
     @property
-    def logical_term(self) -> 'LogicalTerm':
+    def logical_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
     def domain_term(self) -> 'SetOfConstants':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'InclusionConstraint':
-        """Apply a substitution to the constraint, returning a new constraint.
-        TODO: Figure out how to abstract this up the the base class.
-        TODO: Include domain substitutions"""
-        return InclusionConstraint(substitution[self.logical_term], self.domain_term)
+    # def apply_substitution(self, substitution: 'Substitution') -> 'InclusionConstraint':
+    #     """Apply a substitution to the constraint, returning a new constraint.
+    #     TODO: Figure out how to abstract this up the the base class.
+    #     TODO: Include domain substitutions"""
+        # return InclusionConstraint(substitution[self.logical_term], self.domain_term)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -352,24 +301,24 @@ class NotInclusionConstraint(SetConstraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalTerm', domain_term: 'SetOfConstants') -> None:
+    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'SetOfConstants') -> None:
         """NOTE: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
         for the domain term"""
-        self.terms: Tuple['LogicalTerm', 'SetOfConstants'] = (logical_term, domain_term)
+        self.terms: Tuple['LogicalVariable', 'SetOfConstants'] = (logical_term, domain_term)
 
     @property
-    def logical_term(self) -> 'LogicalTerm':
+    def logical_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
     def domain_term(self) -> 'SetOfConstants':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'NotInclusionConstraint':
-        """Apply a substitution to the constraint, returning a new constraint.
-        TODO: Figure out how to abstract this up the the base class.
-        TODO: Include domain substitutions"""
-        return NotInclusionConstraint(substitution[self.logical_term], self.domain_term)
+    # def apply_substitution(self, substitution: 'Substitution') -> 'NotInclusionConstraint':
+    #     """Apply a substitution to the constraint, returning a new constraint.
+    #     TODO: Figure out how to abstract this up the the base class.
+    #     TODO: Include domain substitutions"""
+    #     return NotInclusionConstraint(substitution[self.logical_term], self.domain_term)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?

@@ -6,11 +6,16 @@ from kc.util import get_constrained_atoms
 
 from functools import reduce
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Sequence, TypeVar
 from typing import cast
 # defining type alias to simplify type hinting
 ECList = List['EquivalenceClass']
+ECSeq = Sequence['EquivalenceClass']
+VECList = List['VariableEquivalenceClass']
+VECSeq = Sequence['VariableEquivalenceClass']
 VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
+# this is a type var so I can work with eq classes or var eq classes
+TEC = TypeVar('TEC', bound='EquivalenceClass')
 
 def tryIndependentSubtheories(cnf: 'CNF'
                               ) -> Optional[Tuple['CNF', 'CNF']]:
@@ -41,9 +46,8 @@ def tryIndependentSubtheories(cnf: 'CNF'
     else:
         return CNF(dep), CNF(indep)
 
-
-def clauses_independent(clause, other_clause):
-    """Are these two clauses independent of each other?"""
+def clauses_independent(clause: 'ConstrainedClause', other_clause: 'ConstrainedClause') -> bool:
+    """Are these two constrained clauses independent of each other?"""
     if is_conditional_contradiction(clause) or is_conditional_contradiction(other_clause):
         return True
 
@@ -51,8 +55,8 @@ def clauses_independent(clause, other_clause):
     for c_atom in get_constrained_atoms(clause):
         for other_c_atom in get_constrained_atoms(other_clause):
             if constrained_atoms_unify(c_atom, other_c_atom):
-                pass
-
+                all_independent = False
+    return all_independent
 
 def constrained_atoms_unify(c_atom: 'ConstrainedAtom', other_c_atom: 'ConstrainedAtom') -> bool:
     """Returns True if there is a substitution that unifies c_atom and other_c_atom, otherwise False."""
@@ -76,7 +80,64 @@ def get_constrained_atom_mgu_substitution(c_atom: 'ConstrainedAtom',
 
 def is_satisfiable(cs: 'ConstraintSet') -> bool:
     """Is the given constraint set satisfiable? i.e. are there any substitutions to
-    its variables that do not contain contradictions?"""
+    its variables that do not contain contradictions?
+    NOTE TODO: There are two major flaws with this function still:
+        1) It cannot handle domain variables
+        2) If there are more mutually unequal variables in a domain than there are elements of that domain
+        it is not satisfiable but this function cannot determine that yet"""
+    # First, we construct variable equivalence classes from the equality constraints 
+    eq_classes = get_var_eq_classes_from_cs(cs)
+    # Next, we make sure that these are consistent with the inequality constraints
+    if not consistent_with_inequality_constraints(eq_classes, cs):
+        return False
+    # Then we construct the possible domains for each equivalence class and
+    # check that they are non-empty
+    if not consistent_with_set_constraints(eq_classes, cs):
+        return False
+    # finally, we assume that it is satisfiable
+    return True
+
+
+def get_var_eq_classes_from_cs(cs: 'ConstraintSet') -> 'VECSeq':
+    """Return the variable equivalence classes given by the equality constraints
+    of a constraint set
+    NOTE: This uses the assumption that equality constraints only contain logical variables"""
+    initial_eq_classes = [] 
+    for constraint in cs:
+        if isinstance(constraint, EqualityConstraint):
+            initial_eq_classes.append(VariableEquivalenceClass(constraint.terms))
+
+    final_eq_classes = make_eq_classes_self_consistent(initial_eq_classes)
+    return final_eq_classes
+
+def consistent_with_inequality_constraints(eq_classes: Sequence['VariableEquivalenceClass'], cs: 'ConstraintSet') -> bool:
+    """If the equality classes conflict with the inequality constraints, returns False
+    NOTE: assuming the inequality constraints only contain logical variables"""
+    for eq_class in eq_classes:
+        for constraint in cs:
+            if isinstance(constraint, InequalityConstraint):
+                if constraint.left_term in eq_class and constraint.left_term in eq_class: 
+                    return False
+    return True
+
+def consistent_with_set_constraints(eq_classes: Sequence['VariableEquivalenceClass'], cs: 'ConstraintSet') -> bool:
+    """If any equality class has an empty domain, then it is not consistent
+    NOTE: For now, only works with SetOfConstants, not DomainVariable"""
+    for eq_class in eq_classes:
+        included_domains = []
+        excluded_domains = []
+        for constraint in cs:
+            if isinstance(constraint, InclusionConstraint) and constraint.logical_term in eq_class:
+                included_domains.append(constraint.domain_term)
+            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in eq_class:
+                excluded_domains.append(constraint.domain_term)
+        # hack for type checking for now since we only work with SetOfConstants
+        included_domain = cast('SetOfConstants', DomainTerm.union(*included_domains)) 
+        excluded_domain = cast('SetOfConstants', DomainTerm.intersection(*excluded_domains)) 
+        allowed_constants = included_domain.difference(excluded_domain)
+        if allowed_constants.size == 0:
+            return False
+    return True
 
 
 def get_unconstrained_atom_mgu_substitution(atom1: 'Atom', atom2: 'Atom') -> Optional['Substitution']:
@@ -92,7 +153,7 @@ def get_unconstrained_atom_mgu_substitution(atom1: 'Atom', atom2: 'Atom') -> Opt
     else:
         return None
 
-def get_unconstrained_atom_mgu_eq_classes(atom: 'Atom', other_atom: 'Atom') -> Optional[ECList]:
+def get_unconstrained_atom_mgu_eq_classes(atom: 'Atom', other_atom: 'Atom') -> Optional['ECList']:
     """Compute the mgu of two unconstrained atoms using equivalence classes,
 
     Returns a list of equivalence classes or None, if unsuccessful.
@@ -102,15 +163,24 @@ def get_unconstrained_atom_mgu_eq_classes(atom: 'Atom', other_atom: 'Atom') -> O
 
     # we build up equivalence classes, starting from equivalences between terms in the same position
     # of the two atoms
-    final_eq_classes: ECList = []
+    final_eq_classes: 'ECList' = []
     term_pairs = zip(atom.terms, other_atom.terms)
     # we only include equivalence classes with more than one unique element
     initial_eq_classes = [EquivalenceClass([t1, t2]) for t1, t2 in term_pairs if t1 != t2]
 
-    if any(eq_class.is_inconsistent for eq_class in initial_eq_classes):
+    final_eq_classes = make_eq_classes_self_consistent(initial_eq_classes)
+    if any(eq_class.is_inconsistent for eq_class in final_eq_classes):
         return None
+    else:
+        return final_eq_classes
 
+def make_eq_classes_self_consistent(initial_eq_classes: Sequence['TEC']) -> List['TEC']:
+    """Take an initial set of equivalence classes and iterate them until they are self-consistent,
+    i.e. no overlapping equivalence classes.
+    NOTE: Could be a little more efficient if we checked for inconsistency of constants earlier,
+    but that would make it less clean."""
     remaining_eq_classes = initial_eq_classes
+    final_eq_classes: List['TEC'] = []
     while len(remaining_eq_classes) > 0:
         current_eq_class = remaining_eq_classes[0]
         remaining_eq_classes = remaining_eq_classes[1:]
@@ -125,16 +195,12 @@ def get_unconstrained_atom_mgu_eq_classes(atom: 'Atom', other_atom: 'Atom') -> O
             remaining_eq_classes = disjoint
             current_class_changed = (len(overlapping) > 0)
 
-            if current_eq_class.is_inconsistent:
-                return None
-
         final_eq_classes.append(current_eq_class)
     return final_eq_classes
 
-
-def partition_overlapping_disjoint_classes(current_eq_class: 'EquivalenceClass',
-                                                    other_eq_classes: ECList
-                                                    ) -> Tuple[ECList, ECList]:
+def partition_overlapping_disjoint_classes(current_eq_class: 'TEC',
+                                                    other_eq_classes: Sequence['TEC']
+                                                    ) -> Tuple[Sequence['TEC'], Sequence['TEC']]:
     """Return two lists of equivalence classes, one for those classes that overlap with eq_class,
      and another for the rest"""
     overlapping, disjoint = [], []
@@ -145,7 +211,7 @@ def partition_overlapping_disjoint_classes(current_eq_class: 'EquivalenceClass',
             disjoint.append(eq_class)
     return overlapping, disjoint
 
-def eq_classes_to_substitution(eq_classes: ECList) -> 'Substitution':
+def eq_classes_to_substitution(eq_classes: 'ECList') -> 'Substitution':
     """Convert a list of equivalence classes into a Substitution of variables that conveys
     the same information."""
     var_term_pairs: List[VarTermPair] = []
@@ -187,3 +253,43 @@ def is_conditional_contradiction(clause):
     """I think this means that the clause contains no literals and so
     its grounding is empty, meaning it is independent of everything."""
     return len(clause.unconstrained_clause.literals) == 0
+
+
+if __name__=='__main__':
+    X = LogicalVariable('X')
+    Y = LogicalVariable('Y')
+    Z = LogicalVariable('Z')
+
+    alice = Constant('alice')
+    bob = Constant('bob')
+    charlie = Constant('charlie')
+
+    friends = Predicate('friends', 2)
+    dislikes = Predicate('dislikes', 2)
+    likes = Predicate('likes', 2)
+
+    friendsXY = Literal(Atom(friends, [X, Y]), True)
+    dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
+    friendsZZ = Literal(Atom(friends, [Z, Z]), True)
+    likesZZ = Literal(Atom(likes, [Z, Z]), True)
+
+    uclause1 = UnconstrainedClause([friendsXY, dislikesXY])
+    uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
+
+
+    People = SetOfConstants([alice, bob, charlie])
+    XinPeople = InclusionConstraint(X, People)
+    YinPeople = InclusionConstraint(Y, People)
+    ZinPeople = InclusionConstraint(Z, People)
+    XeqY = EqualityConstraint(X, Y)
+
+    cs1 = ConstraintSet([XinPeople, YinPeople])#, ~XeqY])
+    cs2 = ConstraintSet([ZinPeople])
+
+    clause1 = ConstrainedClause(uclause1, [X, Y], cs1)
+    clause2 = ConstrainedClause(uclause2, [Z], cs2)
+
+    # print(clause1, clause2)
+    cnf = CNF([clause1, clause2])
+    # print(cnf)
+    print(len(tryIndependentSubtheories(cnf)))
