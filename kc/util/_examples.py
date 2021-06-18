@@ -2,6 +2,7 @@
 
 from kc.data_structures import *
 from kc.util import *
+from kc.compiler import *
 
 # # # utility.py
 # # print('utility.py')
@@ -303,3 +304,7 @@ def run(cnf):
 
 cnf = CNF([clause1, clause3, clause4])
 run(cnf)
+
+# compiler testing
+compiler = Compiler()
+compiler.compile(cnf)

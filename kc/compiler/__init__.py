@@ -1,3 +1,4 @@
+from kc.compiler.compiler import Compiler
 from kc.compiler.kcrule import KCRule
 from kc.compiler.unitpropagation import UnitPropagation
 from kc.compiler.vacuousconjunction import VacuousConjunction
@@ -5,6 +6,6 @@ from kc.compiler.independence import Independence
 from kc.compiler.shannondecomposition import ShannonDecomposition
 from kc.compiler.shatter import ShatteredCompilation
 from kc.compiler.independentsinglegroundings import IndependentSingleGroundings
-from kc.compiler.independentsinglegroundings import IndependentPairedGroundings
+from kc.compiler.independentpairedgroundings import IndependentPairedGroundings
 from kc.compiler.atomcounting import AtomCounting
 from kc.compiler.ground import Ground
