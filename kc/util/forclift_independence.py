@@ -132,8 +132,8 @@ def consistent_with_set_constraints(eq_classes: Sequence['VariableEquivalenceCla
             elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in eq_class:
                 excluded_domains.append(constraint.domain_term)
         # hack for type checking for now since we only work with SetOfConstants
-        included_domain = cast('SetOfConstants', DomainTerm.union(*included_domains)) 
-        excluded_domain = cast('SetOfConstants', DomainTerm.intersection(*excluded_domains)) 
+        included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
+        excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
         allowed_constants = included_domain.difference(excluded_domain)
         if allowed_constants.size == 0:
             return False
@@ -255,41 +255,3 @@ def is_conditional_contradiction(clause):
     return len(clause.unconstrained_clause.literals) == 0
 
 
-if __name__=='__main__':
-    X = LogicalVariable('X')
-    Y = LogicalVariable('Y')
-    Z = LogicalVariable('Z')
-
-    alice = Constant('alice')
-    bob = Constant('bob')
-    charlie = Constant('charlie')
-
-    friends = Predicate('friends', 2)
-    dislikes = Predicate('dislikes', 2)
-    likes = Predicate('likes', 2)
-
-    friendsXY = Literal(Atom(friends, [X, Y]), True)
-    dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
-    friendsZZ = Literal(Atom(friends, [Z, Z]), True)
-    likesZZ = Literal(Atom(likes, [Z, Z]), True)
-
-    uclause1 = UnconstrainedClause([friendsXY, dislikesXY])
-    uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
-
-
-    People = SetOfConstants([alice, bob, charlie])
-    XinPeople = InclusionConstraint(X, People)
-    YinPeople = InclusionConstraint(Y, People)
-    ZinPeople = InclusionConstraint(Z, People)
-    XeqY = EqualityConstraint(X, Y)
-
-    cs1 = ConstraintSet([XinPeople, YinPeople])#, ~XeqY])
-    cs2 = ConstraintSet([ZinPeople])
-
-    clause1 = ConstrainedClause(uclause1, [X, Y], cs1)
-    clause2 = ConstrainedClause(uclause2, [Z], cs2)
-
-    # print(clause1, clause2)
-    cnf = CNF([clause1, clause2])
-    # print(cnf)
-    print(len(tryIndependentSubtheories(cnf)))

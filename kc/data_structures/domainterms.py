@@ -22,6 +22,9 @@ class DomainTerm(ABC):
     def union(*args: 'DomainTerm') -> 'DomainTerm':
         """Experimental function for taking the union of domain terms.
         NOTE: at the moment we only deal with SetOfConstants"""
+        # TODO: maybe return a special EmptyDomain?
+        if len(args) == 0:
+            return SetOfConstants([])
         if all(isinstance(term, SetOfConstants) for term in args):
             domains = cast(List['SetOfConstants'], args) # hack for type checking
             constants: Set['Constant'] = set.union(*[set(domain.constants) for domain in domains])

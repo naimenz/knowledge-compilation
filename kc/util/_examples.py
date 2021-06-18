@@ -247,3 +247,55 @@ delta = CNF([clause1, clause2, u])
 deltap = unitprop(delta, u, Universe)
 print(deltap)
 
+# forclift_independence.py
+print('forclift_independence.py')
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+Z = LogicalVariable('Z')
+
+alice = Constant('alice')
+bob = Constant('bob')
+charlie = Constant('charlie')
+
+friends = Predicate('friends', 2)
+dislikes = Predicate('dislikes', 2)
+likes = Predicate('likes', 2)
+
+friendsXY = Literal(Atom(friends, [X, Y]), True)
+dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
+friendsZZ = Literal(Atom(friends, [Z, Z]), True)
+likesZZ = Literal(Atom(likes, [Z, Z]), True)
+friendsYY = Literal(Atom(friends, [Y, Y]), True)
+likesYY = Literal(Atom(likes, [Y, Y]), True)
+
+uclause1 = UnconstrainedClause([friendsXY, dislikesXY])
+uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
+uclause3 = UnconstrainedClause([~friendsYY, likesYY])
+
+
+People = SetOfConstants([alice, bob, charlie])
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
+ZinPeople = InclusionConstraint(Z, People)
+XeqY = EqualityConstraint(X, Y)
+Yeqalice = InclusionConstraint(Y, SetOfConstants([alice]))
+Yeqbob = InclusionConstraint(Y, SetOfConstants([bob]))
+Zeqbob = InclusionConstraint(Z, SetOfConstants([bob]))
+
+cs1 = ConstraintSet([XinPeople, YinPeople, ~XeqY])
+cs2 = ConstraintSet([ZinPeople])
+cs3 = ConstraintSet([YinPeople, Yeqalice])
+cs4 = ConstraintSet([ZinPeople, Zeqbob])
+
+clause1 = ConstrainedClause(uclause1, [X, Y], cs1)
+clause2 = ConstrainedClause(uclause2, [Z], cs2)
+clause3 = ConstrainedClause(uclause3, [Y], cs3)
+clause4 = ConstrainedClause(uclause2, [Z], cs4)
+
+def run(cnf):
+    res = tryIndependentSubtheories(cnf)
+    if res is None:
+        print(f"There are no independent subtheories in {cnf}")
+    else:
+        print("Recursing")
+        run(res[0])
