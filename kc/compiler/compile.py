@@ -5,7 +5,7 @@ which operate on a CNF, as defined in the data_structures package."""
 from kc.data_structures import *
 from kc.compiler import KCRule, UnitPropagation, VacuousConjunction, Independence
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 
 
 class Compiler:
@@ -32,13 +32,18 @@ class Compiler:
         the one used in Forclift"""
         if self.cache_contains(delta):
             return self.cache_get(delta)
+
         nnf: Optional['NNFNode'] = None
-        applicable_rule: Optional['KCRule'] = self.find_rule(delta)
+
+        applicable_rule: Optional['KCRule']
+        stored_data: Optional[Any]
+        applicable_rule, stored_data = self.find_rule(delta)
+
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {delta}")
             nnf = None
         else:
-            nnf = self.apply_rule(delta, applicable_rule)
+            nnf = self.apply_rule(delta, applicable_rule, stored_data)
         self.cache_set(delta, nnf)
         return nnf
 
@@ -59,15 +64,21 @@ class Compiler:
         if not (cnf is None or self.cache_contains(cnf)):
             self._cache[cnf] = nnf
 
-    def find_rule(self, delta: 'CNF') -> Optional['KCRule']:
+    def find_rule(self, delta: 'CNF') -> Tuple[Optional['KCRule'], Optional[Any]]:
         """Check each compilation rule to see if its preconditions are met
-        for the given cnf, and return the rule if one is found, otherwise None"""
+        for the given cnf.
+        Return the rule if one is found, plus optional info already computed.
+        Otherwise return None and None"""
         for rule in self.rules: 
-            if rule.is_applicable(delta):
-                return rule
-        return None
+            applicable: bool
+            stored_data: Optional[Any]
+            applicable, stored_data = rule.is_applicable(delta)
+            if applicable:
+                return rule, stored_data
+        return None, None
 
-    def apply_rule(self, delta: 'CNF', rule: 'KCRule') -> 'NNFNode':
-        """Apply a given compilation rule to a cnf and return the constructed NNF"""
-        nnf = rule.apply(delta)
+    def apply_rule(self, delta: 'CNF', rule: 'KCRule', stored_data: Optional[Any]) -> 'NNFNode':
+        """Apply a given compilation rule to a cnf and return the constructed NNF
+        NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
+        nnf = rule.apply(delta, stored_data)
         return nnf

@@ -4,17 +4,20 @@ which the specific algorithms inherit from"""
 from kc.data_structures import *
 from abc import ABC, abstractmethod
 
+from typing import Tuple, Any, Optional
+
 class KCRule(ABC):
     """Abstract base class for compilation rules."""
 
     @abstractmethod
-    def is_applicable(self, delta: 'CNF') -> bool:
+    def is_applicable(self, delta: 'CNF') -> Tuple[bool, Optional[Any]]:
         """Is this compilation rule applicable to the cnf 'delta'
-        in its current state?"""
+        in its current state?
+        Returns a boolean for whether it's applicable or not, and optional stored data"""
         pass
 
     @abstractmethod
-    def apply(self, delta: 'CNF') -> 'NNFNode':
+    def apply(self, delta: 'CNF', stored_data: Optional[Any]) -> 'NNFNode':
         """Apply this compilation rule to the cnf, returning an NNF"""
         pass
 
