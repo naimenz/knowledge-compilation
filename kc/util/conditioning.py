@@ -29,7 +29,3 @@ def discard_unsatisfied_literals(gamma: 'ConstrainedClause', literal: 'UnitClaus
         if not constrained_clauses_subsumed(literal, negated_constrained_literal, universe):
             necessary_literals.append(lam_literal)
     return necessary_literals
-
-    
-
-
