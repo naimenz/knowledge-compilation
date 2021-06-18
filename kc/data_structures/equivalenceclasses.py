@@ -9,30 +9,29 @@ from typing import Sequence, Set, Iterable
 class EquivalenceClass:
     """A class implementing an equivalence class between logical terms in FOL-DC.
     """
-    def __init__(self, members: Iterable['LogicalVariable']) -> None:
+    def __init__(self, members: Iterable['LogicalTerm']) -> None:
         """Instantiate the private set of members that belong to this equivalence class"""
         self._members = set(members)
 
     @property
-    def members(self) -> Set['LogicalVariable']:
+    def members(self) -> Set['LogicalTerm']:
         return self._members
 
-    ## This is not needed because equivalence classes will be just between variables
-    # @property
-    # def is_consistent(self) -> bool:
-    #     """If this equivalence class contains an obvious contradiction (i.e. two different constants)
-    #     then it is inconsistent and we return False"""
-    #     for term1 in self.members:
-    #         if isinstance(term1, Constant):
-    #             for term2 in self.members:
-    #                 if isinstance(term2, Constant) and term1 != term2:
-    #                     return False
-    #     return True
+    @property
+    def is_consistent(self) -> bool:
+        """If this equivalence class contains an obvious contradiction (i.e. two different constants)
+        then it is inconsistent and we return False"""
+        for term1 in self.members:
+            if isinstance(term1, Constant):
+                for term2 in self.members:
+                    if isinstance(term2, Constant) and term1 != term2:
+                        return False
+        return True
 
-    # @property
-    # def is_inconsistent(self) -> bool:
-    #     """Negation of is_consistent (for convenience)"""
-    #     return not self.is_consistent
+    @property
+    def is_inconsistent(self) -> bool:
+        """Negation of is_consistent (for convenience)"""
+        return not self.is_consistent
 
     def overlaps(self, other: 'EquivalenceClass') -> bool:
         """Returns True if there is an element shared by this EquivalenceClass and the other"""
