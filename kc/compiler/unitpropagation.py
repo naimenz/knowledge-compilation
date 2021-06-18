@@ -6,8 +6,8 @@ from kc.compiler import KCRule
 from typing import Optional, Tuple
 class UnitPropagation(KCRule):
     
-    @staticmethod
-    def is_applicable(delta: 'CNF') -> Tuple[bool, Optional['ConstrainedClause']]:
+    @classmethod
+    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional['ConstrainedClause']]:
         """UnitPropagation is applicable if the theory contains a unit clause 
         (a clause with a single literal)
         Returns True and the unit clause if applicable, and False, None otherwise"""
@@ -16,8 +16,8 @@ class UnitPropagation(KCRule):
                 return True, clause
         return False, None
 
-    @staticmethod
-    def apply(delta: 'CNF', stored_data: 'ConstrainedClause') -> 'NNFNode':
+    @classmethod
+    def apply(cls, delta: 'CNF', stored_data: 'ConstrainedClause') -> 'NNFNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
         raise NotImplementedError('UnitPropagation.apply not implemented')

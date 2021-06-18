@@ -3,9 +3,9 @@ Compile algorithm. This algorithm calls various additional algorithms (rules)
 which operate on a CNF, as defined in the data_structures package."""
 
 from kc.data_structures import *
-from kc.compiler import KCRule, UnitPropagation, VacuousConjunction, Independence
+from kc.compiler import *
 
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any, Type
 
 
 class Compiler:
@@ -16,7 +16,7 @@ class Compiler:
         """We initialise the compiler with an empty cache of previously-seen theories
         and a list of the compilation rules that can be applied"""
         self._cache: Dict['CNF', 'NNFNode'] = dict()
-        self.rules: Tuple['KCRule', ...] = (LeafNode,
+        self.rules: Tuple[Type['KCRule'], ...] = (LeafConstruction,
                                        UnitPropagation,
                                        VacuousConjunction,
                                        Independence,
@@ -35,7 +35,7 @@ class Compiler:
 
         nnf: Optional['NNFNode'] = None
 
-        applicable_rule: Optional['KCRule']
+        applicable_rule: Optional[Type['KCRule']]
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(delta)
 
@@ -64,7 +64,7 @@ class Compiler:
         if not (cnf is None or self.cache_contains(cnf)):
             self._cache[cnf] = nnf
 
-    def find_rule(self, delta: 'CNF') -> Tuple[Optional['KCRule'], Optional[Any]]:
+    def find_rule(self, delta: 'CNF') -> Tuple[Optional[Type['KCRule']], Optional[Any]]:
         """Check each compilation rule to see if its preconditions are met
         for the given cnf.
         Return the rule if one is found, plus optional info already computed.
@@ -77,7 +77,7 @@ class Compiler:
                 return rule, stored_data
         return None, None
 
-    def apply_rule(self, delta: 'CNF', rule: 'KCRule', stored_data: Optional[Any]) -> 'NNFNode':
+    def apply_rule(self, delta: 'CNF', rule: Type['KCRule'], stored_data: Optional[Any]) -> 'NNFNode':
         """Apply a given compilation rule to a cnf and return the constructed NNF
         NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
         nnf = rule.apply(delta, stored_data)

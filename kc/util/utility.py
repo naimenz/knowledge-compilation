@@ -266,4 +266,11 @@ def is_conditional_contradiction(clause):
     its grounding is empty, meaning it is independent of everything."""
     return len(clause.unconstrained_clause.literals) == 0
 
-
+def get_logical_variables_from_cs(constraint_set: 'ConstraintSet') -> Set['LogicalVariable']:
+    """Extract just the variables from each constraint in the constraint set"""
+    logical_variables: Set['LogicalVariable'] = set()
+    for constraint in constraint_set:
+        for term in constraint.terms:
+            if isinstance(term, LogicalVariable):
+                logical_variables.add(term)
+    return logical_variables

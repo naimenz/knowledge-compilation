@@ -9,15 +9,17 @@ from typing import Tuple, Any, Optional
 class KCRule(ABC):
     """Abstract base class for compilation rules."""
 
+    @classmethod
     @abstractmethod
-    def is_applicable(self, delta: 'CNF') -> Tuple[bool, Optional[Any]]:
+    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional[Any]]:
         """Is this compilation rule applicable to the cnf 'delta'
         in its current state?
         Returns a boolean for whether it's applicable or not, and optional stored data"""
         pass
 
+    @classmethod
     @abstractmethod
-    def apply(self, delta: 'CNF', stored_data: Optional[Any]) -> 'NNFNode':
+    def apply(cls, delta: 'CNF', stored_data: Any) -> 'NNFNode':
         """Apply this compilation rule to the cnf, returning an NNF"""
         pass
 
