@@ -73,19 +73,31 @@ def constrained_atoms_unify(c_atom: 'ConstrainedAtom', other_c_atom: 'Constraine
     """Returns True if there is a substitution that unifies c_atom and other_c_atom, otherwise False."""
     return not get_constrained_atom_mgu_substitution(c_atom, other_c_atom) is None
 
+def get_constrained_atom_mgu_eq_classes(c_atom: 'ConstrainedAtom',
+                                          other_c_atom: 'ConstrainedAtom'
+                                          ) -> Optional['ECSeq']:
+    """Get the mgu of two constrained atoms.
+    This is the same as the mgu for two unconstrained atoms, with an additional check 
+    to see if the constraint sets conjoined with the mgu are satisfiable."""
+    unconstrained_mgu = get_unconstrained_atom_mgu_eq_classes(c_atom.atom, other_c_atom.atom)
+    if unconstrained_mgu is None:
+        return None
+    cs_mgu = eq_classes_to_constraint_set(unconstrained_mgu)
+    combined_constraint_set = c_atom.cs.join(other_c_atom.cs).join(cs_mgu)
+    if is_satisfiable(combined_constraint_set):
+        return unconstrained_mgu
+    else:
+        return None
+
 def get_constrained_atom_mgu_substitution(c_atom: 'ConstrainedAtom',
                                           other_c_atom: 'ConstrainedAtom'
                                           ) -> Optional['Substitution']:
     """Get the mgu of two constrained atoms.
     This is the same as the mgu for two unconstrained atoms, with an additional check 
     to see if the constraint sets conjoined with the mgu are satisfiable."""
-    unconstrained_mgu = get_unconstrained_atom_mgu_substitution(c_atom.atom, other_c_atom.atom)
-    if unconstrained_mgu is None:
-        return None
-    cs_mgu = substitution_to_constraint_set(unconstrained_mgu)
-    combined_constraint_set = c_atom.cs.join(other_c_atom.cs).join(cs_mgu)
-    if is_satisfiable(combined_constraint_set):
-        return unconstrained_mgu
+    eq_classes = get_unconstrained_atom_mgu_eq_classes(c_atom.atom, other_c_atom.atom)
+    if not eq_classes is None:
+        return eq_classes_to_substitution(eq_classes)
     else:
         return None
 
@@ -127,7 +139,7 @@ def consistent_with_inequality_constraints(eq_classes: Sequence['VariableEquival
     for eq_class in eq_classes:
         for constraint in cs:
             if isinstance(constraint, InequalityConstraint):
-                if constraint.left_term in eq_class and constraint.left_term in eq_class: 
+                if constraint.left_term in eq_class and constraint.right_term in eq_class: 
                     return False
     return True
 
@@ -222,7 +234,7 @@ def partition_overlapping_disjoint_classes(current_eq_class: 'TEC',
             disjoint.append(eq_class)
     return overlapping, disjoint
 
-def eq_classes_to_substitution(eq_classes: 'ECList') -> 'Substitution':
+def eq_classes_to_substitution(eq_classes: 'ECSeq') -> 'Substitution':
     """Convert a list of equivalence classes into a Substitution of variables that conveys
     the same information."""
     var_term_pairs: List[VarTermPair] = []
@@ -240,6 +252,13 @@ def eq_classes_to_substitution(eq_classes: 'ECList') -> 'Substitution':
     return Substitution(var_term_pairs)
 
 
+def eq_classes_to_constraint_set(eq_classes: 'ECSeq') -> 'ConstraintSet':
+    """Convert a sequence of equivalence classes into a substitution.
+    We go via a subtitution because we already have functions for that"""
+    substitution = eq_classes_to_substitution(eq_classes)
+    cs = substitution_to_constraint_set(substitution)
+    return cs
+    
 def substitution_to_constraint_set(substitution: 'Substitution') -> 'ConstraintSet':
     """Convert a substitution to an equivalent constraint set.
 
