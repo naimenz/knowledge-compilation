@@ -15,7 +15,7 @@ class Literal:
     This consists of an atom with a polarity (i.e. is it negated?)
     """
 
-    def __init__(self, atom: 'Atom', polarity: bool) -> None:
+    def __init__(self, atom: 'Atom', polarity: bool = True) -> None:
         self.atom = atom
         self.polarity = polarity
 
