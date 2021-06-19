@@ -293,3 +293,17 @@ def get_logical_variables_from_cs(constraint_set: 'ConstraintSet') -> Set['Logic
             if isinstance(term, LogicalVariable):
                 logical_variables.add(term)
     return logical_variables
+
+def unifying_classes_from_clauses(clauses: Sequence['ConstrainedClause']):
+    """Construct all unifying classes from a sequence of constrained clauses,
+    and return them as EquivalenceClasses"""
+    initial_eq_classes: List['EquivalenceClass'] = []
+    for clause in clauses:
+        for other_clause in clauses:
+            for c_atom in get_constrained_atoms(clause):
+                for other_c_atom in get_constrained_atoms(other_clause):
+                    eq_classes = get_constrained_atom_mgu_eq_classes(c_atom, other_c_atom)
+                    if not eq_classes is None:
+                        initial_eq_classes += eq_classes
+    final_eq_classes = make_eq_classes_self_consistent(initial_eq_classes)
+    return final_eq_classes
