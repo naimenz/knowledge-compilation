@@ -7,16 +7,18 @@ TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom
 
 from kc.data_structures import *
 
+from functools import reduce
 from abc import ABC, abstractmethod
 
-from typing import List, TypeVar, Iterable, Any
+from typing import List, TypeVar, Iterable, Any, Sequence, Set
+from typing import cast
 
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
-    @abstractmethod
-    def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
-        pass
+    # @abstractmethod
+    # def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+    #     pass
 
 
 class UnconstrainedClause(Clause):
@@ -30,9 +32,9 @@ class UnconstrainedClause(Clause):
         in a clause are redundant (they cannot change the disjunction)"""
         self.literals = frozenset(literals)
 
-    def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
-        """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
-        return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
+    # def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
+    #     """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
+    #     return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
 
     def __eq__(self, other: Any) -> bool:
         """Two unconstrained clauses are equal if they have the same literals
@@ -72,12 +74,28 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
-        """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
-        NOTE: assumes that the bound vars aren't substituted"""
-        new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
-        new_cs = self.cs.apply_substitution(substitution)
-        return self.__class__(new_unconstrained_clause, self.bound_vars, new_cs)
+    # def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
+    #     """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
+    #     NOTE: assumes that the bound vars aren't substituted"""
+    #     new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
+    #     new_cs = self.cs.apply_substitution(substitution)
+    #     return self.__class__(new_unconstrained_clause, self.bound_vars, new_cs)
+
+    @property
+    def root_variables(self) -> Set['LogicalVariable']:
+        """Return the root variables of this clause 
+        (i.e. the variables that appear in every literal of the clause)"""
+        # first, collect ALL variables that appear in any literal
+        all_vars: Set['LogicalVariable'] = set()
+        for literal in self.unconstrained_clause.literals:
+            all_vars = all_vars.union(literal.variables)
+
+        root_vars = all_vars
+        # then get only the ones that appear in every literal
+        for literal in self.unconstrained_clause.literals:
+            root_vars = root_vars.intersection(literal.variables)
+        return root_vars
+
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
@@ -101,7 +119,6 @@ class ConstrainedClause(Clause):
 
     def __repr__(self) -> str:
         return self.__str__()
-
 
 
 class UnitClause(ConstrainedClause):

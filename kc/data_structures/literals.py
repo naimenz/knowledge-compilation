@@ -6,7 +6,7 @@ from kc.data_structures.logicalterms import *
 from kc.data_structures.substitutions import *
 import typing
 
-from typing import List, Sequence, Any 
+from typing import List, Sequence, Any, Set
 from typing import cast
 
 class Literal:
@@ -22,6 +22,11 @@ class Literal:
     def apply_substitution(self, substitution: 'Substitution') -> 'Literal':
         """Return a new Literal, the result of applying substitution to the current Literal"""
         return Literal(self.atom.apply_substitution(substitution), self.polarity)
+
+    @property
+    def variables(self) -> Set['LogicalVariable']:
+        """Return only the variables in the terms of this literal"""
+        return self.atom.variables
 
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
@@ -67,6 +72,11 @@ class Atom:
                 new_term = term
             new_terms.append(new_term)
         return Atom(self.predicate, new_terms)
+
+    @property
+    def variables(self) -> Set['LogicalVariable']:
+        """Return only the logical variables that appear in the terms of this atom"""
+        return set(term for term in self.terms if isinstance(term, LogicalVariable))
 
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""
