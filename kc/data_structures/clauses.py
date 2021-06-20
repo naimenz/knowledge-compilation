@@ -82,15 +82,20 @@ class ConstrainedClause(Clause):
     #     return self.__class__(new_unconstrained_clause, self.bound_vars, new_cs)
 
     @property
+    def all_literal_variables(self) -> Set['LogicalVariable']:
+        """Return all variables that appear in any literal of the clause"""
+        all_vars: Set['LogicalVariable'] = set()
+        for literal in self.unconstrained_clause.literals:
+            all_vars = all_vars.union(literal.variables)
+        return all_vars
+
+
+    @property
     def root_variables(self) -> Set['LogicalVariable']:
         """Return the root variables of this clause 
         (i.e. the variables that appear in every literal of the clause)"""
         # first, collect ALL variables that appear in any literal
-        all_vars: Set['LogicalVariable'] = set()
-        for literal in self.unconstrained_clause.literals:
-            all_vars = all_vars.union(literal.variables)
-
-        root_vars = all_vars
+        root_vars = self.all_literal_variables
         # then get only the ones that appear in every literal
         for literal in self.unconstrained_clause.literals:
             root_vars = root_vars.intersection(literal.variables)
