@@ -294,12 +294,14 @@ def get_logical_variables_from_cs(constraint_set: 'ConstraintSet') -> Set['Logic
                 logical_variables.add(term)
     return logical_variables
 
-def unifying_classes_from_clauses(clauses: Sequence['ConstrainedClause']):
-    """Construct all unifying classes from a sequence of constrained clauses,
-    and return them as EquivalenceClasses"""
+def get_unifying_classes(cnf: 'CNF') -> 'ECSeq':
+    """Construct all unifying classes from a CNF
+    and return them as EquivalenceClasse
+    TODO: decide whether this should only consider bound variables (as per the definitions)
+    or include free variables too (as per the examples and Forclift)"""
     initial_eq_classes: List['EquivalenceClass'] = []
-    for clause in clauses:
-        for other_clause in clauses:
+    for clause in cnf.clauses:
+        for other_clause in cnf.clauses:
             for c_atom in get_constrained_atoms(clause):
                 for other_c_atom in get_constrained_atoms(other_clause):
                     eq_classes = get_constrained_atom_mgu_eq_classes(c_atom, other_c_atom)
@@ -307,3 +309,31 @@ def unifying_classes_from_clauses(clauses: Sequence['ConstrainedClause']):
                         initial_eq_classes += eq_classes
     final_eq_classes = make_eq_classes_self_consistent(initial_eq_classes)
     return final_eq_classes
+
+def is_root_eq_class(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
+    """Determine whether a given equivalence class is root for a CNF
+    (i.e. each variable appears in every literal of its clause)"""
+    # the variables that appear in a clause must all be root
+    for clause in cnf.clauses:
+        if eq_class.members.intersection(clause.all_literal_variables) != eq_class.members.intersection(clause.root_variables):
+            return False
+    return True
+
+def eq_class_one_variable(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
+    """Determine whether a given root equivalence class has a single bound variable
+    per clause or not.
+    NOTE: We assume that this equivalence class is root in the cnf"""
+    for clause in cnf.clauses: 
+        if len(eq_class.members.intersection(clause.bound_vars)) != 1:
+            return False
+    return True
+
+def eq_class_two_variables(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
+    """Determine whether a given root equivalence class has two bound variables
+    per clause or not.
+    NOTE: We assume that this equivalence class is root in the cnf"""
+    for clause in cnf.clauses: 
+        if len(eq_class.members.intersection(clause.bound_vars)) != 2:
+            return False
+    return True
+
