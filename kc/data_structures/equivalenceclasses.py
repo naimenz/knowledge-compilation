@@ -4,7 +4,7 @@ File for equivalence classes, used when computing mgus (following what was done 
 
 from kc.data_structures.logicalterms import *
 
-from typing import Sequence, Set, Iterable
+from typing import Sequence, Set, Iterable, List
 
 class EquivalenceClass:
     """A class implementing an equivalence class between logical terms in FOL-DC.
@@ -41,6 +41,11 @@ class EquivalenceClass:
         """Create a larger equivalence class by adding the members of another"""
         new_members = self.members.union(other.members)
         return EquivalenceClass(new_members)
+
+    def variables_only(self) -> 'VariableEquivalenceClass':
+        """Take an equivalence class and remove all constants"""
+        variables = [term for term in self.members if isinstance(term, LogicalVariable)]
+        return VariableEquivalenceClass(variables)
 
     def __iter__(self):
         return iter(self.members)

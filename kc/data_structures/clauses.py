@@ -89,6 +89,14 @@ class ConstrainedClause(Clause):
             all_vars = all_vars.union(literal.variables)
         return all_vars
 
+    @property
+    def all_variables(self) -> Set['LogicalVariable']:
+        """Return ALL variables, regardless of whether they are bound, in the cs,
+        or in the literals"""
+        literal_vars = self.all_literal_variables
+        bound_vars = self.bound_vars
+        constraint_vars = self.constraint_variables 
+        return literal_vars.union(bound_vars, constraint_vars)
 
     @property
     def root_variables(self) -> Set['LogicalVariable']:
@@ -101,6 +109,16 @@ class ConstrainedClause(Clause):
             root_vars = root_vars.intersection(literal.variables)
         return root_vars
 
+    @property
+    def constraint_variables(self) -> Set['LogicalVariable']:
+        """Extract just the variables from each constraint in the constraint set
+        NOTE: I had to duplicate this here to avoid circular imports"""
+        logical_variables: Set['LogicalVariable'] = set()
+        for constraint in self.cs:
+            for term in constraint.terms:
+                if isinstance(term, LogicalVariable):
+                    logical_variables.add(term)
+        return logical_variables
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,

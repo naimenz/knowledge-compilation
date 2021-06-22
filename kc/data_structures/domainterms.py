@@ -47,6 +47,27 @@ class DomainTerm(ABC):
         else:
             raise NotImplementedError('intersection only works for SetOfConstants for now')
 
+    def is_subset_of(self, other: 'DomainTerm') -> bool:
+        """Return True if THIS SetOfConstants (self) is a subset of 'other' and False otherwise
+        NOTE: For now only works with SetOfConstants"""
+        if all(isinstance(term, SetOfConstants) for term in (self, other) ):
+            domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
+            constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
+            return SetOfConstants(constants) == self
+        else:
+            raise NotImplementedError('is_subset_of only works for SetOfConstants for now')
+
+    def is_superset_of(self, other: 'DomainTerm') -> bool:
+        """Return True if THIS SetOfConstants (self) is a superset of 'other' and False otherwise
+        NOTE: For now only works with SetOfConstants"""
+        if all(isinstance(term, SetOfConstants) for term in (self, other) ):
+            domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
+            constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
+            return SetOfConstants(constants) == other
+        else:
+            raise NotImplementedError('is_superset_of only works for SetOfConstants for now')
+        
+
     @property
     @abstractmethod
     def size(self) -> int:
@@ -79,6 +100,13 @@ class SetOfConstants(DomainTerm):
     def __iter__(self) -> Iterable['Constant']:
         """Replacing __contains__ with iter for more flexibility"""
         return self.constants
+
+    def __contains__(self, other: Any) -> bool:
+        """Returns True if this SetOfConstants contains the other thing."""
+        if not isinstance(other, 'Constant'):
+            raise ValueError(f'Only constants can be in SetOfConstants, not {type(other)}')
+        return other in self.constants
+
 
     def __eq__(self, other: Any) -> bool:
         """Two sets of constants are equal if their constants are the same"""
