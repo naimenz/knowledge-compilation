@@ -11,12 +11,10 @@ class AtomCounting(KCRule):
     @classmethod
     def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional['ConstrainedAtom']]:
         """AtomCounting is applicable if the theory is shattered
-        (which is represented by a flag) and there is an atom in delta with exactly one bound
+        (which should have been checked before this rule) and there is an atom in delta with exactly one bound
         logical variable
         Returns True and the atom if applicable, and False, None otherwise."""
-        needs_shattering = not delta.shattered
-        if needs_shattering:
-            return False, None
+        # TODO: Heuristic for deciding which c_atom to use (from Forclift)
         for clause in delta.clauses:
             for c_atom in get_constrained_atoms(clause):
                 overlap = set(c_atom.atom.terms).intersection(c_atom.bound_vars) 

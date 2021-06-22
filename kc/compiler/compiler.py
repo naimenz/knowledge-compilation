@@ -13,6 +13,7 @@ from kc.compiler import Ground
 
 from typing import Dict, Optional, Tuple, Any, Type
 
+# TODO: delta -> theory
 
 class Compiler:
     """A knowledge compilation compiler that takes CNFs and produces 
@@ -57,6 +58,7 @@ class Compiler:
         """Check if the cache contains a given CNF"""
         return cnf in self._cache.keys()
 
+    # TODO: get_cache instead of cache_get
     def cache_get(self, cnf: 'CNF') -> 'NNFNode':
         """Return the circuit (represented by a single Node) stored in the cache for a
         given CNF.
@@ -74,7 +76,19 @@ class Compiler:
         """Check each compilation rule to see if its preconditions are met
         for the given cnf.
         Return the rule if one is found, plus optional info already computed.
-        Otherwise return None and None"""
+        Otherwise return None and None
+        Loops over:
+                LeafConstruction,
+                UnitPropagation,
+                VacuousConjunction,
+                Independence,
+                ShannonDecomposition,
+                ShatteredCompilation,
+                IndependentSingleGroundings,
+                IndependentPairedGroundings,
+                AtomCounting,
+                Ground
+       """
         for rule in self.rules: 
             applicable: bool
             stored_data: Optional[Any]
@@ -87,5 +101,6 @@ class Compiler:
         """Apply a given compilation rule to a cnf and return the constructed NNF
         NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
         # we pass this compiler in so it can be called recursively
+        # TODO self first
         nnf = rule.apply(delta, stored_data, self)
         return nnf

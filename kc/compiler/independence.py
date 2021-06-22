@@ -5,32 +5,29 @@ from kc.compiler import KCRule
 from kc.util import *
 
 from typing import Tuple, Optional, Sequence, List, Any
-StoredClauses = Tuple[Sequence['Clause'], Sequence['Clause']]
+StoredCNFs = Tuple['CNF', 'CNF']
 
 class Independence(KCRule):
     @classmethod
-    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional[StoredClauses]]:
+    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional[StoredCNFs]]:
         """Independence is applicable if the theory can be divided into
         two subtheories such that the subtheories make up the whole theory and are
         independent.
         NOTE: This will work with domain variables when clauses_independent does"""
+        # TODO: can partition be rewritten to take sets?
         clauses = list(delta.clauses)
-        potential_subtheory, other_potential_subtheory = cls._partition([clauses[0]], clauses[1:])
-        # if all clauses have been moved into potential_subtheory, then we are back where we started!
-        if len(other_potential_subtheory) == 0:
+        subtheory, other_subtheory = cls._partition([clauses[0]], clauses[1:])
+        # if all clauses have been moved into subtheory, then we are back where we started!
+        if len(other_subtheory) == 0:
             return False, None
         else:
-            return True, (potential_subtheory, other_potential_subtheory)
+            return True, (CNF(subtheory), CNF(other_subtheory))
 
     @classmethod
     # NOTE: We annotate compiler as 'Any' to avoid circularly importing the Compiler
-    def apply(cls, delta: 'CNF', subtheories: StoredClauses, compiler: Any) -> 'NNFNode':
+    def apply(cls, delta: 'CNF', sub_cnfs: StoredCNFs, compiler: Any) -> 'NNFNode':
         """Apply Independence and return an NNFNode (in this case an AndNode)"""
-        raise NotImplementedError('Independence.apply not implemented')
-
-        sub_cnf, other_sub_cnf = CNF(subtheories[0]), CNF(subtheories[1])
-        return AndNode(compiler.compile(sub_cnf), compiler.compile(other_sub_cnf))
-
+        return AndNode(compiler.compile(sub_cnfs[0]), compiler.compile(sub_cnfs[1]))
 
     @classmethod
     def _partition(cls, potential_subtheory: List['ConstrainedClause'],
@@ -46,7 +43,8 @@ class Independence(KCRule):
         # this is done with a pattern match in scala
         else:
             if len(potential_subtheory) > 0:
-                clause, rest = potential_subtheory[0], other_clauses[1:]
+                # TODO:  check this line with Forclift
+                clause, rest = potential_subtheory[0], potential_subtheory[1:]
                 new_potential_subtheory = []
                 new_other_clauses = []
 

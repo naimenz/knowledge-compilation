@@ -12,7 +12,8 @@ class VacuousConjunction(KCRule):
         """VacuousConjunction is applicable if the theory consists of
         a single clause with no bound variables.
         Returns a boolean plus None, because no stored data is needed"""
-        return len(delta.clauses) == 1 and len(list(delta.clauses)[0].bound_vars) == 0, None
+        applicable = len(delta.clauses) == 1 and len(list(delta.clauses)[0].bound_vars) == 0
+        return applicable, None
 
     @classmethod
     def apply(cls, delta: 'CNF', stored_data: None) -> 'NNFNode':

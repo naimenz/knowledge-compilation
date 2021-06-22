@@ -19,7 +19,7 @@ class IndependentPairedGroundings(KCRule):
         is_root_in_delta = lambda eq_class: is_root_eq_class(eq_class, delta)
         root_unifying_classes = filter(is_root_in_delta, unifying_classes)
         for root_unifying_class in root_unifying_classes:
-            if eq_class_two_variables(root_unifying_class, delta):
+            if eq_class_has_two_variables(root_unifying_class, delta):
                 return True, root_unifying_class
         return False, None
 

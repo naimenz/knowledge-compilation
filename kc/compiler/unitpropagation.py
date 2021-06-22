@@ -12,9 +12,9 @@ class UnitPropagation(KCRule):
         """UnitPropagation is applicable if the theory contains a unit clause 
         (a clause with a single literal)
         Returns True and the unit clause if applicable, and False, None otherwise"""
-        for clause in delta.clauses:
-            if len(clause.unconstrained_clause.literals) == 1:
-                return True, clause
+        unit_clauses = [clause for clause in delta.clauses if len(clause.unconstrained_clause.literals) == 1]
+        if len(unit_clauses) > 0:
+            return True, unit_clauses[0]
         return False, None
 
     @classmethod

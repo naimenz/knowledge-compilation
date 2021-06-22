@@ -326,7 +326,7 @@ def is_root_eq_class(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
             return False
     return True
 
-def eq_class_one_variable(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
+def eq_class_has_one_variable(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
     """Determine whether a given root equivalence class has a single bound variable
     per clause or not.
     NOTE: We assume that this equivalence class is root in the cnf"""
@@ -335,7 +335,7 @@ def eq_class_one_variable(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
             return False
     return True
 
-def eq_class_two_variables(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
+def eq_class_has_two_variables(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
     """Determine whether a given root equivalence class has two bound variables
     per clause or not.
     NOTE: We assume that this equivalence class is root in the cnf"""
