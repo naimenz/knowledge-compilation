@@ -104,10 +104,12 @@ def get_constrained_atom_mgu_substitution(c_atom: 'ConstrainedAtom',
 def is_satisfiable(cs: 'ConstraintSet') -> bool:
     """Is the given constraint set satisfiable? i.e. are there any substitutions to
     its variables that do not contain contradictions?
-    NOTE TODO: There are two major flaws with this function still:
+    NOTE TODO: There are three major flaws with this function still:
         1) It cannot handle domain variables
-        2) If there are more mutually unequal variables in a domain than there are elements of that domain
-        it is not satisfiable but this function cannot determine that yet"""
+        2) If there are more mutually unequal variables in a domain than there are elements
+        of that domain it is not satisfiable but this function cannot determine that yet
+        3) Inequality constraints between free variables aren't checked if they don't
+        apeear in any equality constraints"""
     # First, we construct variable equivalence classes from the equality constraints 
     eq_classes = get_var_eq_classes_from_cs(cs)
     # Next, we make sure that these are consistent with the inequality constraints
@@ -147,21 +149,26 @@ def consistent_with_set_constraints(eq_classes: Sequence['VariableEquivalenceCla
     """If any equality class has an empty domain, then it is not consistent
     NOTE: For now, only works with SetOfConstants, not DomainVariable"""
     for eq_class in eq_classes:
-        included_domains = []
-        excluded_domains = []
-        for constraint in cs:
-            if isinstance(constraint, InclusionConstraint) and constraint.logical_term in eq_class:
-                included_domains.append(constraint.domain_term)
-            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in eq_class:
-                excluded_domains.append(constraint.domain_term)
-        # hack for type checking for now since we only work with SetOfConstants
-        included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
-        excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
-        allowed_constants = included_domain.difference(excluded_domain)
-        if allowed_constants.size == 0:
+        shared_domain = get_eq_class_shared_domain(eq_class, cs)
+        if shared_domain.size == 0:
             return False
     return True
 
+def get_eq_class_shared_domain(eq_class: 'VariableEquivalenceClass', cs: 'ConstraintSet') -> 'SetOfConstants':
+    """Get the shared domain for an equivalence class of variables according to a particular constraint set
+    NOTE: Because we don't have inequality constraints involving constants, this covers everything"""
+    included_domains = []
+    excluded_domains = []
+    for constraint in cs:
+        if isinstance(constraint, InclusionConstraint) and constraint.logical_term in eq_class:
+            included_domains.append(constraint.domain_term)
+        elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in eq_class:
+            excluded_domains.append(constraint.domain_term)
+    # hack for type checking for now since we only work with SetOfConstants
+    included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
+    excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
+    shared_domain = included_domain.difference(excluded_domain)
+    return shared_domain
 
 def get_unconstrained_atom_mgu_substitution(atom1: 'Atom', atom2: 'Atom') -> Optional['Substitution']:
     """Compute the mgu of two unconstrained atoms using equivalence classes,
@@ -336,4 +343,65 @@ def eq_class_two_variables(eq_class: 'EquivalenceClass', cnf: 'CNF') -> bool:
         if len(eq_class.members.intersection(clause.bound_vars)) != 2:
             return False
     return True
+
+def constrained_atom_subsumes(subsumer: 'ConstrainedAtom', subsumed: 'ConstrainedAtom') -> bool:
+    """Does the the subsumer (A) subsume the subsumed (B)? 
+    NOTE: This is a work in progress, and currently uses the following (incomplete) rules:
+    1) A and B must unify, producing equivalence classes.
+    2) Each equivalence class between a variable X in A and a constant c in B must have
+    c in the shared domain for X (after processing inequality constraints)
+    3) For each equivalence class, its shared domain in B must be a subset of its shared domain in A.
+    4) Each equivalence class must contain only ONE term from B.
+    5) FOR NOW: A free variable anywhere in A breaks subsumption. 
+    A free variable in the constraint set of B does not, but a free variable in its atom does. 
+    (THIS IS WRONG, BUT IS A FIRST DRAFT)
+    """
+    # aliases because this is how I've been using them in my notes
+    A, B = subsumer, subsumed
+    eq_classes = get_constrained_atom_mgu_eq_classes(A, B)
+    # 1)
+    if eq_classes is None:
+        print("DEBUG: Didn't unify")
+        return False
+    for eq_class in eq_classes:
+        var_eq_class = eq_class.variables_only()
+        A_shared_domain = get_eq_class_shared_domain(var_eq_class, A.cs)
+        B_shared_domain = get_eq_class_shared_domain(var_eq_class, B.cs)
+
+        # 2) - this is a long, potentially slow check TODO: make it neater
+        for eq_term in eq_class:
+            if isinstance(eq_term, Constant):
+                for i, arg_term in enumerate(B.atom.terms):
+                    if eq_term == arg_term and isinstance(A.atom.terms[i], LogicalVariable):
+                        if not eq_term in A_shared_domain:
+                            print(f'DEBUG: Constant {eq_term} not in {A_shared_domain=}')
+                            return False
+
+        # 3)
+        if not B_shared_domain.is_subset_of(A_shared_domain):
+            print(f'DEBUG: {B_shared_domain=} is not a subset of {A_shared_domain=}')
+            return False
+
+        # 4)
+        if len(eq_class.members.intersection(B.all_literal_variables)) > 1:
+            print(f'DEBUG: {eq_class=} and {B.all_literal_variables=} overlap in more than one place')
+            return False
+
+    # 5)
+    A_free_variables = A.all_variables.symmetric_difference(A.bound_vars)
+    if len(A_free_variables) > 0:
+        print(f'DEBUG: {A_free_variables=}')
+        return False
+
+    B_literal_free_variables = B.all_literal_variables.difference(B.bound_vars)
+    if len(B_literal_free_variables) > 0:
+        print(f'DEBUG: {B_literal_free_variables=}')
+        print(B.all_literal_variables)
+        print(B.bound_vars)
+        return False
+
+    return True
+
+
+
 
