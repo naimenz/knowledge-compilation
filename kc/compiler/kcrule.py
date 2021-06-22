@@ -19,7 +19,7 @@ class KCRule(ABC):
 
     @classmethod
     @abstractmethod
-    def apply(cls, delta: 'CNF', stored_data: Any) -> 'NNFNode':
+    def apply(cls, delta: 'CNF', stored_data: Any, compiler: 'Compiler') -> 'NNFNode':
         """Apply this compilation rule to the cnf, returning an NNF"""
         pass
 

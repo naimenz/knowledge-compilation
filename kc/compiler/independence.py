@@ -4,7 +4,7 @@ from kc.data_structures import *
 from kc.compiler import KCRule
 from kc.util import *
 
-from typing import Tuple, Optional, Sequence
+from typing import Tuple, Optional, Sequence, List, Any
 StoredClauses = Tuple[Sequence['Clause'], Sequence['Clause']]
 
 class Independence(KCRule):
@@ -13,7 +13,7 @@ class Independence(KCRule):
         """Independence is applicable if the theory can be divided into
         two subtheories such that the subtheories make up the whole theory and are
         independent.
-        NOTE: This will work with domai nvariables when clauses_independent does"""
+        NOTE: This will work with domain variables when clauses_independent does"""
         clauses = list(delta.clauses)
         potential_subtheory, other_potential_subtheory = cls._partition([clauses[0]], clauses[1:])
         # if all clauses have been moved into potential_subtheory, then we are back where we started!
@@ -23,9 +23,13 @@ class Independence(KCRule):
             return True, (potential_subtheory, other_potential_subtheory)
 
     @classmethod
-    def apply(cls, delta: 'CNF', stored_data: StoredClauses) -> 'NNFNode':
-        """Apply Independence and return an NNFNode"""
+    # NOTE: We annotate compiler as 'Any' to avoid circularly importing the Compiler
+    def apply(cls, delta: 'CNF', subtheories: StoredClauses, compiler: Any) -> 'NNFNode':
+        """Apply Independence and return an NNFNode (in this case an AndNode)"""
         raise NotImplementedError('Independence.apply not implemented')
+
+        sub_cnf, other_sub_cnf = CNF(subtheories[0]), CNF(subtheories[1])
+        return AndNode(compiler.compile(sub_cnf), compiler.compile(other_sub_cnf))
 
 
     @classmethod

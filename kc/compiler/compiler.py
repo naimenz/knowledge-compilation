@@ -3,7 +3,13 @@ Compile algorithm. This algorithm calls various additional algorithms (rules)
 which operate on a CNF, as defined in the data_structures package."""
 
 from kc.data_structures import *
-from kc.compiler import *
+
+from kc.compiler import KCRule
+from kc.compiler import LeafConstruction, UnitPropagation, VacuousConjunction
+from kc.compiler import Independence, ShannonDecomposition, ShatteredCompilation
+from kc.compiler import IndependentSingleGroundings, IndependentPairedGroundings, AtomCounting
+from kc.compiler import Ground
+
 
 from typing import Dict, Optional, Tuple, Any, Type
 
@@ -43,7 +49,7 @@ class Compiler:
             raise ValueError("Compilation failed - no rule found for {delta}")
             nnf = None
         else:
-            nnf = self.apply_rule(delta, applicable_rule, stored_data)
+            nnf = self.apply_rule(delta, applicable_rule, stored_data) 
         self.cache_set(delta, nnf)
         return nnf
 
@@ -80,5 +86,6 @@ class Compiler:
     def apply_rule(self, delta: 'CNF', rule: Type['KCRule'], stored_data: Optional[Any]) -> 'NNFNode':
         """Apply a given compilation rule to a cnf and return the constructed NNF
         NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
-        nnf = rule.apply(delta, stored_data)
+        # we pass this compiler in so it can be called recursively
+        nnf = rule.apply(delta, stored_data, self)
         return nnf
