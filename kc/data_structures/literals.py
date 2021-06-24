@@ -2,13 +2,13 @@
 Classes for literals, including the predicates and atoms that go into building literals.
 """
 
-from kc.data_structures.logicalterms import *
-from kc.data_structures.substitutions import *
+from kc.data_structures import *
 import typing
 
-from typing import List, Sequence, Any, Set
+from typing import List, Sequence, Any, Set, Optional
 from typing import cast
 
+ECList = List['EquivalenceClass']
 class Literal:
     """
     A class for FOL literals.
@@ -77,6 +77,39 @@ class Atom:
     def variables(self) -> Set['LogicalVariable']:
         """Return only the logical variables that appear in the terms of this atom"""
         return set(term for term in self.terms if isinstance(term, LogicalVariable))
+
+    def get_unconstrained_atom_mgu_eq_classes(self: 'Atom', other_atom: 'Atom') -> Optional['EquivalenceClasses']:
+        """Compute the mgu of this atom with another using equivalence classes,
+
+        Returns a list of equivalence classes or None, if unsuccessful.
+        """
+        if self.predicate != other_atom.predicate:
+            return None
+
+        # we build up equivalence classes, starting from equivalences between terms in the same position
+        # of the two atoms
+        term_pairs = zip(self.terms, other_atom.terms)
+        # we only include equivalence classes with more than one unique element
+        initial_eq_classes = EquivalenceClasses( EquivalenceClass([t1, t2]) for t1, t2 in term_pairs if t1 != t2 )
+
+        final_eq_classes = initial_eq_classes.make_self_consistent()
+        if any(eq_class.is_inconsistent() for eq_class in final_eq_classes):
+            return None
+        else:
+            return final_eq_classes
+
+    def get_unconstrained_atom_mgu_substitution(self: 'Atom', other_atom: 'Atom') -> Optional['Substitution']:
+        """Compute the mgu of this atom with another using equivalence classes,
+        as done in Forclift. Before returning, I convert the equivalence classes into a
+        substitution.
+
+        Returns None if the mgu doesn't exist (the atoms are independent), and a Substitution if it does.
+        """
+        eq_classes = self.get_unconstrained_atom_mgu_eq_classes(other_atom)
+        if not eq_classes is None:
+            return EquivalenceClass.eq_classes_to_substitution(eq_classes)
+        else:
+            return None
 
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""

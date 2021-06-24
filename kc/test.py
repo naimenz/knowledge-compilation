@@ -47,3 +47,13 @@ print(type(g))
 
 # circle = Circle().set_scale(0.5).set_radius(2.7)  # type: Circle
 # square = Square().set_scale(0.5).set_width(3.2)  # type: Square
+
+
+x = [1,2,3,4,5,6]
+
+for i, val1 in enumerate(x):
+    for val2 in x[i:]:
+        print(val1, val2)
+
+
+

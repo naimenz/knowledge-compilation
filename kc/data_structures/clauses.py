@@ -5,12 +5,13 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import *
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, EquivalenceClass
+from kc.data_structures import ConstraintSet, EquivalenceClasses
 
 from functools import reduce
 from abc import ABC, abstractmethod
 
-from typing import List, TypeVar, Iterable, Any, Sequence, Set
+from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional
 from typing import cast
 
 
@@ -120,6 +121,43 @@ class ConstrainedClause(Clause):
                     logical_variables.add(term)
         return logical_variables
 
+    def clauses_independent(self, other_clause: 'ConstrainedClause') -> bool:
+        """Is this clause independent of the other clause?"""
+        if self._is_conditional_contradiction() or other_clause._is_conditional_contradiction():
+            return True
+
+        all_independent = True
+        for c_atom in self.get_constrained_atoms():
+            for other_c_atom in other_clause.get_constrained_atoms():
+                if c_atom.constrained_atoms_unify(other_c_atom):
+                    all_independent = False
+        return all_independent
+
+    def _is_conditional_contradiction(self) -> bool:
+        """This name is from Forclift.
+        I think this means that the clause contains no literals and so
+        its grounding is empty, meaning it is independent of everything."""
+        return len(self.unconstrained_clause.literals) == 0
+
+    def get_constrained_atoms(self) -> List['ConstrainedAtom']:
+        """For this clause, return a list of all the constrained atoms in the clause"""
+        constrained_atoms = []
+        for literal in self.unconstrained_clause.literals:
+            constrained_atom = self._build_constrained_atom_from_literal(literal)
+            constrained_atoms.append(constrained_atom)
+        return constrained_atoms
+
+    def _build_constrained_atom_from_literal(self, literal: 'Literal') -> 'ConstrainedAtom':
+        """Build a constrained atom given a specific literal using the bound variables
+        and constraints of this clause"""
+        atom = literal.atom 
+        positive_literal = Literal(atom, True)
+        # constrained atoms subclass ConstrainedClause, so need to be built of an
+        # unconstrained clause
+        unconstrained_atom = UnconstrainedClause([positive_literal])
+        constrained_atom = ConstrainedAtom(unconstrained_atom, self.bound_vars, self.cs)
+        return constrained_atom
+
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
          and the same bound variables"""
@@ -173,6 +211,27 @@ class ConstrainedAtom(UnitClause):
     def atom(self) -> 'Atom':
         """Get the atom from the unconstrained clause"""
         return self.literal.atom
+
+
+    def constrained_atoms_unify(self: 'ConstrainedAtom', other_c_atom: 'ConstrainedAtom') -> bool:
+        """Returns True if there is a substitution that unifies this constrained atom (self) and other_c_atom, otherwise False."""
+        return not self.get_constrained_atom_mgu_eq_classes(other_c_atom) is None
+
+    def get_constrained_atom_mgu_eq_classes(self: 'ConstrainedAtom',
+                                              other_c_atom: 'ConstrainedAtom'
+                                              ) -> Optional['EquivalenceClasses']:
+        """Get the mgu of this constrained atom with another.
+        This is the same as the mgu for two unconstrained atoms, with an additional check 
+        to see if the constraint sets conjoined with the mgu are satisfiable."""
+        unconstrained_mgu = self.atom.get_unconstrained_atom_mgu_eq_classes(other_c_atom.atom)
+        if unconstrained_mgu is None:
+            return None
+        cs_mgu = unconstrained_mgu.to_constraint_set()
+        combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
+        if combined_constraint_set.is_satisfiable():
+            return unconstrained_mgu
+        else:
+            return None
 
 
 # Type variable for arbitrary clauses so I can reuse apply_substitution

@@ -5,14 +5,15 @@ NOTE: at the moment only the types of constraints used in Chapter 4 of the PhD
 are considered.
 """
 
-from kc.data_structures import *
+from kc.data_structures import EquivalenceClass, EquivalenceClasses, LogicalVariable, SetOfConstants, Constant, VariableEquivalenceClass
 
 from abc import ABC, abstractmethod
 
-from typing import List, Iterable, Any, FrozenSet, Tuple, Union, Optional
+from typing import List, Iterable, Any, FrozenSet, Tuple, Union, Optional, Sequence
 
 # defining type alias to simplify type hinting
 ECList = List['EquivalenceClass']
+VECSeq = Sequence['VariableEquivalenceClass']
 
 class ConstraintSet:
     """A FOL-DC constraint set.
@@ -38,6 +39,40 @@ class ConstraintSet:
     #         new_constraint = constraint.apply_substitution(substitution)
     #         new_constraints.append(new_constraint)
     #     return ConstraintSet(new_constraints)
+
+    def is_satisfiable(self) -> bool:
+        """Is this constraint set satisfiable? i.e. are there any substitutions to
+        its variables that do not contain contradictions?
+        NOTE TODO: There are three major flaws with this function still:
+            1) It cannot handle domain variables
+            2) If there are more mutually unequal variables in a domain than there are elements
+            of that domain it is not satisfiable but this function cannot determine that yet
+            3) Inequality constraints between free variables aren't checked if they don't
+            apeear in any equality constraints"""
+        # First, we construct variable equivalence classes from the equality constraints 
+        eq_classes = self.get_var_eq_classes()
+        # Next, we make sure that these are consistent with the inequality constraints
+        if not consistent_with_inequality_constraints(eq_classes, self):
+            return False
+        # Then we construct the possible domains for each equivalence class and
+        # check that they are non-empty
+        if not consistent_with_set_constraints(eq_classes, self):
+            return False
+        # finally, we assume that it is satisfiable
+        return True
+
+    def get_var_eq_classes(self) -> 'EquivalenceClasses[VariableEquivalenceClass]':
+        """Return the variable equivalence classes given by the equality constraints
+        of this constraint set
+        NOTE: This uses the assumption that equality constraints only contain logical variables"""
+        initial_eq_class_pairs: List['VariableEquivalenceClass'] = [] # collect the equivalence classes we will use later
+        for constraint in self:
+            if isinstance(constraint, EqualityConstraint):
+                initial_eq_class_pairs.append(VariableEquivalenceClass(constraint.terms))
+
+        initial_eq_classes: EquivalenceClasses['VariableEquivalenceClass'] = EquivalenceClasses(initial_eq_class_pairs)
+        final_eq_classes = initial_eq_classes.make_self_consistent()
+        return final_eq_classes
 
     def __iter__(self):
         return iter(self.constraints)

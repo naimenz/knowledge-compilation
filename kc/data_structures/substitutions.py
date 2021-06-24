@@ -1,7 +1,8 @@
 """
 Classes for substitutions.
 """
-from kc.data_structures.logicalterms import *
+from kc.data_structures import Constant, LogicalVariable, LogicalTerm
+from kc.data_structures import ConstraintSet, Constraint, EqualityConstraint
 
 from typing import List, Tuple, Dict, Any, Iterable, Optional, Union
 
@@ -30,6 +31,15 @@ class Substitution:
     def mappings(self) -> Iterable[VarTermPair]:
         """Return an iterator of the mappings in this substitution."""
         return self._substitution_dict.items()
+
+    def to_constraint_set(self) -> 'ConstraintSet':
+        """Convert a substitution to an equivalent constraint set.
+        This involves simply defining a constraint for each mapping."""
+        constraints: List['Constraint'] = []
+        for mapping in self:
+            constraint = EqualityConstraint(mapping[0], mapping[1])
+            constraints.append(constraint)
+        return ConstraintSet(constraints)
 
     def __iter__(self):
         return iter(self.mappings())
