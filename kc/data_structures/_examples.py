@@ -1,6 +1,7 @@
 """Examples from the data_structures files all in one place and not imported"""
 
 from kc.data_structures import *
+from typing import List, Any
 
 # logicalterms.py
 print('logicalterms.py')

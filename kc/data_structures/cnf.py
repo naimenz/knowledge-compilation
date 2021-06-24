@@ -2,9 +2,14 @@
 Class for FO-CNF formulas.
 """
 
-from kc.data_structures import ConstrainedClause, EquivalenceClass
+from kc.data_structures import EquivalenceClasses
 
 from typing import List, Any, Iterable
+from typing import TYPE_CHECKING
+
+# to avoid circular imports that are just for type checking
+if TYPE_CHECKING:
+    from kc.data_structures import ConstrainedClause, EquivalenceClass
 
 class CNF:
     """
@@ -25,6 +30,23 @@ class CNF:
     #     """Return a new CNF, the result of applying substitution to this CNF"""
     #     new_clauses = set(clause.apply_substitution(substitution) for clause in self.clauses)
     #     return CNF(new_clauses)
+
+    def get_unifying_classes(self) -> 'EquivalenceClasses':
+        """Construct all unifying classes from this CNF
+        and return them as EquivalenceClasse
+        TODO: decide whether this should only consider bound variables (as per the definitions)
+        or include free variables too (as per the examples and Forclift)"""
+        initial_eq_class_pairs: List['EquivalenceClass'] = []
+        for clause in self.clauses:
+            for other_clause in self.clauses:
+                for c_atom in clause.get_constrained_atoms():
+                    for other_c_atom in other_clause.get_constrained_atoms():
+                        eq_classes = c_atom.get_constrained_atom_mgu_eq_classes(other_c_atom)
+                        if not eq_classes is None:
+                            initial_eq_class_pairs += eq_classes
+        initial_eq_classes = EquivalenceClasses(initial_eq_class_pairs)
+        final_eq_classes = initial_eq_classes.make_self_consistent()
+        return final_eq_classes
 
     def eq_class_has_one_variable(self, eq_class: 'EquivalenceClass') -> bool:
         """Determine whether a given root equivalence class has a single bound variable

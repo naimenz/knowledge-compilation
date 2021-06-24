@@ -4,13 +4,10 @@ Classes for types of domain terms, which are sets of constants and domain variab
 """
 
 from abc import ABC, abstractmethod
-from kc.data_structures.logicalterms import *
+from kc.data_structures import Constant
 
 from typing import List, Set, Any, FrozenSet, Iterable
 from typing import cast, TypeVar
-
-# generic type for domain term or its subclasses
-TDomain = TypeVar('TDomain', bound='DomainTerm')
 
 class DomainTerm(ABC):
     """
@@ -103,7 +100,7 @@ class SetOfConstants(DomainTerm):
 
     def __contains__(self, other: Any) -> bool:
         """Returns True if this SetOfConstants contains the other thing."""
-        if not isinstance(other, 'Constant'):
+        if not isinstance(other, Constant):
             raise ValueError(f'Only constants can be in SetOfConstants, not {type(other)}')
         return other in self.constants
 

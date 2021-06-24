@@ -5,15 +5,21 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, EquivalenceClass
-from kc.data_structures import ConstraintSet, EquivalenceClasses
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant
 
 from functools import reduce
 from abc import ABC, abstractmethod
 
 from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional
-from typing import cast
+from typing import cast 
+from typing import TYPE_CHECKING
 
+# to avoid circular imports that are just for type checking
+if TYPE_CHECKING:
+    from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClasses
+
+# Type variable for arbitrary clauses so I can reuse apply_substitution
+C = TypeVar('C', bound='ConstrainedClause') 
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
@@ -233,8 +239,75 @@ class ConstrainedAtom(UnitClause):
         else:
             return None
 
+    def get_constrained_atom_mgu_substitution(self: 'ConstrainedAtom',
+                                              other_c_atom: 'ConstrainedAtom'
+                                              ) -> Optional['Substitution']:
+        """Get the mgu of two constrained atoms.
+        This is the same as the mgu for two unconstrained atoms, with an additional check 
+        to see if the constraint sets conjoined with the mgu are satisfiable."""
+        eq_classes = self.get_constrained_atom_mgu_eq_classes(other_c_atom)
+        if not eq_classes is None:
+            return eq_classes.to_substitution()
+        else:
+            return None
 
-# Type variable for arbitrary clauses so I can reuse apply_substitution
-# ideally this would be defined above but I think mypy is bugged
-C = TypeVar('C', bound='ConstrainedClause') 
+    def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:
+        """Does the subsumer (A) subsume this c_atom, the subsumed (B)?
+        NOTE: This is a work in progress, and currently uses the following (incomplete) rules:
+        1) A and B must unify, producing equivalence classes.
+        2) Each equivalence class between a variable X in A and a constant c in B must have
+        c in the shared domain for X (after processing inequality constraints)
+        3) For each equivalence class, its shared domain in B must be a subset of its shared domain in A.
+        4) Each equivalence class must contain only ONE term from B.
+        5) FOR NOW: A free variable anywhere in A breaks subsumption. 
+        A free variable in the constraint set of B does not, but a free variable in its atom does. 
+        (THIS IS WRONG, BUT IS A FIRST DRAFT)
+        """
+        # aliases because this is how I've been using them in my notes
+        A, B = subsumer, self
+        eq_classes = A.get_constrained_atom_mgu_eq_classes(B)
+        # 1)
+        if eq_classes is None:
+            print("DEBUG: Didn't unify")
+            return False
+        for eq_class in eq_classes:
+            var_eq_class = eq_class.get_variables_only()
+            A_shared_domain = var_eq_class.get_shared_domain_from_cs(A.cs)
+            B_shared_domain = var_eq_class.get_shared_domain_from_cs(B.cs)
+
+            # 2) - this is a long, potentially slow check TODO: make it neater
+            for eq_term in eq_class:
+                if isinstance(eq_term, Constant):
+                    for i, arg_term in enumerate(B.atom.terms):
+                        if eq_term == arg_term and isinstance(A.atom.terms[i], LogicalVariable):
+                            if not eq_term in A_shared_domain:
+                                print(f'DEBUG: Constant {eq_term} not in {A_shared_domain=}')
+                                return False
+
+            # 3)
+            if not B_shared_domain.is_subset_of(A_shared_domain):
+                print(f'DEBUG: {B_shared_domain=} is not a subset of {A_shared_domain=}')
+                return False
+
+            # 4)
+            if len(eq_class.members.intersection(B.all_literal_variables)) > 1:
+                print(f'DEBUG: {eq_class=} and {B.all_literal_variables=} overlap in more than one place')
+                return False
+
+        # 5)
+        A_free_variables = A.all_variables.symmetric_difference(A.bound_vars)
+        if len(A_free_variables) > 0:
+            print(f'DEBUG: {A_free_variables=}')
+            return False
+
+        B_literal_free_variables = B.all_literal_variables.difference(B.bound_vars)
+        if len(B_literal_free_variables) > 0:
+            print(f'DEBUG: {B_literal_free_variables=}')
+            print(B.all_literal_variables)
+            print(B.bound_vars)
+            return False
+
+        return True
+
+
 

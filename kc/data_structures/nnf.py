@@ -1,10 +1,14 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import *
 
 from abc import ABC, abstractmethod
 
 from typing import Iterable, List, Set
+from typing import TYPE_CHECKING
+
+# to avoid circular imports that are just for type checking
+if TYPE_CHECKING:
+    from kc.data_structures import ConstraintSet, LogicalVariable
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""

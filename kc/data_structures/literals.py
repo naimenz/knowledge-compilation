@@ -2,13 +2,18 @@
 Classes for literals, including the predicates and atoms that go into building literals.
 """
 
-from kc.data_structures import *
+from kc.data_structures import Constant, LogicalVariable, EquivalenceClass, EquivalenceClasses
 import typing
 
 from typing import List, Sequence, Any, Set, Optional
 from typing import cast
+from typing import TYPE_CHECKING
 
-ECList = List['EquivalenceClass']
+# to avoid circular imports that are just for type checking
+if TYPE_CHECKING:
+    from kc.data_structures import Substitution, LogicalTerm
+
+
 class Literal:
     """
     A class for FOL literals.
@@ -107,7 +112,7 @@ class Atom:
         """
         eq_classes = self.get_unconstrained_atom_mgu_eq_classes(other_atom)
         if not eq_classes is None:
-            return EquivalenceClass.eq_classes_to_substitution(eq_classes)
+            return eq_classes.to_substitution()
         else:
             return None
 
