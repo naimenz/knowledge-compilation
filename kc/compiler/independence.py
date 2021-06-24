@@ -2,20 +2,24 @@
 
 from kc.data_structures import *
 from kc.compiler import KCRule
-from kc.util import *
 
 from typing import Tuple, Optional, Sequence, List, Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kc.compiler import Compiler
+
 StoredCNFs = Tuple['CNF', 'CNF']
 
 class Independence(KCRule):
     @classmethod
-    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, Optional[StoredCNFs]]:
+    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional[StoredCNFs]]:
         """Independence is applicable if the theory can be divided into
         two subtheories such that the subtheories make up the whole theory and are
         independent.
         NOTE: This will work with domain variables when clauses_independent does"""
         # TODO: can partition be rewritten to take sets?
-        clauses = list(delta.clauses)
+        clauses = list(cnf.clauses)
         subtheory, other_subtheory = cls._partition([clauses[0]], clauses[1:])
         # if all clauses have been moved into subtheory, then we are back where we started!
         if len(other_subtheory) == 0:
@@ -25,7 +29,7 @@ class Independence(KCRule):
 
     @classmethod
     # NOTE: We annotate compiler as 'Any' to avoid circularly importing the Compiler
-    def apply(cls, delta: 'CNF', sub_cnfs: StoredCNFs, compiler: Any) -> 'NNFNode':
+    def apply(cls, cnf: 'CNF', sub_cnfs: StoredCNFs, compiler: 'Compiler') -> 'NNFNode':
         """Apply Independence and return an NNFNode (in this case an AndNode)"""
         return AndNode(compiler.compile(sub_cnfs[0]), compiler.compile(sub_cnfs[1]))
 
@@ -50,7 +54,7 @@ class Independence(KCRule):
 
                 # separate out the clauses into whether they are dependent with the potential_subtheory or not
                 for other_clause in other_clauses:
-                    independent = clauses_independent(clause, other_clause)
+                    independent = clause.clauses_independent(other_clause)
                     if not independent:
                         new_potential_subtheory.append(other_clause)
                     else:

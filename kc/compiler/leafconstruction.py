@@ -10,7 +10,7 @@ from typing import Tuple
 class LeafConstruction(KCRule):
     
     @classmethod
-    def is_applicable(cls, delta: 'CNF') -> Tuple[bool, None]:
+    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, None]:
         """LeafConstruction is applicable if the theory is a single True, False, or literal.
         Returns True or False depending on the flag, plus None (no stored data needed)
         NOTE: I'm not quite sure what it means for a clause to be simply True
@@ -18,7 +18,7 @@ class LeafConstruction(KCRule):
         return False, None
 
     @classmethod
-    def apply(cls, delta: 'CNF', stored_data: None) -> 'NNFNode':
+    def apply(cls, cnf: 'CNF', stored_data: None) -> 'NNFNode':
         """Apply LeafConstruction and return an NNFNode"""
         raise NotImplementedError('LeafConstruction.apply not implemented')
 

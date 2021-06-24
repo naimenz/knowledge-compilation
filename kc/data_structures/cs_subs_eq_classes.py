@@ -80,6 +80,15 @@ class ConstraintSet:
         final_eq_classes = initial_eq_classes.make_self_consistent()
         return final_eq_classes
 
+    def get_logical_variables(self) -> Set['LogicalVariable']:
+        """Extract just the variables from each constraint in the constraint set"""
+        logical_variables: Set['LogicalVariable'] = set()
+        for constraint in self:
+            for term in constraint.terms:
+                if isinstance(term, LogicalVariable):
+                    logical_variables.add(term)
+        return logical_variables
+
     def __iter__(self):
         return iter(self.constraints)
 

@@ -1,7 +1,168 @@
-"""Examples from the util files all in one place and not imported"""
+"""Examples all in one place and not imported"""
 
 from kc.data_structures import *
-# from kc.compiler import *
+from kc.compiler import *
+
+a, b, c = Constant('a'), Constant('b'), Constant('c')
+X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
+p, q = Predicate('p', 1), Predicate('q', 1)
+D = SetOfConstants([a, b])
+E = SetOfConstants([b, c])
+Universe = SetOfConstants([a, b, c])
+
+XinD = InclusionConstraint(X, D)
+XinE = InclusionConstraint(X, E)
+YeqZ = EqualityConstraint(Y, Z)
+Xeqa = InclusionConstraint(X, SetOfConstants([a]))
+YinE = InclusionConstraint(Y, E)
+XeqY = EqualityConstraint(X, Y)
+YinUniverse = InclusionConstraint(Y, Universe)
+ZinUniverse = InclusionConstraint(Z, Universe)
+
+p_literal = Literal(Atom(p, [X]), True)
+q_literal = Literal(Atom(q, [X]), True)
+
+cs_gamma = ConstraintSet([XinD , YinUniverse, ZinUniverse])
+cs_a = ConstraintSet([XinD, ~YeqZ, YinUniverse, ZinUniverse])
+
+# gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
+gamma = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_gamma)
+atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
+
+print(atom.is_subsumed_by_c_atom(gamma))
+
+ ############################################################
+
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+Z = LogicalVariable('Z')
+X1 = LogicalVariable('X1')
+Y1 = LogicalVariable('Y1')
+Z1 = LogicalVariable('Z1')
+
+
+alice = Constant('alice')
+bob = Constant('bob')
+charlie = Constant('charlie')
+
+friends = Predicate('friends', 2)
+dislikes = Predicate('dislikes', 2)
+likes = Predicate('likes', 2)
+fun = Predicate('fun', 1)
+enemies = Predicate('enemies', 2)
+
+friendsXY = Literal(Atom(friends, [X, Y]), True)
+dislikesXY = Literal(Atom(dislikes, [X, Y]), True)
+friendsX1Y1 = Literal(Atom(friends, [X1, Y1]), True)
+friendsY1X1 = Literal(Atom(friends, [Y1, X1]), True)
+dislikesX1Y1 = Literal(Atom(dislikes, [X1, Y1]), True)
+enemiesXY = Literal(Atom(enemies, [X, Y]), True)
+enemiesX1Y1 = Literal(Atom(enemies, [X1, Y1]), True)
+funX = Literal(Atom(fun, [X]), True)
+funX1 = Literal(Atom(fun, [X1]), True)
+friendsZZ = Literal(Atom(friends, [Z, Z]), True)
+likesZZ = Literal(Atom(likes, [Z, Z]), True)
+friendsYY = Literal(Atom(friends, [Y, Y]), True)
+likesYY = Literal(Atom(likes, [Y, Y]), True)
+
+uclause1 = UnconstrainedClause([friendsYY, dislikesXY])
+uclause2 = UnconstrainedClause([friendsX1Y1, dislikesX1Y1])
+# uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
+# uclause3 = UnconstrainedClause([~friendsYY, likesYY])
+
+unitclause = UnconstrainedClause([friendsYY])
+
+People = SetOfConstants([alice, bob, charlie])
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
+X1inPeople = InclusionConstraint(X1, People)
+Y1inPeople = InclusionConstraint(Y1, People)
+X1eqY1 = EqualityConstraint(X1, Y1)
+ZinPeople = InclusionConstraint(Z, People)
+XeqY = EqualityConstraint(X, Y)
+ZeqZ1 = EqualityConstraint(Z, Z1)
+Yeqalice = InclusionConstraint(Y, SetOfConstants([alice]))
+Yeqbob = InclusionConstraint(Y, SetOfConstants([bob]))
+Zeqbob = InclusionConstraint(Z, SetOfConstants([bob]))
+
+cs1 = ConstraintSet([XinPeople, YinPeople])
+cs1p = ConstraintSet([X1inPeople, Y1inPeople, ZinPeople, ~ZeqZ1])
+cs2 = ConstraintSet([ZinPeople])
+cs3 = ConstraintSet([YinPeople, Yeqalice])
+cs4 = ConstraintSet([ZinPeople, Zeqbob])
+
+
+uclause1 = UnconstrainedClause([friendsXY])
+uclause2 = UnconstrainedClause([friendsY1X1])
+catom1 = ConstrainedAtom(uclause1, [X, Y], cs1)
+catom2 = ConstrainedAtom(uclause2, [X1, Z], cs1p)
+
+print(catom1)
+print(catom2)
+print(f'here {catom2.is_subsumed_by_c_atom(catom1)=}')
+
+cnf = CNF([catom1, catom2])
+cnf.shattered = True
+# compiler testing
+compiler = Compiler()
+compiler.compile(cnf)
+
+# uclause1 = UnconstrainedClause([~friendsXY, ~enemiesXY])
+# uclause2 = UnconstrainedClause([~friendsY1X1, ~enemiesX1Y1])
+# clause1 = ConstrainedClause(uclause1, [X, Y], cs1)
+# clause2 = ConstrainedClause(uclause2, [X1, Y1], cs1p)
+# cnf = CNF([clause1, clause2])
+# cnf.shattered = True
+# # compiler testing
+# compiler = Compiler()
+# compiler.compile(cnf)
+
+# clause2 = ConstrainedClause(uclause2, [Z], cs2)
+# clause3 = ConstrainedClause(uclause3, [Y], cs3)
+# clause4 = ConstrainedClause(uclause2, [Z], cs4)
+# clause4 = ConstrainedClause(uclause2, [Z], cs4)
+# unitclause = ConstrainedClause(unitclause, [Y], cs3)
+
+# def run(cnf):
+#     res = tryIndependentSubtheories(cnf)
+#     if res is None:
+#         print(f"There are no independent subtheories in {cnf}")
+#     else:
+#         print("Recursing")
+#         run(res[0])
+#         run(res[1])
+
+# cnf = CNF([clause1, clause3, clause4])
+# cnf = CNF([clause1, clause3, clause4, unitclause])
+# cnf = CNF([clause1, clause2])
+# # run(cnf)
+# print(cnf)
+# ucs = get_unifying_classes(cnf)
+# for uc in ucs:
+#     print(uc)
+#     print(is_root_eq_class(uc, cnf))
+#     print(eq_class_one_variable(uc, cnf))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # # # utility.py
 # # print('utility.py')
@@ -172,33 +333,6 @@ from kc.data_structures import *
 # #     print(clause)
 
 # # example 4.2 (DOESN'T WORK BECAUSE OF FREE VARIABLES)
-a, b, c = Constant('a'), Constant('b'), Constant('c')
-X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
-p, q = Predicate('p', 1), Predicate('q', 1)
-D = SetOfConstants([a, b])
-E = SetOfConstants([b, c])
-Universe = SetOfConstants([a, b, c])
-
-XinD = InclusionConstraint(X, D)
-XinE = InclusionConstraint(X, E)
-YeqZ = EqualityConstraint(Y, Z)
-Xeqa = InclusionConstraint(X, SetOfConstants([a]))
-YinE = InclusionConstraint(Y, E)
-XeqY = EqualityConstraint(X, Y)
-YinUniverse = InclusionConstraint(Y, Universe)
-ZinUniverse = InclusionConstraint(Z, Universe)
-
-p_literal = Literal(Atom(p, [X]), True)
-q_literal = Literal(Atom(q, [X]), True)
-
-cs_gamma = ConstraintSet([XinD , YinUniverse, ZinUniverse])
-cs_a = ConstraintSet([XinD, ~YeqZ, YinUniverse, ZinUniverse])
-
-# gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
-gamma = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_gamma)
-atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
-
-print(atom.is_subsumed_by_c_atom(gamma))
 # print(split(gamma, atom, Universe))
 
 # # another example
