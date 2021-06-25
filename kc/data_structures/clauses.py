@@ -25,9 +25,10 @@ class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
     def __init__(self, literals: Sequence['Literal']) -> None:
         self.literals = frozenset(literals)
-    # @abstractmethod
-    # def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
-    #     pass
+
+    @abstractmethod
+    def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+        pass
     @abstractmethod
     def get_constrained_atoms(self) -> List['ConstrainedAtom']:
         """Even though UnconstrainedClauses don't have constraints,
@@ -77,6 +78,25 @@ class Clause(ABC):
         its grounding is empty, meaning it is independent of everything."""
         return len(self.literals) == 0
 
+    @property
+    def all_literal_variables(self) -> Set['LogicalVariable']:
+        """Return all variables that appear in any literal of the clause"""
+        all_vars: Set['LogicalVariable'] = set()
+        for literal in self.literals:
+            all_vars = all_vars.union(literal.variables)
+        return all_vars
+
+    @property
+    def root_variables(self) -> Set['LogicalVariable']:
+        """Return the root variables of this clause 
+        (i.e. the variables that appear in every literal of the clause)"""
+        # first, collect ALL variables that appear in any literal
+        root_vars = self.all_literal_variables
+        # then get only the ones that appear in every literal
+        for literal in self.literals:
+            root_vars = root_vars.intersection(literal.variables)
+        return root_vars
+
 
 class UnconstrainedClause(Clause):
     """An FOL unconstrained clause.
@@ -123,9 +143,9 @@ class UnconstrainedClause(Clause):
         empty_cs = ConstraintSet([])
         return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
-    # def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
-    #     """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
-    #     return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
+    def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
+        """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
+        return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
 
     def __eq__(self, other: Any) -> bool:
         """Two unconstrained clauses are equal if they have the same literals
@@ -165,20 +185,16 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    # def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
-    #     """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
-    #     NOTE: assumes that the bound vars aren't substituted"""
-    #     new_unconstrained_clause = self.unconstrained_clause.apply_substitution(substitution)
-    #     new_cs = self.cs.apply_substitution(substitution)
-    #     return self.__class__(new_unconstrained_clause, self.bound_vars, new_cs)
+    def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
+        """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
+        NOTE: assumes that the bound vars aren't substituted"""
+        new_literals = [literal.apply_substitution(substitution) for literal in self.literals]
+        new_cs = self.cs.apply_substitution(substitution)
+        new_bound_vars = [substitution[var] for var in self.bound_vars]
+        assert(all(isinstance(term, LogicalVariable) for term in new_bound_vars)) # should not have constants in bound vars
+        bound_vars = cast(List['LogicalVariable'], new_bound_vars) # hack for type checking
+        return self.__class__(new_literals, bound_vars, new_cs)
 
-    @property
-    def all_literal_variables(self) -> Set['LogicalVariable']:
-        """Return all variables that appear in any literal of the clause"""
-        all_vars: Set['LogicalVariable'] = set()
-        for literal in self.literals:
-            all_vars = all_vars.union(literal.variables)
-        return all_vars
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -189,16 +205,6 @@ class ConstrainedClause(Clause):
         constraint_vars = self.constraint_variables 
         return literal_vars.union(bound_vars, constraint_vars)
 
-    @property
-    def root_variables(self) -> Set['LogicalVariable']:
-        """Return the root variables of this clause 
-        (i.e. the variables that appear in every literal of the clause)"""
-        # first, collect ALL variables that appear in any literal
-        root_vars = self.all_literal_variables
-        # then get only the ones that appear in every literal
-        for literal in self.literals:
-            root_vars = root_vars.intersection(literal.variables)
-        return root_vars
 
     @property
     def constraint_variables(self) -> Set['LogicalVariable']:

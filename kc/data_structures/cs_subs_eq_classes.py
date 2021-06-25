@@ -41,13 +41,22 @@ class ConstraintSet:
     def is_non_empty(self) -> bool:
         return len(self.constraints) > 0
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
-    #     """Create a ConstraintSet by applying a Substitution to the constraints"""
-    #     new_constraints: List['Constraint'] = []
-    #     for constraint in self.constraints:
-    #         new_constraint = constraint.apply_substitution(substitution)
-    #         new_constraints.append(new_constraint)
-    #     return ConstraintSet(new_constraints)
+    def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
+        """Create a ConstraintSet by applying a Substitution to the constraints
+        NOTE: this may be counter-intuitive because applying a substitution
+        to an EqualityConstraint may produce an InclusionConstraint"""
+        new_constraints: List['Constraint'] = []
+        for constraint in self.constraints:
+            new_constraint = constraint.apply_substitution(substitution)
+            new_constraints.append(new_constraint)
+
+        if FalseConstraint() in new_constraints:
+            raise ValueError(f'Substitution {substitution} made cs unsatisfiable!')
+
+        # remove trivial constraints (always true)
+        filtered_constraints = [c for c in new_constraints if c != EmptyConstraint()]
+
+        return ConstraintSet(filtered_constraints)
 
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
@@ -126,10 +135,10 @@ class Constraint(ABC):
         """Constraints need to be hashable so we can put them in sets"""
         pass
 
-    # @abstractmethod 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
-    #     """We need to be able to apply substitutions to constraints"""
-    #     pass
+    @abstractmethod 
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """We need to be able to apply substitutions to constraints"""
+        pass
 
     @abstractmethod
     def contains_contradiction(self) -> bool:
@@ -178,11 +187,40 @@ class SetConstraint(Constraint):
         """TODO: see if this makes sense as a hash function"""
         return hash((self.logical_term, self.domain_term))
 
+class EmptyConstraint(Constraint):
+    """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""
+    def apply_substitution(self, substitution: 'Substitution') -> 'EmptyConstraint':
+        """Substitution does nothing because no terms"""
+        return EmptyConstraint()
+    
+    def contains_contradiction(self) -> bool:
+        """Never contains a contradiction because it's always true"""
+        return False
+
+    def __hash__(self) -> int:
+        """All EmptyConstraints are the same"""
+        return hash('EmptyConstraint')
+
+
+class FalseConstraint(Constraint):
+    """This is a special class for a constraint that is trivially UNsatisfied (i.e. always false)"""
+    def apply_substitution(self, substitution: 'Substitution') -> 'FalseConstraint':
+        """Substitution does nothing because no terms"""
+        return FalseConstraint()
+    
+    def contains_contradiction(self) -> bool:
+        """Always contains a contradiction because it's always false"""
+        return True
+
+    def __hash__(self) -> int:
+        """All EmptyConstraints are the same"""
+        return hash('FalseConstraint')
+
 
 class EqualityConstraint(LogicalConstraint):
     """
-    A FOL-DC equality constraint (between logical terms).
-    This consists of two logical terms
+    A FOL-DC equality constraint (between logical variables).
+    This consists of two logical VARIABLES, not constants, which are handled by InclusionConstraint.
     """
 
     def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
@@ -196,10 +234,28 @@ class EqualityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'EqualityConstraint':
-    #     """Apply a substitution to the constraint, returning a new constraint.
-    #     TODO: Figure out how to abstract this up the the base class"""
-    #     return EqualityConstraint(substitution[self.left_term], substitution[self.right_term])
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        NOTE: This will return an InclusionConstraint if ONE of the new terms is a constant.
+        TODO: Figure out how to abstract this up the the base class"""
+        new_left_term = substitution[self.left_term]
+        new_right_term = substitution[self.right_term]
+        if isinstance(new_left_term, Constant):
+            if isinstance(new_right_term, Constant):
+                if new_left_term == new_right_term:
+                    return EmptyConstraint()
+                else:
+                    return FalseConstraint()
+            else:
+                right_var = cast('LogicalVariable', new_right_term) # hack for type checking
+                return InclusionConstraint(right_var, SetOfConstants([new_left_term]))
+        elif isinstance(new_right_term, Constant):
+            left_var = cast('LogicalVariable', new_left_term) # hack for type checking
+            return InclusionConstraint(left_var, SetOfConstants([new_right_term]))
+        else:
+            left_var = cast('LogicalVariable', new_left_term) # hack for type checking
+            right_var = cast('LogicalVariable', new_right_term) # hack for type checking
+            return EqualityConstraint(left_var, right_var)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -253,10 +309,28 @@ class InequalityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'InequalityConstraint':
-    #     """Apply a substitution to the constraint, returning a new constraint.
-    #     TODO: Figure out how to abstract this up the the base class"""
-    #     return InequalityConstraint(substitution[self.left_term], substitution[self.right_term])
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        NOTE: This will return a NotInclusionConstraint if ONE of the new terms is a constant.
+        """
+        new_left_term = substitution[self.left_term]
+        new_right_term = substitution[self.right_term]
+        if isinstance(new_left_term, Constant):
+            if isinstance(new_right_term, Constant):
+                if new_left_term != new_right_term:
+                    return EmptyConstraint()
+                else:
+                    return FalseConstraint()
+            else:
+                right_var = cast('LogicalVariable', new_right_term) # hack for type checking
+                return NotInclusionConstraint(right_var, SetOfConstants([new_left_term]))
+        elif isinstance(new_right_term, Constant):
+            left_var = cast('LogicalVariable', new_left_term) # hack for type checking
+            return NotInclusionConstraint(left_var, SetOfConstants([new_right_term]))
+        else:
+            left_var = cast('LogicalVariable', new_left_term) # hack for type checking
+            right_var = cast('LogicalVariable', new_right_term) # hack for type checking
+            return InequalityConstraint(left_var, right_var)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -309,11 +383,19 @@ class InclusionConstraint(SetConstraint):
     def domain_term(self) -> 'SetOfConstants':
         return self.terms[1]
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'InclusionConstraint':
-    #     """Apply a substitution to the constraint, returning a new constraint.
-    #     TODO: Figure out how to abstract this up the the base class.
-    #     TODO: Include domain substitutions"""
-        # return InclusionConstraint(substitution[self.logical_term], self.domain_term)
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        TODO: Include domain substitutions"""
+        new_logical_term = substitution[self.logical_term]
+        if isinstance(new_logical_term, Constant):
+            if isinstance(self.domain_term, SetOfConstants):
+                if new_logical_term in self.domain_term:
+                    return EmptyConstraint()
+                else:
+                    return FalseConstraint()
+        else:
+            logical_var = cast('LogicalVariable', new_logical_term)
+            return InclusionConstraint(logical_var, self.domain_term)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
@@ -367,11 +449,19 @@ class NotInclusionConstraint(SetConstraint):
     def domain_term(self) -> 'SetOfConstants':
         return self.terms[1]
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'NotInclusionConstraint':
-    #     """Apply a substitution to the constraint, returning a new constraint.
-    #     TODO: Figure out how to abstract this up the the base class.
-    #     TODO: Include domain substitutions"""
-    #     return NotInclusionConstraint(substitution[self.logical_term], self.domain_term)
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        TODO: Include domain substitutions"""
+        new_logical_term = substitution[self.logical_term]
+        if isinstance(new_logical_term, Constant):
+            if isinstance(self.domain_term, SetOfConstants):
+                if new_logical_term in self.domain_term:
+                    return FalseConstraint()
+                else:
+                    return EmptyConstraint()
+        else:
+            logical_var = cast('LogicalVariable', new_logical_term)
+            return NotInclusionConstraint(logical_var, self.domain_term)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?

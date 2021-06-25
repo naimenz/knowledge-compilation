@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import EquivalenceClass, Clause
+    from kc.data_structures import EquivalenceClass, Clause, Substitution
 
 class CNF:
     """
@@ -35,10 +35,10 @@ class CNF:
         """Combine two CNFs into one."""
         return CNF(self.clauses.union(other.clauses))
 
-    # def apply_substitution(self, substitution: 'Substitution') -> 'CNF':
-    #     """Return a new CNF, the result of applying substitution to this CNF"""
-    #     new_clauses = set(clause.apply_substitution(substitution) for clause in self.clauses)
-    #     return CNF(new_clauses)
+    def apply_substitution(self, substitution: 'Substitution') -> 'CNF':
+        """Return a new CNF, the result of applying substitution to this CNF"""
+        new_clauses = set(clause.apply_substitution(substitution) for clause in self.clauses)
+        return CNF(new_clauses)
 
     def get_unifying_classes(self) -> 'EquivalenceClasses':
         """Construct all unifying classes from this CNF
