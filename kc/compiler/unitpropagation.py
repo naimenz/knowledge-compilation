@@ -1,6 +1,6 @@
 """File for unit propagation compilation rule"""
 
-from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants
+from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF
 from kc.compiler import KCRule
 
 from typing import Optional, Tuple, List, Any, Set
@@ -17,9 +17,12 @@ class UnitPropagation(KCRule):
         """UnitPropagation is applicable if the theory contains a unit clause 
         (a clause with a single literal)
         Returns True and the unit clause if applicable, and False, None otherwise"""
+        if len(cnf.clauses) == 1:
+            return False, None # if there is only one clause, unit propagation does no good
         unit_clauses = [clause for clause in cnf.clauses if len(clause.literals) == 1]
         if len(unit_clauses) > 0:
-            return True, unit_clauses[0]
+            # we have to make sure the unit_clause actually has type UnitClause
+            return True, unit_clauses[0].to_unit_clause()
         return False, None
 
     @classmethod

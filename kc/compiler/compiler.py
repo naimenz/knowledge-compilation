@@ -13,6 +13,9 @@ from kc.compiler import Ground
 
 from typing import Dict, Optional, Tuple, Any, Type
 
+# TODO DEBUG: Remove this counter 
+ITERS = 0
+
 class Compiler:
     """A knowledge compilation compiler that takes CNFs and produces 
     FO-da-DNNF (or FO-sda-DNNF) circuits, following VdB's PhD."""
@@ -32,9 +35,19 @@ class Compiler:
                                        AtomCounting,
                                        Ground)
 
-    def compile(self, theory: 'CNF') -> 'NNFNode':  # TODO: implement NNFNode
+    def compile(self, theory: 'CNF') -> Optional['NNFNode']:  # TODO: implement NNFNode
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
+        # if there are no clauses in the theory, then nothing to do
+        #  TODO: make this nicer
+        global ITERS
+        if ITERS > 10:
+            raise ValueError('Too many iterations')
+        else:
+            ITERS += 1
+        if len(theory.clauses) == 0:
+            return EmptyNode()
+
         if self.cache_contains(theory):
             return self.cache_get(theory)
 
@@ -44,6 +57,7 @@ class Compiler:
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(theory)
 
+        print(f'\n\n{theory=}\n\n')
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {theory}")
             nnf = None

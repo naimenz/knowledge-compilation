@@ -51,3 +51,10 @@ class ForAllNode(IntensionalNode):
 
 class ExistsNode(IntensionalNode):
     """A node representing an intensional EXISTS operation."""
+
+class EmptyNode(NNFNode):
+    """A node representing nothing. Realistically these shouldn't be 
+    made, but I needed a placeholder.
+    TODO: avoid these so I can delete the class again."""
+    def __init__(self) -> None:
+        pass

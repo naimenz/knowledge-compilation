@@ -1,6 +1,4 @@
-from kc.data_structures.logicalterms import *
-from kc.data_structures.substitutions import *
-from kc.data_structures.literals import *
+from kc.data_structures import Predicate
 
 def test_predicate_equality():
     smokes1 = Predicate('smokes', 4)

@@ -4,7 +4,10 @@ from kc.data_structures import *
 from kc.compiler import KCRule
 
 from typing import Tuple, Optional
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from kc.compiler import Compiler
 class ShannonDecomposition(KCRule):
     
     @classmethod
@@ -20,7 +23,12 @@ class ShannonDecomposition(KCRule):
         return False, None
 
     @classmethod
-    def apply(cls, cnf: 'CNF', stored_data: 'ConstrainedAtom') -> 'NNFNode':
+    def apply(cls, cnf: 'CNF', unbound_atom: 'ConstrainedAtom', compiler: 'Compiler') -> 'NNFNode':
         """Apply ShannonDecomposition and return an NNFNode"""
-        raise NotImplementedError('ShannonDecomposition.apply not implemented')
+        true_atom = unbound_atom.to_unit_clause()
+        false_atom = UnitClause([Literal(unbound_atom.atom, False)], unbound_atom.bound_vars, unbound_atom.cs)
+        true_branch = cnf.join(CNF([true_atom]))
+        false_branch = cnf.join(CNF([false_atom]))
+
+        return AndNode(compiler.compile(true_branch), compiler.compile(false_branch))
 

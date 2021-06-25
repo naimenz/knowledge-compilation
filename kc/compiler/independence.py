@@ -18,6 +18,8 @@ class Independence(KCRule):
         two subtheories such that the subtheories make up the whole theory and are
         independent.
         NOTE: This will work with domain variables when clauses_independent does"""
+        if len(cnf.clauses) == 1:
+            return False, None # need at least 2 clauses to make non-empty independent sets
         # TODO: can partition be rewritten to take sets?
         clauses = list(cnf.clauses)
         subtheory, other_subtheory = cls._partition([clauses[0]], clauses[1:])
@@ -34,9 +36,9 @@ class Independence(KCRule):
         return AndNode(compiler.compile(sub_cnfs[0]), compiler.compile(sub_cnfs[1]))
 
     @classmethod
-    def _partition(cls, potential_subtheory: List['ConstrainedClause'],
-                  other_clauses: List['ConstrainedClause']
-                  ) -> Tuple[List['ConstrainedClause'], List['ConstrainedClause']]:
+    def _partition(cls, potential_subtheory: List['Clause'],
+                  other_clauses: List['Clause']
+                  ) -> Tuple[List['Clause'], List['Clause']]:
         """They use this function to construct the independent subtheories recursively.
         We start with two guesses for independent subtheories.
         We then iteratively move all the clauses that are dependent with the potential_subtheory 

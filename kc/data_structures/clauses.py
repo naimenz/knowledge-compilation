@@ -40,6 +40,11 @@ class Clause(ABC):
         """Same as get_constrained_atoms but for literals.  """
         pass
 
+    @abstractmethod
+    def to_unit_clause(self) -> 'UnitClause':
+        """Convert this clause to a UnitClause object"""
+        pass
+
     def clauses_independent(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
         if self.has_no_literals() or other_clause.has_no_literals():
@@ -64,9 +69,7 @@ class Clause(ABC):
             for other_c_literal in subsumer.get_constrained_literals():
                 if c_literal.is_subsumed_by_literal(other_c_literal):
                     return True
-
         return False
-
 
     def has_no_literals(self) -> bool:
         """This is called "isConditionalContradiction" in Forclift.
@@ -110,6 +113,15 @@ class UnconstrainedClause(Clause):
             constrained_literal = UnitClause([literal], empty_bound_vars, empty_cs)
             constrained_literals.append(constrained_literal)
         return constrained_literals
+
+    def to_unit_clause(self) -> 'UnitClause':
+        """Convert this clause to a UnitClause object.
+        NOTE: throws an error if this is not possible"""
+        if len(self.literals) != 1:
+            raise ValueError('Cannot convert UnconstrainedClause with {len(self.literals)} literals to a UnitClause')
+        empty_bound_vars: Set['LogicalVariable'] = set()
+        empty_cs = ConstraintSet([])
+        return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
     # def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
     #     """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
@@ -251,6 +263,13 @@ class ConstrainedClause(Clause):
         constrained_literal = UnitClause([literal], self.bound_vars, self.cs)
         return constrained_literal
 
+    def to_unit_clause(self) -> 'UnitClause':
+        """Convert this clause to a UnitClause object.
+        NOTE: throws an error if this is not possible"""
+        if len(self.literals) != 1:
+            raise ValueError('Cannot convert UnconstrainedClause with {len(self.literals)} literals to a UnitClause')
+        return UnitClause(self.literals, self.bound_vars, self.cs)
+
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
          and the same bound variables"""
@@ -280,10 +299,10 @@ class UnitClause(ConstrainedClause):
     This is a constrained clause with a single literal
     """
     def __init__(self,
-            literals: Sequence['Literal'],
+            literals: Iterable['Literal'],
             bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
-        assert(len(literals) == 1) # ensure that this is a unit clause
+        assert(len(tuple(literals)) == 1) # ensure that this is a unit clause
         self.literal = list(literals)[0] # convert to 1-item list and get item
         super(UnitClause, self).__init__(literals, bound_vars, cs)
 
@@ -305,10 +324,9 @@ class ConstrainedAtom(UnitClause):
     This is a constrained clause with a single atom (positive literal).
     """
     def __init__(self,
-            literals: Sequence['Literal'],
+            literals: Iterable['Literal'],
             bound_vars: Iterable['LogicalVariable'],
             cs: 'ConstraintSet') -> None:
-        assert(len(literals) == 1) # ensure that this is a unit clause
         super(ConstrainedAtom, self).__init__(literals, bound_vars, cs)
         assert(self.literal.polarity) # ensure that it is not negated
 
@@ -369,6 +387,9 @@ class ConstrainedAtom(UnitClause):
         """
         # aliases because this is how I've been using them in my notes
         A, B = subsumer, self
+        # TODO: remove this hack of checking for equality, which only works some of the time
+        if A == B:
+            return True
         eq_classes = A.get_constrained_atom_mgu_eq_classes(B)
         # 1)
         if eq_classes is None:
