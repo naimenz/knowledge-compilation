@@ -13,8 +13,6 @@ from kc.compiler import Ground
 
 from typing import Dict, Optional, Tuple, Any, Type
 
-# TODO: delta -> theory
-
 class Compiler:
     """A knowledge compilation compiler that takes CNFs and produces 
     FO-da-DNNF (or FO-sda-DNNF) circuits, following VdB's PhD."""
@@ -34,24 +32,24 @@ class Compiler:
                                        AtomCounting,
                                        Ground)
 
-    def compile(self, delta: 'CNF') -> 'NNFNode':  # TODO: implement NNFNode
+    def compile(self, theory: 'CNF') -> 'NNFNode':  # TODO: implement NNFNode
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
-        if self.cache_contains(delta):
-            return self.cache_get(delta)
+        if self.cache_contains(theory):
+            return self.cache_get(theory)
 
         nnf: Optional['NNFNode'] = None
 
         applicable_rule: Optional[Type['KCRule']]
         stored_data: Optional[Any]
-        applicable_rule, stored_data = self.find_rule(delta)
+        applicable_rule, stored_data = self.find_rule(theory)
 
         if applicable_rule is None:
-            raise ValueError("Compilation failed - no rule found for {delta}")
+            raise ValueError("Compilation failed - no rule found for {theory}")
             nnf = None
         else:
-            nnf = self.apply_rule(delta, applicable_rule, stored_data) 
-        self.cache_set(delta, nnf)
+            nnf = self.apply_rule(theory, applicable_rule, stored_data) 
+        self.cache_set(theory, nnf)
         return nnf
 
     def cache_contains(self, cnf: 'CNF') -> bool:
@@ -72,7 +70,7 @@ class Compiler:
         if not (cnf is None or self.cache_contains(cnf)):
             self._cache[cnf] = nnf
 
-    def find_rule(self, delta: 'CNF') -> Tuple[Optional[Type['KCRule']], Optional[Any]]:
+    def find_rule(self, theory: 'CNF') -> Tuple[Optional[Type['KCRule']], Optional[Any]]:
         """Check each compilation rule to see if its preconditions are met
         for the given cnf.
         Return the rule if one is found, plus optional info already computed.
@@ -92,15 +90,15 @@ class Compiler:
         for rule in self.rules: 
             applicable: bool
             stored_data: Optional[Any]
-            applicable, stored_data = rule.is_applicable(delta)
+            applicable, stored_data = rule.is_applicable(theory)
             if applicable:
                 return rule, stored_data
         return None, None
 
-    def apply_rule(self, delta: 'CNF', rule: Type['KCRule'], stored_data: Optional[Any]) -> 'NNFNode':
+    def apply_rule(self, theory: 'CNF', rule: Type['KCRule'], stored_data: Optional[Any]) -> 'NNFNode':
         """Apply a given compilation rule to a cnf and return the constructed NNF
         NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
         # we pass this compiler in so it can be called recursively
         # TODO self first
-        nnf = rule.apply(delta, stored_data, self)
+        nnf = rule.apply(theory, stored_data, self)
         return nnf

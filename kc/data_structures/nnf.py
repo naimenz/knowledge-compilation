@@ -34,10 +34,10 @@ class IntensionalNode(NNFNode):
     """Abstract subclass for FORALL and EXISTS nodes
     In this implementation, Intensional nodes always have exactly one child,
     and (possibly empty) bound variables and constraint sets"""
-    def __init__(self, child: 'NNFNode', bound_vars: Set['LogicalVariable'], cs: 'ConstraintSet') -> None:
+    def __init__(self, child: 'NNFNode', bound_vars: Iterable['LogicalVariable'], cs: 'ConstraintSet') -> None:
         super(IntensionalNode, self).__init__((child,))
         self.child = child
-        self.bound_vars = bound_vars
+        self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
 class AndNode(ExtensionalNode):
