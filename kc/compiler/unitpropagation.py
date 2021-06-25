@@ -1,14 +1,14 @@
 """File for unit propagation compilation rule"""
 
-from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet
+from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants
 from kc.compiler import KCRule
 
-from typing import Optional, Tuple, List, Any
+from typing import Optional, Tuple, List, Any, Set
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kc.compiler import Compiler
-    from kc.data_structures import CNF, Clause, ConstrainedAtom
+    from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable
 
 class UnitPropagation(KCRule):
     
@@ -23,15 +23,15 @@ class UnitPropagation(KCRule):
         return False, None
 
     @classmethod
-    def apply(cls, cnf: 'CNF', unit_clause: 'Clause', compiler: 'Compiler') -> 'AndNode':
+    def apply(cls, cnf: 'CNF', unit_clause: 'UnitClause', compiler: 'Compiler') -> 'AndNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in cnf.clauses:
-            split_gammas = cls._split(gamma, u_atom)
+            split_gammas = cls.split(gamma, u_atom)
             for gamma_s in split_gammas:
-                conditioned_clause = cls._condition(gamma_s, unit_clause)
+                conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
         propagated_cnf = CNF(unitpropagated_clauses)
@@ -39,7 +39,7 @@ class UnitPropagation(KCRule):
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
-    def _split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
+    def split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
         """Split the constrained clause gamma with respect to the constrained atom A.
         Returns a sequence of constrained clauses that are split with respect to a"""
         constrained_atoms = gamma.get_constrained_atoms()
@@ -64,7 +64,7 @@ class UnitPropagation(KCRule):
                 gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
-            return_clauses += cls._split(gamma_mgu, A)
+            return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
         for e in cs_theta.join(cs_A):
@@ -78,6 +78,42 @@ class UnitPropagation(KCRule):
                 else:
                     gamma_rest = UnconstrainedClause(gamma.literals)
                 # NOTE: splitting the gamma_rests recursively as we build them
-                return_clauses += cls._split(gamma_rest, A)
+                return_clauses += cls.split(gamma_rest, A)
 
         return return_clauses
+
+    @classmethod
+    def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:
+        """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'literal'.
+        NOTE: assumes that gamma is split wrt the atom in 'literal'
+        TODO: currently assuming there are no free or domain variables present."""
+        if gamma.is_subsumed_by_clause(c_literal): # gamma is redundant when we have 'literal'
+            return None
+        else:
+            necessary_literals = cls._discard_unsatisfied_literals(gamma, c_literal)
+            Lambda: 'Clause'
+            if isinstance(gamma, ConstrainedClause):
+                Lambda = ConstrainedClause(necessary_literals, gamma.bound_vars, gamma.cs)
+            else:
+                Lambda = UnconstrainedClause(necessary_literals)
+            return Lambda
+
+
+    @classmethod
+    def _discard_unsatisfied_literals(cls, gamma: 'Clause', c_literal: 'UnitClause') -> List['Literal']:
+        """Return only the literals that are not unsatisfied by 'literal'"""
+        lambdas = gamma.get_constrained_literals()
+        necessary_literals = []
+        for lam in lambdas:
+            lam_literal = lam.literal
+
+            if isinstance(gamma, ConstrainedClause):
+                negated_constrained_literal = UnitClause([~lam_literal], gamma.bound_vars, gamma.cs)
+            else:
+                empty_bound_vars: Set['LogicalVariable'] = set()
+                empty_cs = ConstraintSet([])
+                negated_constrained_literal = UnitClause([~lam_literal], empty_bound_vars, empty_cs)
+
+            if not negated_constrained_literal.is_subsumed_by_literal(c_literal):
+                necessary_literals.append(lam_literal)
+        return necessary_literals

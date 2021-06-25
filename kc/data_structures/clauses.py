@@ -35,6 +35,11 @@ class Clause(ABC):
         constraints)"""
         pass
 
+    @abstractmethod
+    def get_constrained_literals(self) -> List['UnitClause']:
+        """Same as get_constrained_atoms but for literals.  """
+        pass
+
     def clauses_independent(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
         if self.has_no_literals() or other_clause.has_no_literals():
@@ -46,6 +51,22 @@ class Clause(ABC):
                 if c_atom.constrained_atoms_unify(other_c_atom):
                     all_independent = False
         return all_independent
+
+    def is_subsumed_by_clause(self, subsumer: 'Clause') -> bool:
+        """Returns true if this Clause is subsumed by the other.
+        We do this by looking at constrained atoms -- if ANY literal in the subsumer
+        subsumes ANY literal in self, then it is subsumed (because disjunction).
+        NOTE: This is only as correct as 'is_subsumed_by_c_atom' is."""
+        if self.has_no_literals():
+            return True
+
+        for c_literal in self.get_constrained_literals():
+            for other_c_literal in subsumer.get_constrained_literals():
+                if c_literal.is_subsumed_by_literal(other_c_literal):
+                    return True
+
+        return False
+
 
     def has_no_literals(self) -> bool:
         """This is called "isConditionalContradiction" in Forclift.
@@ -73,9 +94,22 @@ class UnconstrainedClause(Clause):
         for literal in self.literals:
             empty_bound_vars: Set['LogicalVariable'] = set()
             empty_cs = ConstraintSet([])
-            constrained_atom = ConstrainedAtom([literal], empty_bound_vars, empty_cs)
+            positive_literal = Literal(literal.atom, True)
+            constrained_atom = ConstrainedAtom([positive_literal], empty_bound_vars, empty_cs)
             constrained_atoms.append(constrained_atom)
         return constrained_atoms
+
+    def get_constrained_literals(self) -> List['UnitClause']:
+        """Even though UnconstrainedClauses don't have constraints,
+        they still need to produce constrained literals (with empty bound_vars and
+        constraints)"""
+        constrained_literals = []
+        for literal in self.literals:
+            empty_bound_vars: Set['LogicalVariable'] = set()
+            empty_cs = ConstraintSet([])
+            constrained_literal = UnitClause([literal], empty_bound_vars, empty_cs)
+            constrained_literals.append(constrained_literal)
+        return constrained_literals
 
     # def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
     #     """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
@@ -191,6 +225,14 @@ class ConstrainedClause(Clause):
             constrained_atoms.append(constrained_atom)
         return constrained_atoms
 
+    def get_constrained_literals(self) -> List['UnitClause']:
+        """For this clause, return a list of all the constrained atoms in the clause"""
+        constrained_literals = []
+        for literal in self.literals:
+            constrained_literal = self._build_constrained_literal_from_literal(literal)
+            constrained_literals.append(constrained_literal)
+        return constrained_literals
+
     def _build_constrained_atom_from_literal(self, literal: 'Literal') -> 'ConstrainedAtom':
         """Build a constrained atom given a specific literal using the bound variables
         and constraints of this clause"""
@@ -200,6 +242,14 @@ class ConstrainedClause(Clause):
         # unconstrained clause
         constrained_atom = ConstrainedAtom([positive_literal], self.bound_vars, self.cs)
         return constrained_atom
+
+    def _build_constrained_literal_from_literal(self, literal: 'Literal') -> 'UnitClause':
+        """Build a constrained atom given a specific literal using the bound variables
+        and constraints of this clause"""
+        # constrained atoms subclass ConstrainedClause, so need to be built of an
+        # unconstrained clause
+        constrained_literal = UnitClause([literal], self.bound_vars, self.cs)
+        return constrained_literal
 
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
@@ -236,6 +286,18 @@ class UnitClause(ConstrainedClause):
         assert(len(literals) == 1) # ensure that this is a unit clause
         self.literal = list(literals)[0] # convert to 1-item list and get item
         super(UnitClause, self).__init__(literals, bound_vars, cs)
+
+    def to_c_atom(self) -> 'ConstrainedAtom':
+        """Return this as a constrained atom (throw away polarity)"""
+        return ConstrainedAtom([Literal(self.literal.atom, True)], self.bound_vars, self.cs)
+
+    def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
+        """Check subsumption of literals.
+        This is the same as for atoms but with an additional check of their polarities"""
+        if self.literal.polarity == subsumer.literal.polarity:
+            if self.to_c_atom().is_subsumed_by_c_atom(subsumer.to_c_atom()):
+                return True
+        return False
 
 
 class ConstrainedAtom(UnitClause):
