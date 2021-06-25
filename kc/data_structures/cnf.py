@@ -2,28 +2,37 @@
 Class for FO-CNF formulas.
 """
 
-from kc.data_structures import EquivalenceClasses
+from kc.data_structures import EquivalenceClasses, UnconstrainedClause, ConstrainedClause
 
 from typing import List, Any, Iterable
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import ConstrainedClause, EquivalenceClass
+    from kc.data_structures import EquivalenceClass, Clause
 
 class CNF:
     """
     A FOL-DC CNF.
-    This consists of a set of constrained clauses, which form a conjunction.
+    This consists of a set of (CONSTRAINED OR UNCONSTRAINED) clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: Iterable['ConstrainedClause']) -> None:
+    def __init__(self, clauses: Iterable['Clause']) -> None:
         self.clauses = frozenset(clauses)
+
+        u_clauses, c_clauses = set(), set()
+        for clause in clauses:
+            if isinstance(clause, UnconstrainedClause):
+                u_clauses.add(clause)
+            elif isinstance(clause, ConstrainedClause):
+                c_clauses.add(clause)
+        self.u_clauses = frozenset(u_clauses)
+        self.c_clauses = frozenset(c_clauses)
+
         self.shattered = False # keep track of whether this cnf has undergone shattering
 
     def join(self, other: 'CNF') -> 'CNF':
-        """Combine two CNFs into one.
-        TODO: Eventually this will probably be done with circuit nodes and/or sets"""
+        """Combine two CNFs into one."""
         return CNF(self.clauses.union(other.clauses))
 
     # def apply_substitution(self, substitution: 'Substitution') -> 'CNF':
@@ -52,7 +61,11 @@ class CNF:
         """Determine whether a given root equivalence class has a single bound variable
         per clause or not.
         NOTE: We assume that this equivalence class is root in the cnf"""
-        for clause in self.clauses: 
+        # first check if there are any unconstrained clauses, in which case we can't do this
+        if len(self.u_clauses) > 0:
+            return False
+
+        for clause in self.c_clauses: 
             if len(eq_class.members.intersection(clause.bound_vars)) != 1:
                 return False
         return True
@@ -61,7 +74,11 @@ class CNF:
         """Determine whether a given root equivalence class has two bound variables
         per clause or not.
         NOTE: We assume that this equivalence class is root in the cnf"""
-        for clause in self.clauses: 
+        # first check if there are any unconstrained clauses, in which case we can't do this
+        if len(self.u_clauses) > 0:
+            return False
+
+        for clause in self.c_clauses: 
             if len(eq_class.members.intersection(clause.bound_vars)) != 2:
                 return False
         return True

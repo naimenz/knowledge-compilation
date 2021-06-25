@@ -38,6 +38,9 @@ class ConstraintSet:
         new_constraints = self.constraints.union(other.constraints)
         return ConstraintSet(new_constraints)
 
+    def is_non_empty(self) -> bool:
+        return len(self.constraints) > 0
+
     # def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
     #     """Create a ConstraintSet by applying a Substitution to the constraints"""
     #     new_constraints: List['Constraint'] = []

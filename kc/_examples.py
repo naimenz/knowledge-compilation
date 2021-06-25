@@ -26,8 +26,8 @@ cs_gamma = ConstraintSet([XinD , YinUniverse, ZinUniverse])
 cs_a = ConstraintSet([XinD, ~YeqZ, YinUniverse, ZinUniverse])
 
 # gamma = ConstrainedClause(UnconstrainedClause([p_literal, q_literal]), [X], cs_gamma)
-gamma = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_gamma)
-atom = ConstrainedAtom(UnconstrainedClause([p_literal]), [X], cs_a)
+gamma = ConstrainedAtom([p_literal], [X], cs_gamma)
+atom = ConstrainedAtom([p_literal], [X], cs_a)
 
 print(atom.is_subsumed_by_c_atom(gamma))
 
@@ -65,10 +65,6 @@ likesZZ = Literal(Atom(likes, [Z, Z]), True)
 friendsYY = Literal(Atom(friends, [Y, Y]), True)
 likesYY = Literal(Atom(likes, [Y, Y]), True)
 
-uclause1 = UnconstrainedClause([friendsYY, dislikesXY])
-uclause2 = UnconstrainedClause([friendsX1Y1, dislikesX1Y1])
-# uclause2 = UnconstrainedClause([~friendsZZ, likesZZ])
-# uclause3 = UnconstrainedClause([~friendsYY, likesYY])
 
 unitclause = UnconstrainedClause([friendsYY])
 
@@ -86,22 +82,24 @@ Yeqbob = InclusionConstraint(Y, SetOfConstants([bob]))
 Zeqbob = InclusionConstraint(Z, SetOfConstants([bob]))
 
 cs1 = ConstraintSet([XinPeople, YinPeople])
-cs1p = ConstraintSet([X1inPeople, Y1inPeople, ZinPeople, ~ZeqZ1])
+cs1p = ConstraintSet([X1inPeople, Y1inPeople])
 cs2 = ConstraintSet([ZinPeople])
 cs3 = ConstraintSet([YinPeople, Yeqalice])
 cs4 = ConstraintSet([ZinPeople, Zeqbob])
 
 
-uclause1 = UnconstrainedClause([friendsXY])
-uclause2 = UnconstrainedClause([friendsY1X1])
-catom1 = ConstrainedAtom(uclause1, [X, Y], cs1)
-catom2 = ConstrainedAtom(uclause2, [X1, Z], cs1p)
+unit_uclause1 = UnconstrainedClause([friendsXY])
+uclause1 = UnconstrainedClause([friendsYY, dislikesXY])
+# uclause2 = UnconstrainedClause([friendsX1Y1, dislikesX1Y1])
+catom1 = ConstrainedAtom([friendsXY], [X, Y], cs1)
+catom2 = ConstrainedAtom([friendsY1X1], [X1, Y1], cs1p)
 
 print(catom1)
 print(catom2)
 print(f'here {catom2.is_subsumed_by_c_atom(catom1)=}')
 
-cnf = CNF([catom1, catom2])
+cnf = CNF([unit_uclause1, uclause1])
+# cnf = CNF([catom1, catom2])
 cnf.shattered = True
 # compiler testing
 compiler = Compiler()
