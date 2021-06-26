@@ -1,1 +1,1 @@
-from kc.util.utility import powerset, get
+from kc.util.utility import powerset, get, partition_set

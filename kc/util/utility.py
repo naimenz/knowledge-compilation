@@ -4,7 +4,7 @@ that are used in various places"""
 # for powerset generation
 from itertools import chain, combinations
 
-from typing import TypeVar, Iterable, Set, Tuple
+from typing import TypeVar, Iterable, Set, Tuple, Sequence, Generator, List, Any
 T = TypeVar('T')
 
 def powerset(iterable: Iterable[T]) -> Iterable[Tuple[T, ...]]:
@@ -19,7 +19,26 @@ def get(s: Set[T]) -> T:
         Useful for getting the only element of a 1-element set."""
         return next(iter(s))
 
-            
+
+def partition_set(s: Set[T]) -> Generator[Set[Set[T]], None, None]:
+    """Wrapper around the partition function to return a set of sets"""
+    collection = list(s)
+    partitioned_lists = _partition(collection)
+    for partition_list in partitioned_lists:
+        yield set(frozenset(li) for li in partition_list)
 
 
+def _partition(collection: List[T]) -> Generator[List[List[T]], None, None]:
+    """Function to partition a list into lists of lists.
+    From https://stackoverflow.com/a/30134039/10005793."""
+    if len(collection) == 1:
+        yield [ collection ]
+        return
 
+    first = collection[0]
+    for smaller in _partition(collection[1:]):
+        # insert `first` in each of the subpartition's subsets
+        for n, subset in enumerate(smaller):
+            yield smaller[:n] + [[ first ] + subset]  + smaller[n+1:]
+        # put `first` in its own subset 
+        yield [ [ first ] ] + smaller

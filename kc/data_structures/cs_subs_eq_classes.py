@@ -191,7 +191,10 @@ class LogicalConstraint(Constraint):
         pass
 
     def __hash__(self) -> int:
-        return hash((self.left_term, self.right_term))
+        """We hash it as a set with the class to make sure
+        flipped constraints have the same hash, and Equality/InequalityConstraint
+        have different hashes"""
+        return hash((self.__class__, frozenset((self.left_term, self.right_term))))
 
 
 class SetConstraint(Constraint):
@@ -211,8 +214,7 @@ class SetConstraint(Constraint):
         pass
 
     def __hash__(self) -> int:
-        """TODO: see if this makes sense as a hash function"""
-        return hash((self.logical_term, self.domain_term))
+        return hash((self.__class__, self.logical_term, self.domain_term))
 
 class EmptyConstraint(Constraint):
     """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""

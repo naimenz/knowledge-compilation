@@ -2,7 +2,7 @@
 
 from kc.data_structures import *
 from kc.compiler import KCRule
-from kc.util import powerset
+from kc.util import powerset, partition_set
 
 from itertools import product
 from functools import reduce
@@ -45,12 +45,59 @@ class ShatteredCompilation(KCRule):
             raise NotImplementedError('shatter_clause only works with ConstrainedClauses')
         # shatter each variable
         literal_variables = clause.literal_variables
-        individual_shatter_var_constraints = cls._build_shatter_var_constraints(literal_variables, terms, domains)
+        # CS_A
+        shatter_var_constraints = cls._build_shatter_var_constraints(literal_variables, terms, domains)
+        # CS_B
+        literal_inequality_constraints = cls._build_literal_inequality_constraints(clause)
+        # CS
+        all_final_constraints = product([clause.cs], shatter_var_constraints, literal_inequality_constraints)
+        final_constraints = map(cls._merge_constraint_sets, all_final_constraints)
 
-        # set up variable inequalities
+        return set(ConstrainedClause(clause.literals, clause.bound_vars, cs) for cs in final_constraints)
+
+    @classmethod
+    def _build_literal_inequality_constraints(cls, clause: 'ConstrainedClause') -> Set['ConstraintSet']:
+        """Build all of the equality and inequality constraints between variables in each literal
+        (CS_B from the PhD)."""
+        individual_literal_inequality_constraints = []
         for literal in clause.literals:
-            bound_literal_variables = clause.bound_vars.intersection(literal.variables)
+            bound_literal_variables = set(clause.bound_vars.intersection(literal.variables))
+            literal_constraint_sets = cls._build_literal_constraint_sets(bound_literal_variables)
+            individual_literal_inequality_constraints.append(literal_constraint_sets)
 
+        all_literal_inequality_constraints = product(*individual_literal_inequality_constraints)
+        # merge each combination into a single constraint set 
+        literal_inequality_constraints = map(cls._merge_constraint_sets, all_literal_inequality_constraints)
+        return set(literal_inequality_constraints)
+
+    @classmethod
+    def _build_literal_constraint_sets(cls, bound_literal_variables: Set['LogicalVariable']) -> Set['ConstraintSet']:
+        """Build the (in)equality between variable constraints for this literal 
+        (CS_B^i from the PhD)"""
+        literal_constraint_sets: Set['ConstraintSet'] = set()
+        for partition in partition_set(bound_literal_variables):
+            partition_constraint_set = cls._build_partition_constraint_set(partition)
+            literal_constraint_sets.add(partition_constraint_set)
+        return literal_constraint_sets
+
+    @classmethod
+    def _build_partition_constraint_set(cls, partition: Set[Set['LogicalVariable']]) -> 'ConstraintSet':
+        """Build the constraint set for a particular partition of the logical variables"""
+        equality_constraints: Set['EqualityConstraint'] = set()
+        inequality_constraints: Set['InequalityConstraint'] = set()
+        for subset in partition: 
+            # there is some duplicated effort here, but it is still correct because of sets
+            # TODO: for performance, reduce looping
+            for var in subset:
+                for other_var in subset - set([var]):
+                    equality_constraints.add(EqualityConstraint(var, other_var))
+
+                for other_subset in partition - set([subset]):
+                    for other_var in other_subset:
+                        inequality_constraints.add(InequalityConstraint(var, other_var))
+        # we then combine all of these into a single constraint
+        partition_constraint_set = ConstraintSet([*equality_constraints, *inequality_constraints])
+        return partition_constraint_set
 
     @classmethod
     def _build_shatter_var_constraints(cls,
