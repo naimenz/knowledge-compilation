@@ -13,7 +13,13 @@ class DomainTerm(ABC):
     """
     An abstract base class for domain terms.
     Terms are either sets of constants or domain variables, so can never be instantiated directly.
+    TODO: Improve DomainVariable
     """
+
+    @abstractmethod
+    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
+        """Get the difference between this domain term and another"""
+        pass
 
     @staticmethod
     def union(*args: 'DomainTerm') -> 'DomainTerm':
@@ -84,9 +90,11 @@ class SetOfConstants(DomainTerm):
         never be changed once set."""
         return self._constants
 
-    def difference(self, other: 'SetOfConstants') -> 'SetOfConstants':
+    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
         """Return the set difference between this set of constants and the other
-        as a SetOfConstants"""
+        as a SetOfConstants (if both are SetOfConstants)"""
+        if not isinstance(other, SetOfConstants):
+            raise NotImplementedError('Cannot compute difference of SetOfConstants with Domainvariable')
         new_constants = self.constants - other.constants
         return SetOfConstants(new_constants)
 
@@ -125,6 +133,16 @@ class DomainVariable(DomainTerm):
     """
     A FOL domain variable.
     """
+
+    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
+        """Get the difference between this domain variable and another domain TERM"""
+        raise NotImplementedError()
+
+    def size(self) -> int:
+        """Return the size of this DomainVariable
+        TODO: Work out what this means in practice"""
+        raise NotImplementedError()
+
     def __init__(self, symbol: str) -> None:
         self.symbol = symbol
 

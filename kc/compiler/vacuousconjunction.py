@@ -19,7 +19,6 @@ class VacuousConjunction(KCRule):
         if not (len(cnf.c_clauses) == 1 and len(cnf.u_clauses) == 0):
             return False, None
 
-        print(f'{cnf.c_clauses=}')
         if len(tuple(cnf.c_clauses)[0].bound_vars) == 0:
             return True, None
         else:

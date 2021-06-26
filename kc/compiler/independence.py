@@ -27,7 +27,8 @@ class Independence(KCRule):
         if len(other_subtheory) == 0:
             return False, None
         else:
-            return True, (CNF(subtheory), CNF(other_subtheory))
+            # if the parent was shattered, so are the children
+            return True, (CNF(subtheory, shattered=cnf.shattered), CNF(other_subtheory, shattered=cnf.shattered))
 
     @classmethod
     # NOTE: We annotate compiler as 'Any' to avoid circularly importing the Compiler

@@ -35,21 +35,21 @@ class Compiler:
                                        AtomCounting,
                                        Ground)
 
-    def compile(self, theory: 'CNF') -> Optional['NNFNode']:  # TODO: implement NNFNode
+    def compile(self, theory: 'CNF') -> 'NNFNode':
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
-        # if there are no clauses in the theory, then nothing to do
-        #  TODO: make this nicer
         global ITERS
         if ITERS > 10:
             raise ValueError('Too many iterations')
         else:
             ITERS += 1
+        # if there are no clauses in the theory, then nothing to do
+        #  TODO: make this nicer
         if len(theory.clauses) == 0:
             return EmptyNode()
 
         if self.cache_contains(theory):
-            return self.cache_get(theory)
+            return self.get_cache(theory)
 
         nnf: Optional['NNFNode'] = None
 
@@ -57,28 +57,26 @@ class Compiler:
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(theory)
 
-        print(f'\n\n{theory=}\n\n')
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {theory}")
             nnf = None
         else:
             nnf = self.apply_rule(theory, applicable_rule, stored_data) 
-        self.cache_set(theory, nnf)
+        self.set_cache(theory, nnf)
         return nnf
 
     def cache_contains(self, cnf: 'CNF') -> bool:
         """Check if the cache contains a given CNF"""
         return cnf in self._cache.keys()
 
-    # TODO: get_cache instead of cache_get
-    def cache_get(self, cnf: 'CNF') -> 'NNFNode':
+    def get_cache(self, cnf: 'CNF') -> 'NNFNode':
         """Return the circuit (represented by a single Node) stored in the cache for a
         given CNF.
         NOTE: Assumes that we've already checked for the cnf being present,
         otherwise throws an error if it's not there"""
         return self._cache[cnf]
 
-    def cache_set(self, cnf: Optional['CNF'], nnf: 'NNFNode') -> None:
+    def set_cache(self, cnf: Optional['CNF'], nnf: 'NNFNode') -> None:
         """Set the cache value for a given cnf if that cnf compiled AND we haven't
         seen it before (because they should always compile to the same thing)"""
         if not (cnf is None or self.cache_contains(cnf)):
@@ -113,6 +111,5 @@ class Compiler:
         """Apply a given compilation rule to a cnf and return the constructed NNF
         NOTE: we also accept precomputed data from find_rule and pass it on if it's not None"""
         # we pass this compiler in so it can be called recursively
-        # TODO self first
         nnf = rule.apply(theory, stored_data, self)
         return nnf

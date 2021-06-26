@@ -79,7 +79,7 @@ class Clause(ABC):
         return len(self.literals) == 0
 
     @property
-    def all_literal_variables(self) -> Set['LogicalVariable']:
+    def literal_variables(self) -> Set['LogicalVariable']:
         """Return all variables that appear in any literal of the clause"""
         all_vars: Set['LogicalVariable'] = set()
         for literal in self.literals:
@@ -87,15 +87,31 @@ class Clause(ABC):
         return all_vars
 
     @property
+    @abstractmethod
+    def all_variables(self) -> Set['LogicalVariable']:
+        """Return ALL variables that appear in the clause (this includes bound vars
+        and cs for ConstrainedClauses)"""
+
+    @property
     def root_variables(self) -> Set['LogicalVariable']:
         """Return the root variables of this clause 
         (i.e. the variables that appear in every literal of the clause)"""
         # first, collect ALL variables that appear in any literal
-        root_vars = self.all_literal_variables
+        root_vars = self.literal_variables
         # then get only the ones that appear in every literal
         for literal in self.literals:
             root_vars = root_vars.intersection(literal.variables)
         return root_vars
+
+    @property
+    def constants(self) -> Set['Constant']:
+        """Extract just the constants as logical terms from the clause.
+        NOTE: Since we do not allow constants in LogicalConstraints, 
+        we only have to look at the literals"""
+        all_constants: Set['Constant'] = set()
+        for literal in self.literals:
+            all_constants = all_constants.union(literal.constants)
+        return all_constants
 
 
 class UnconstrainedClause(Clause):
@@ -133,6 +149,12 @@ class UnconstrainedClause(Clause):
             constrained_literal = UnitClause([literal], empty_bound_vars, empty_cs)
             constrained_literals.append(constrained_literal)
         return constrained_literals
+
+    @property
+    def all_variables(self) -> Set['LogicalVariable']:
+        """Return ALL variables. For an UnconstrainedClause, this is just
+        the literal variables"""
+        return self.literal_variables
 
     def to_unit_clause(self) -> 'UnitClause':
         """Convert this clause to a UnitClause object.
@@ -200,7 +222,7 @@ class ConstrainedClause(Clause):
     def all_variables(self) -> Set['LogicalVariable']:
         """Return ALL variables, regardless of whether they are bound, in the cs,
         or in the literals"""
-        literal_vars = self.all_literal_variables
+        literal_vars = self.literal_variables
         bound_vars = self.bound_vars
         constraint_vars = self.constraint_variables 
         return literal_vars.union(bound_vars, constraint_vars)
@@ -216,6 +238,7 @@ class ConstrainedClause(Clause):
                 if isinstance(term, LogicalVariable):
                     logical_variables.add(term)
         return logical_variables
+
 
     def clauses_independent(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
@@ -421,8 +444,8 @@ class ConstrainedAtom(UnitClause):
                 return False
 
             # 4)
-            if len(eq_class.members.intersection(B.all_literal_variables)) > 1:
-                print(f'DEBUG: {eq_class=} and {B.all_literal_variables=} overlap in more than one place')
+            if len(eq_class.members.intersection(B.literal_variables)) > 1:
+                print(f'DEBUG: {eq_class=} and {B.literal_variables=} overlap in more than one place')
                 return False
 
         # 5)
@@ -431,10 +454,10 @@ class ConstrainedAtom(UnitClause):
             print(f'DEBUG: {A_free_variables=}')
             return False
 
-        B_literal_free_variables = B.all_literal_variables.difference(B.bound_vars)
+        B_literal_free_variables = B.literal_variables.difference(B.bound_vars)
         if len(B_literal_free_variables) > 0:
             print(f'DEBUG: {B_literal_free_variables=}')
-            print(B.all_literal_variables)
+            print(B.literal_variables)
             print(B.bound_vars)
             return False
 

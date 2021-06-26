@@ -2,14 +2,14 @@
 Class for FO-CNF formulas.
 """
 
-from kc.data_structures import EquivalenceClasses, UnconstrainedClause, ConstrainedClause
+from kc.data_structures import EquivalenceClasses, UnconstrainedClause, ConstrainedClause, LogicalVariable 
 
-from typing import List, Any, Iterable
+from typing import List, Any, Iterable, Set
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import EquivalenceClass, Clause, Substitution
+    from kc.data_structures import EquivalenceClass, Clause, Substitution, DomainTerm, Constant
 
 class CNF:
     """
@@ -17,7 +17,8 @@ class CNF:
     This consists of a set of (CONSTRAINED OR UNCONSTRAINED) clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: Iterable['Clause']) -> None:
+    def __init__(self, clauses: Iterable['Clause'], shattered: bool = False) -> None:
+        """Initialise with a set of clauses and (optionally) the shattering status of the cnf"""
         self.clauses = frozenset(clauses)
 
         u_clauses, c_clauses = set(), set()
@@ -29,7 +30,7 @@ class CNF:
         self.u_clauses = frozenset(u_clauses)
         self.c_clauses = frozenset(c_clauses)
 
-        self.shattered = False # keep track of whether this cnf has undergone shattering
+        self.shattered = shattered # keep track of whether this cnf has undergone shattering
 
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one."""
@@ -82,6 +83,44 @@ class CNF:
             if len(eq_class.members.intersection(clause.bound_vars)) != 2:
                 return False
         return True
+
+    def get_logical_variables(self) -> Set['LogicalVariable']:
+        """Return a set of all the logical variables that appear in the cnf"""
+        logical_variables: Set['LogicalVariable'] = set()
+        clause_logical_variables = [clause.all_variables for clause in self.clauses]
+        logical_variables.update(*clause_logical_variables)
+        return logical_variables
+
+    def get_free_logical_variables(self) -> Set['LogicalVariable']:
+        """Return a set of all FREE logical variables in the cnf
+        NOTE: kind of assumes each variable appears in one clause"""
+        all_variables = self.get_logical_variables()
+        bound_variables: Set['LogicalVariable']  = set() # hack for type checking
+        clause_bound_variables = [cc.bound_vars for cc in self.c_clauses]
+        bound_variables.update(*clause_bound_variables)
+        return all_variables - bound_variables
+
+    def get_constants(self) -> Set['Constant']:
+        """Get all constants that appear as logical terms (i.e. not in domain terms) in the cnf"""
+        constants: Set['Constant'] = set()
+        clause_constants = [clause.constants for clause in self.clauses]
+        constants.update(*clause_constants)
+        return constants
+
+    def get_domain_terms(self) -> Set['DomainTerm']:
+        """Get all the domain terms that appear in the cnf"""
+        
+    def get_new_logical_variable(self) -> 'LogicalVariable':
+        """Return a logical variable that does not appear in the theory.
+        We'll just use an X followed by underscores."""
+        new_variable_string = 'X'
+        new_variable = LogicalVariable(new_variable_string)
+        logical_variables = self.get_logical_variables()
+        while new_variable in logical_variables:
+            new_variable_string += '_'
+            new_variable = LogicalVariable(new_variable_string)
+        return new_variable
+
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses"""

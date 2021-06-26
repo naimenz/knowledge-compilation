@@ -28,10 +28,25 @@ class ConstraintSet:
 
     def __init__(self, constraints: Iterable['Constraint']) -> None:
         self._constraints = frozenset(constraints)
+        logical_constraints, set_constraints = set(), set()
+        for constraint in constraints:
+            if isinstance(constraint, LogicalConstraint):
+                logical_constraints.add(constraint)
+            elif isinstance(constraint, SetConstraint):
+                set_constraints.add(constraint)
+        self._logical_constraints = frozenset(logical_constraints)
+        self._set_constraints = frozenset(set_constraints)
 
     @property
     def constraints(self) -> FrozenSet['Constraint']:
         return self._constraints
+
+    @property
+    def logical_constraints(self) -> FrozenSet['LogicalConstraint']:
+        return self._logical_constraints
+    @property
+    def set_constraints(self) -> FrozenSet['SetConstraint']:
+        return self._set_constraints
 
     def join(self, other: 'ConstraintSet') -> 'ConstraintSet':
         """Create a ConstraintSet by joining together the constraints of two constraint sets"""
@@ -58,6 +73,14 @@ class ConstraintSet:
 
         return ConstraintSet(filtered_constraints)
 
+    def drop_constraints_involving_only(self, variable: 'LogicalVariable') -> 'ConstraintSet':
+        """Return a constraint set where all constraints that only involve 'variable'
+        are removed
+        NOTE: We only need to consider set constraints, because logical constraints always have
+        two variables"""
+        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term != variable]
+        return ConstraintSet([*self.logical_constraints, *relevant_set_constraints])
+
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
         its variables that do not contain contradictions?
@@ -81,9 +104,13 @@ class ConstraintSet:
 
     def get_var_eq_classes(self) -> 'EquivalenceClasses[VariableEquivalenceClass]':
         """Return the variable equivalence classes given by the equality constraints
-        of this constraint set
+        of this constraint set (including singletons).
         NOTE: This uses the assumption that equality constraints only contain logical variables"""
         initial_eq_class_pairs: List['VariableEquivalenceClass'] = [] # collect the equivalence classes we will use later
+        # first add a class for each individual variable
+        for var in self.get_logical_variables():
+            initial_eq_class_pairs.append(VariableEquivalenceClass((var, var)))
+
         for constraint in self:
             if isinstance(constraint, EqualityConstraint):
                 initial_eq_class_pairs.append(VariableEquivalenceClass(constraint.terms))
@@ -128,7 +155,7 @@ class Constraint(ABC):
     This covers equality constraints, inclusion constraints, and their negations (plus more if needed).
     """
     
-    terms: Tuple['LogicalVariable', Union['LogicalVariable', 'SetOfConstants']] # every constraint needs some terms
+    terms: Tuple['LogicalVariable', Union['LogicalVariable', 'DomainTerm']] # every constraint needs some terms
 
     @abstractmethod
     def __hash__(self) -> int:
@@ -171,7 +198,7 @@ class SetConstraint(Constraint):
     """Abstract base class for constraints that involve domain terms (i.e. sets of constants and variables representing sets)
     This covers inclusion constraints and non-inclusion constraints.
 
-    NOTE TODO: For now, this doesn't allow domain variables"""
+    NOTE TODO: For now, this doesn't work with domain variables"""
 
     @property
     @abstractmethod
@@ -180,7 +207,7 @@ class SetConstraint(Constraint):
 
     @property
     @abstractmethod
-    def domain_term(self) -> 'SetOfConstants':
+    def domain_term(self) -> 'DomainTerm':
         pass
 
     def __hash__(self) -> int:
@@ -370,17 +397,17 @@ class InclusionConstraint(SetConstraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'SetOfConstants') -> None:
-        """NOTE TODO: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
+    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'DomainTerm') -> None:
+        """NOTE TODO: For now, this only works with 'SetOfConstants' rather than general 'DomainTerm'
         for the domain term"""
-        self.terms: Tuple['LogicalVariable', 'SetOfConstants'] = (logical_term, domain_term)
+        self.terms: Tuple['LogicalVariable', 'DomainTerm'] = (logical_term, domain_term)
 
     @property
     def logical_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
-    def domain_term(self) -> 'SetOfConstants':
+    def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
     def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
@@ -393,6 +420,7 @@ class InclusionConstraint(SetConstraint):
                     return EmptyConstraint()
                 else:
                     return FalseConstraint()
+            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return InclusionConstraint(logical_var, self.domain_term)
@@ -436,17 +464,17 @@ class NotInclusionConstraint(SetConstraint):
     This consists of a logical term and a domain term.
     """
 
-    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'SetOfConstants') -> None:
-        """NOTE: For now, we only allow 'SetOfConstants' rather than general 'DomainTerm'
+    def __init__(self, logical_term: 'LogicalVariable', domain_term: 'DomainTerm') -> None:
+        """NOTE: For now, this only works with 'SetOfConstants' rather than general 'DomainTerm'
         for the domain term"""
-        self.terms: Tuple['LogicalVariable', 'SetOfConstants'] = (logical_term, domain_term)
+        self.terms: Tuple['LogicalVariable', 'DomainTerm'] = (logical_term, domain_term)
 
     @property
     def logical_term(self) -> 'LogicalVariable':
         return self.terms[0]
 
     @property
-    def domain_term(self) -> 'SetOfConstants':
+    def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
     def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
@@ -459,6 +487,7 @@ class NotInclusionConstraint(SetConstraint):
                     return FalseConstraint()
                 else:
                     return EmptyConstraint()
+            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return NotInclusionConstraint(logical_var, self.domain_term)
@@ -560,11 +589,19 @@ class EquivalenceClass:
         """Instantiate the private set of members that belong to this equivalence class"""
         self._members = frozenset(members)
         self._variables = frozenset(t for t in members if isinstance(t, LogicalVariable))
-        self._constants = frozenset(t for t in members if isinstance(t, LogicalVariable))
+        self._constants = frozenset(t for t in members if isinstance(t, Constant))
 
     @property
     def members(self) -> FrozenSet['LogicalTerm']:
         return self._members
+
+    @property
+    def variables(self) -> FrozenSet['LogicalVariable']:
+        return self._variables
+
+    @property
+    def constants(self) -> FrozenSet['Constant']:
+        return self._constants
 
     def overlaps(self, other: 'EquivalenceClass') -> bool:
         """Returns True if there is an element shared by this EquivalenceClass and the other"""
@@ -590,12 +627,11 @@ class EquivalenceClass:
         return EquivalenceClass(new_members)
 
     def get_variables_only(self) -> 'VariableEquivalenceClass':
-        """Take an equivalence class and remove all constants"""
-        variables = [term for term in self.members if isinstance(term, LogicalVariable)]
-        return VariableEquivalenceClass(variables)
+        """Take an equivalence class and remove all constants, returning a subclass"""
+        return VariableEquivalenceClass(self._variables)
 
 
-    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'SetOfConstants':
+    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'DomainTerm':
         """Get the shared domain for this equivalence class of variables according to a particular constraint set
         NOTE: Because we don't have inequality constraints involving constants, this covers everything"""
         included_domains = []
@@ -606,8 +642,10 @@ class EquivalenceClass:
             elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
                 excluded_domains.append(constraint.domain_term)
         # hack for type checking for now since we only work with SetOfConstants
-        included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
-        excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
+        # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
+        # excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
+        included_domain = DomainTerm.intersection(*included_domains)
+        excluded_domain = DomainTerm.union(*excluded_domains)
         shared_domain = included_domain.difference(excluded_domain)
         return shared_domain
 
@@ -616,7 +654,7 @@ class EquivalenceClass:
         (i.e. each variable appears in every literal of its clause)"""
         # the variables that appear in a clause must all be root
         for clause in cnf.clauses:
-            if self.members.intersection(clause.all_literal_variables) != self.members.intersection(clause.root_variables):
+            if self.members.intersection(clause.literal_variables) != self.members.intersection(clause.root_variables):
                 return False
         return True
 
@@ -731,7 +769,8 @@ class EquivalenceClasses(Generic[TEC]):
 
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
         """If any equality class has an empty domain, then it is not consistent
-        NOTE: For now, only works with SetOfConstants, not DomainVariable"""
+        NOTE: For now, only works with SetOfConstants, not DomainVariable
+        TODO: Add support for DomainVariable, add support for domainless free variables"""
         for eq_class in self.classes:
             shared_domain = eq_class.get_shared_domain_from_cs(cs)
             if shared_domain.size == 0:

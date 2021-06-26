@@ -99,6 +99,7 @@ print(catom2)
 print(f'here {catom2.is_subsumed_by_c_atom(catom1)=}')
 
 cnf = CNF([unit_uclause1, uclause1])
+print(cnf.get_new_logical_variable())
 # cnf = CNF([catom1, catom2])
 cnf.shattered = True
 # compiler testing

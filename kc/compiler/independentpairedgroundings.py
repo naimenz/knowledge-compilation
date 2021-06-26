@@ -14,9 +14,9 @@ class IndependentPairedGroundings(KCRule):
     @classmethod
     def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional['EquivalenceClass']]:
         """IndependentPairedGroundings is applicable if the theory is shattered
-        (which is represented by a flag) and there is a root unifying class with two variables per clause.
+        (which it must already be to reach this rule)
+        and there is a root unifying class with two variables per clause.
         Returns True and the root unifying class if applicable, and False, None otherwise."""
-        needs_shattering = not cnf.shattered
         unifying_classes = cnf.get_unifying_classes()
         # writing a little function to check if root in this particular cnf
         is_root_in_cnf = lambda eq_class: eq_class.is_root_in_cnf(cnf)

@@ -5,7 +5,7 @@ Classes for literals, including the predicates and atoms that go into building l
 from kc.data_structures import Constant, LogicalVariable, EquivalenceClass, EquivalenceClasses
 import typing
 
-from typing import List, Sequence, Any, Set, Optional
+from typing import List, Sequence, Any, Set, Optional, FrozenSet
 from typing import cast
 from typing import TYPE_CHECKING
 
@@ -29,9 +29,14 @@ class Literal:
         return Literal(self.atom.apply_substitution(substitution), self.polarity)
 
     @property
-    def variables(self) -> Set['LogicalVariable']:
+    def variables(self) -> FrozenSet['LogicalVariable']:
         """Return only the variables in the terms of this literal"""
         return self.atom.variables
+
+    @property
+    def constants(self) -> FrozenSet['Constant']:
+        """Return only the constants in the terms of this literal"""
+        return self.atom.constants
 
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
@@ -65,6 +70,14 @@ class Atom:
         assert(len(terms) == predicate.arity)
         self.predicate = predicate
         self.terms = tuple(terms)
+        variables, constants = set(), set()
+        for term in terms:
+            if isinstance(term, LogicalVariable):
+                variables.add(term)
+            elif isinstance(term, Constant):
+                constants.add(term)
+        self._variables = frozenset(variables)
+        self._constants = frozenset(constants)
 
     def apply_substitution(self, substitution: 'Substitution') -> 'Atom':
         """Return a new Atom, the result of applying substitution to the current Atom."""
@@ -79,9 +92,15 @@ class Atom:
         return Atom(self.predicate, new_terms)
 
     @property
-    def variables(self) -> Set['LogicalVariable']:
+    def variables(self) -> FrozenSet['LogicalVariable']:
         """Return only the logical variables that appear in the terms of this atom"""
-        return set(term for term in self.terms if isinstance(term, LogicalVariable))
+        return self._variables
+
+
+    @property
+    def constants(self) -> FrozenSet['Constant']:
+        """Return only the constants that appear in the terms of this atom"""
+        return self._constants
 
     def get_unconstrained_atom_mgu_eq_classes(self: 'Atom', other_atom: 'Atom') -> Optional['EquivalenceClasses']:
         """Compute the mgu of this atom with another using equivalence classes,
