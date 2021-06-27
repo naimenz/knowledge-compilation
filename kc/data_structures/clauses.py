@@ -29,6 +29,7 @@ class Clause(ABC):
     @abstractmethod
     def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
         pass
+
     @abstractmethod
     def get_constrained_atoms(self) -> List['ConstrainedAtom']:
         """Even though UnconstrainedClauses don't have constraints,
@@ -178,7 +179,7 @@ class UnconstrainedClause(Clause):
             return False
         if len(self.literals) != len(other.literals): 
             return False
-        same_literals = all(self_l == other_l for self_l, other_l in zip(self.literals, other.literals))
+        same_literals = (self.literals == other.literals)
         return same_literals
 
     def __hash__(self) -> int:
@@ -307,7 +308,7 @@ class ConstrainedClause(Clause):
         same_literals = (self.literals == other.literals)
         if len(self.bound_vars) != len(other.bound_vars): 
             return False
-        same_bound_vars = all(self_v == other_v for self_v, other_v in zip(self.bound_vars, other.bound_vars))
+        same_bound_vars = (self.bound_vars == other.bound_vars)
         same_cs = (self.cs == other.cs)
         return same_literals and same_bound_vars and same_cs
 
@@ -449,7 +450,7 @@ class ConstrainedAtom(UnitClause):
                 return False
 
         # 5)
-        A_free_variables = A.all_variables.symmetric_difference(A.bound_vars)
+        A_free_variables = A.all_variables.difference(A.bound_vars)
         if len(A_free_variables) > 0:
             print(f'DEBUG: {A_free_variables=}')
             return False
