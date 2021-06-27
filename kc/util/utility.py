@@ -31,7 +31,7 @@ def partition_set(s: Set[T]) -> Generator[Set[Set[T]], None, None]:
 def _partition(collection: List[T]) -> Generator[List[List[T]], None, None]:
     """Function to partition a list into lists of lists.
     From https://stackoverflow.com/a/30134039/10005793."""
-    if len(collection) == 1:
+    if len(collection) <= 1:
         yield [ collection ]
         return
 

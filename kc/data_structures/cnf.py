@@ -109,6 +109,12 @@ class CNF:
 
     def get_domain_terms(self) -> Set['DomainTerm']:
         """Get all the domain terms that appear in the cnf"""
+        domain_terms = set()
+        for clause in self.c_clauses: # u_clauses have no domain terms
+            for constraint in clause.cs.set_constraints:
+                domain_terms.add(constraint.domain_term)
+        return domain_terms
+
         
     def get_new_logical_variable(self) -> 'LogicalVariable':
         """Return a logical variable that does not appear in the theory.

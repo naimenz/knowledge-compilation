@@ -30,7 +30,10 @@ class ShatteredCompilation(KCRule):
         free_variables = cnf.get_free_logical_variables()
         terms = (free_variables, constants)
         domains = cnf.get_domain_terms()
-        shattered_clauses = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
+        shattered_clauses_list = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
+        empty_set: Set['ConstrainedClause'] = set() # hack for type checking
+        flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)
+        return compiler.compile(CNF(flattened_shattered_clauses, shattered=True))
 
     @classmethod
     def shatter_clause(cls,
@@ -53,7 +56,28 @@ class ShatteredCompilation(KCRule):
         all_final_constraints = product([clause.cs], shatter_var_constraints, literal_inequality_constraints)
         final_constraints = map(cls._merge_constraint_sets, all_final_constraints)
 
-        return set(ConstrainedClause(clause.literals, clause.bound_vars, cs) for cs in final_constraints)
+        # only return the satisfiable ones
+        satisfiable_constraints = [cs for cs in final_constraints if cs.is_satisfiable()]
+        unsatisfiable_constraints = [cs for cs in final_constraints if not cs.is_satisfiable()]
+        return set(ConstrainedClause(clause.literals, clause.bound_vars, cs) for cs in satisfiable_constraints)
+
+    @classmethod
+    def shatter_var(cls, 
+                    variable: 'LogicalVariable',
+                    terms: Tuple[Set['LogicalVariable'], Set['Constant']],
+                    domains: Set['DomainTerm']
+                    ) -> Set['ConstraintSet']:
+        """Return shattered constraints for 'variable' with respect to 'terms'
+        and 'domains'.
+        NOTE: since we represent constant inequality with InclusionConstraints,
+        many of the CS_eq terms will actually by SetConstraints."""
+        equality_constraint_sets: Set['ConstraintSet'] = cls._build_equality_constraint_sets(variable, terms)
+        inclusion_constraint_sets: Set['ConstraintSet'] = cls._build_inclusion_constraint_sets(variable, domains)
+
+        product_of_cs = product(equality_constraint_sets, inclusion_constraint_sets)
+        final_constraints = set(cs_eq.join(cs_in) for cs_eq, cs_in in product_of_cs)
+        # only return satisfiable constraint sets
+        return set(cs for cs in final_constraints if cs.is_satisfiable())
 
     @classmethod
     def _build_literal_inequality_constraints(cls, clause: 'ConstrainedClause') -> Set['ConstraintSet']:
@@ -117,24 +141,7 @@ class ShatteredCompilation(KCRule):
     def _merge_constraint_sets(cls, cs_iterable: Iterable['ConstraintSet']) -> 'ConstraintSet':
         """Merge a collection of constraint sets into one
         TODO: consider un-nesting this for performance"""
-        return reduce(lambda cs1, cs2: cs1.join(cs2), cs_iterable)
-    
-
-    @classmethod
-    def shatter_var(cls, 
-                    variable: 'LogicalVariable',
-                    terms: Tuple[Set['LogicalVariable'], Set['Constant']],
-                    domains: Set['DomainTerm']
-                    ) -> Set['ConstraintSet']:
-        """Return shattered constraints for 'variable' with respect to 'terms'
-        and 'domains'.
-        NOTE: since we represent constant inequality with InclusionConstraints,
-        many of the CS_eq terms will actually by SetConstraints."""
-        equality_constraint_sets: Set['ConstraintSet'] = cls._build_equality_constraint_sets(variable, terms)
-        inclusion_constraint_sets: Set['ConstraintSet'] = cls._build_inclusion_constraint_sets(variable, domains)
-
-        product_of_cs = product(equality_constraint_sets, inclusion_constraint_sets)
-        return set(cs_eq.join(cs_in) for cs_eq, cs_in in product_of_cs)
+        return reduce(lambda cs1, cs2: cs1.join(cs2), cs_iterable, ConstraintSet([]))
 
     @classmethod
     def _build_equality_constraint_sets(cls,
@@ -159,7 +166,6 @@ class ShatteredCompilation(KCRule):
         equality_constraint_sets.add(ConstraintSet(not_equal_constraints))
         return equality_constraint_sets
         
-
     @classmethod
     def _build_inclusion_constraint_sets(cls,
                                         variable: 'LogicalVariable',
@@ -176,6 +182,6 @@ class ShatteredCompilation(KCRule):
                 current_domain_constraints.add(variable_in_domain_constraint)
             for domain in (domains - set(domain_subset)):
                 variable_notin_domain_constraint = NotInclusionConstraint(variable, domain)
-                current_domain_constraints.add(variable_in_domain_constraint)
+                current_domain_constraints.add(variable_notin_domain_constraint)
             inclusion_constraint_sets.add(ConstraintSet(current_domain_constraints))
         return inclusion_constraint_sets
