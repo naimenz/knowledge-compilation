@@ -42,6 +42,7 @@ def test_constant_equality():
 
 def test_mutual_inequality():
     assert(not ConstraintSet([Xinab, Yinab, Zinab, ~XeqY, ~XeqZ, ~YeqZ]).is_satisfiable())
+    assert(ConstraintSet([Xincd, Yinab, Zinab, ~XeqY, ~XeqZ, ~YeqZ]).is_satisfiable())
 
 def test_false_constraint():
-    assert(ConstraintSet([Xinab, Yinab, FalseConstraint("false constraint")]).is_satisfiable())
+    assert(not ConstraintSet([Xinab, Yinab, FalseConstraint("false constraint")]).is_satisfiable())

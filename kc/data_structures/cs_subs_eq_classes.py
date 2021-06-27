@@ -6,6 +6,7 @@ are considered.
 """
 
 from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm
+from kc.util import powerset
 
 from abc import ABC, abstractmethod
 from functools import reduce
@@ -81,32 +82,91 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term != variable]
         return ConstraintSet([*self.logical_constraints, *relevant_set_constraints])
 
+    def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
+        """Get the domain for a specific variable in this constraint set"""
+        included_domains = []
+        excluded_domains = []
+        for constraint in self:
+            if isinstance(constraint, InclusionConstraint) and constraint.logical_term == variable:
+                included_domains.append(constraint.domain_term)
+            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
+                excluded_domains.append(constraint.domain_term)
+        # hack for type checking for now since we only work with SetOfConstants
+        # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
+        # excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
+        included_domain = DomainTerm.intersection(*included_domains)
+        excluded_domain = DomainTerm.union(*excluded_domains)
+        variable_domain = included_domain.difference(excluded_domain)
+        return variable_domain
+
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
         its variables that do not contain contradictions?
-        NOTE TODO: There are three major flaws with this function still:
+        NOTE TODO: There still a major flaw with this function:
             1) It cannot handle domain variables
-            2) If there are more mutually unequal variables in a domain than there are elements
-            of that domain it is not satisfiable but this function cannot determine that yet
-            3) Inequality constraints between free variables aren't checked if they don't
-            apeear in any equality constraints"""
-        # First, check if there are any FalseConstraints in this cs
+        """
         if any(isinstance(constraint, FalseConstraint) for constraint in self.constraints):
             # DEBUG
             fcs = [c for c in self.constraints if isinstance(c, FalseConstraint)]
             print([fc.debug_message for fc in fcs])
             return False
-        # Then, we construct variable equivalence classes from the equality constraints 
+
         eq_classes = self.get_var_eq_classes()
-        # Next, we make sure that these are consistent with the inequality constraints
         if not eq_classes.consistent_with_inequality_constraints(self):
             return False
+
         # Then we construct the possible domains for each equivalence class and
         # check that they are non-empty
         if not eq_classes.consistent_with_set_constraints(self):
             return False
-        # finally, we assume that it is satisfiable
+
+        if self._too_many_mutually_unequal():
+            return False
         return True
+
+    def _too_many_mutually_unequal(self) -> bool:
+        """ This is a check that we don't have a situation like:
+        X in {a}, Y in {a}, X != Y
+        i.e. that the domain for unequal variables isn't too small to support inequalities
+        between all of the variables with that domain
+        NOTE: we only check variables with an InclusionConstraint"""
+        variables_with_domains = set(c.logical_term for c in self.set_constraints if isinstance(c, InclusionConstraint))
+        inequality_constraints = set(c for c in self.logical_constraints if isinstance(c, InequalityConstraint))
+        mutual_inequalities = self._find_mutual_inequalities(variables_with_domains, inequality_constraints)
+
+        # we check for too many variables in too small a domain by taking the union of the domains
+        for mutual_inequality in mutual_inequalities:
+            domains_generator = (self.get_domain_for(variable) for variable in mutual_inequality)
+            combined_domain = DomainTerm.union(*domains_generator)
+            if combined_domain.size < len(mutual_inequality):
+                print(f'DEBUG: {mutual_inequality = }, {combined_domain = }')
+                return True
+        return False
+
+    def _find_mutual_inequalities(self, variables: Set['LogicalVariable'],
+                                  inequalities: Set['InequalityConstraint']
+                                  ) -> Set[Set['LogicalVariable']]:
+        """Given a set of inequalities and variables that we care about,
+         find every set of mutual inequalities (e.g. X != Y, Y != Z, X != Z)"""
+        mutual_inequalities = set()
+        for subset in powerset(variables):
+            if len(subset) < 2:
+                continue
+            if self._subset_are_all_mutually_unequal(subset, inequalities):
+                mutual_inequalities.add(subset)
+        return mutual_inequalities
+
+
+    def _subset_are_all_mutually_unequal(self, subset: Iterable['LogicalVariable'],
+                                         inequalities: Set['InequalityConstraint']) -> bool:
+        """Check if a given subset of variables is mutually unequal"""
+        # surprisingly, two for-loops are faster than using itertools.product
+        for variable in subset:
+            for other_variable in subset:
+                if variable != other_variable and not ( InequalityConstraint(variable, other_variable) in inequalities ):
+                    return False
+        return True
+
 
     def get_var_eq_classes(self) -> 'EquivalenceClasses[VariableEquivalenceClass]':
         """Return the variable equivalence classes given by the equality constraints
