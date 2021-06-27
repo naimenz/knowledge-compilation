@@ -90,7 +90,13 @@ class ConstraintSet:
             of that domain it is not satisfiable but this function cannot determine that yet
             3) Inequality constraints between free variables aren't checked if they don't
             apeear in any equality constraints"""
-        # First, we construct variable equivalence classes from the equality constraints 
+        # First, check if there are any FalseConstraints in this cs
+        if any(isinstance(constraint, FalseConstraint) for constraint in self.constraints):
+            # DEBUG
+            fcs = [c for c in self.constraints if isinstance(c, FalseConstraint)]
+            print([fc.debug_message for fc in fcs])
+            return False
+        # Then, we construct variable equivalence classes from the equality constraints 
         eq_classes = self.get_var_eq_classes()
         # Next, we make sure that these are consistent with the inequality constraints
         if not eq_classes.consistent_with_inequality_constraints(self):
@@ -218,6 +224,11 @@ class SetConstraint(Constraint):
 
 class EmptyConstraint(Constraint):
     """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""
+    def __init__(self, debug_message: str ='') -> None:
+        """If desired, we can include a message explaining why this EmptyConstraint was made
+        (for debugging)"""
+        self.debug_message = debug_message
+
     def apply_substitution(self, substitution: 'Substitution') -> 'EmptyConstraint':
         """Substitution does nothing because no terms"""
         return EmptyConstraint()
@@ -230,9 +241,20 @@ class EmptyConstraint(Constraint):
         """All EmptyConstraints are the same"""
         return hash('EmptyConstraint')
 
+    def __str__(self) -> str:
+        return f'EmptyConstraint({self.debug_message})'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 class FalseConstraint(Constraint):
     """This is a special class for a constraint that is trivially UNsatisfied (i.e. always false)"""
+    def __init__(self, debug_message: str ='') -> None:
+        """If desired, we can include a message explaining why this FalseConstraint was made
+        (for debugging)"""
+        self.debug_message = debug_message
+
     def apply_substitution(self, substitution: 'Substitution') -> 'FalseConstraint':
         """Substitution does nothing because no terms"""
         return FalseConstraint()
@@ -244,6 +266,12 @@ class FalseConstraint(Constraint):
     def __hash__(self) -> int:
         """All EmptyConstraints are the same"""
         return hash('FalseConstraint')
+
+    def __str__(self) -> str:
+        return f'FalseConstraint({self.debug_message})'
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class EqualityConstraint(LogicalConstraint):
@@ -272,9 +300,9 @@ class EqualityConstraint(LogicalConstraint):
         if isinstance(new_left_term, Constant):
             if isinstance(new_right_term, Constant):
                 if new_left_term == new_right_term:
-                    return EmptyConstraint()
+                    return EmptyConstraint(f'{new_left_term} == {new_right_term}')
                 else:
-                    return FalseConstraint()
+                    return FalseConstraint(f'{new_left_term} != {new_right_term}')
             else:
                 right_var = cast('LogicalVariable', new_right_term) # hack for type checking
                 return InclusionConstraint(right_var, SetOfConstants([new_left_term]))
@@ -347,9 +375,9 @@ class InequalityConstraint(LogicalConstraint):
         if isinstance(new_left_term, Constant):
             if isinstance(new_right_term, Constant):
                 if new_left_term != new_right_term:
-                    return EmptyConstraint()
+                    return EmptyConstraint(f'{new_left_term} != {new_right_term}')
                 else:
-                    return FalseConstraint()
+                    return FalseConstraint(f'{new_left_term} == {new_right_term}')
             else:
                 right_var = cast('LogicalVariable', new_right_term) # hack for type checking
                 return NotInclusionConstraint(right_var, SetOfConstants([new_left_term]))
@@ -419,9 +447,9 @@ class InclusionConstraint(SetConstraint):
         if isinstance(new_logical_term, Constant):
             if isinstance(self.domain_term, SetOfConstants):
                 if new_logical_term in self.domain_term:
-                    return EmptyConstraint()
+                    return EmptyConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
-                    return FalseConstraint()
+                    return FalseConstraint(f'{new_logical_term} not in {self.domain_term}')
             raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
@@ -486,9 +514,9 @@ class NotInclusionConstraint(SetConstraint):
         if isinstance(new_logical_term, Constant):
             if isinstance(self.domain_term, SetOfConstants):
                 if new_logical_term in self.domain_term:
-                    return FalseConstraint()
+                    return FalseConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
-                    return EmptyConstraint()
+                    return EmptyConstraint(f'{new_logical_term} not in {self.domain_term}')
             raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
