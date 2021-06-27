@@ -414,12 +414,14 @@ class ConstrainedAtom(UnitClause):
         5) FOR NOW: A free variable anywhere in A breaks subsumption. 
         A free variable in the constraint set of B does not, but a free variable in its atom does. 
         (THIS IS WRONG, BUT IS A FIRST DRAFT)
+        The main change I want to make is to check if both clauses contain equivalent free
+        variables, but checking this is hard, especially for the constraint set
         """
         # aliases because this is how I've been using them in my notes
         A, B = subsumer, self
         # TODO: remove this hack of checking for equality, which only works some of the time
-        if A == B:
-            return True
+        # if A == B:
+        #     return True
         eq_classes = A.get_constrained_atom_mgu_eq_classes(B)
         # 1)
         if eq_classes is None:

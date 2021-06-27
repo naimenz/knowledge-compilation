@@ -858,11 +858,17 @@ class EquivalenceClasses(Generic[TEC]):
         return True
 
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
-        """If any equality class has an empty domain, then it is not consistent
+        """If any equality class WITH AN INCLUSION CONSTRAINT has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
         NOTE: For now, only works with SetOfConstants, not DomainVariable
         TODO: Add support for DomainVariable, add support for domainless free variables"""
         for eq_class in self.classes:
-            shared_domain = eq_class.get_shared_domain_from_cs(cs)
+            variables_with_domains = set(c.logical_term for c in cs.set_constraints if isinstance(c, InclusionConstraint) and c.logical_term in eq_class)
+
+            if len(variables_with_domains) == 0:
+                return True # trivially consistent
+
+            reduced_eq_class = EquivalenceClass(variables_with_domains)
+            shared_domain = reduced_eq_class.get_shared_domain_from_cs(cs)
             if shared_domain.size == 0:
                 return False
         return True
