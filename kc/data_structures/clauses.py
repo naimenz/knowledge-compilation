@@ -59,6 +59,7 @@ class Clause(ABC):
                     all_independent = False
         return all_independent
 
+    # TODO: this may be wrong, may need every literal to subsume another
     def is_subsumed_by_clause(self, subsumer: 'Clause') -> bool:
         """Returns true if this Clause is subsumed by the other.
         We do this by looking at constrained atoms -- if ANY literal in the subsumer
@@ -166,6 +167,7 @@ class UnconstrainedClause(Clause):
         empty_cs = ConstraintSet([])
         return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
+    # TODO:  maybe change name to substitute?
     def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
         """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
         return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
@@ -343,8 +345,8 @@ class UnitClause(ConstrainedClause):
     def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
         """Check subsumption of literals.
         This is the same as for atoms but with an additional check of their polarities"""
-        if self.literal.polarity == subsumer.literal.polarity:
-            if self.to_c_atom().is_subsumed_by_c_atom(subsumer.to_c_atom()):
+        if self.literal.polarity == subsumer.literal.polarity \
+          and self.to_c_atom().is_subsumed_by_c_atom(subsumer.to_c_atom()):
                 return True
         return False
 
@@ -403,6 +405,7 @@ class ConstrainedAtom(UnitClause):
         NOTE: This function is only as correct as 'is_subsumed_by_c_atom'."""
         return self.clauses_independent(subsumer) or self.is_subsumed_by_c_atom(subsumer)
 
+    # TODO: Continue improving this function to work in more cases.
     def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:
         """Does the subsumer (A) subsume this c_atom, the subsumed (B)?
         NOTE: This is a work in progress, and currently uses the following (incomplete) rules:

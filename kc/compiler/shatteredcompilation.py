@@ -58,7 +58,6 @@ class ShatteredCompilation(KCRule):
 
         # only return the satisfiable ones
         satisfiable_constraints = [cs for cs in final_constraints if cs.is_satisfiable()]
-        unsatisfiable_constraints = [cs for cs in final_constraints if not cs.is_satisfiable()]
         return set(ConstrainedClause(clause.literals, clause.bound_vars, cs) for cs in satisfiable_constraints)
 
     @classmethod
@@ -139,8 +138,7 @@ class ShatteredCompilation(KCRule):
 
     @classmethod
     def _merge_constraint_sets(cls, cs_iterable: Iterable['ConstraintSet']) -> 'ConstraintSet':
-        """Merge a collection of constraint sets into one
-        TODO: consider un-nesting this for performance"""
+        """Merge a collection of constraint sets into one"""
         return reduce(lambda cs1, cs2: cs1.join(cs2), cs_iterable, ConstraintSet([]))
 
     @classmethod

@@ -25,10 +25,10 @@ class ShannonDecomposition(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', unbound_atom: 'ConstrainedAtom', compiler: 'Compiler') -> 'NNFNode':
         """Apply ShannonDecomposition and return an NNFNode"""
-        true_atom = unbound_atom.to_unit_clause()
-        false_atom = UnitClause([Literal(unbound_atom.atom, False)], unbound_atom.bound_vars, unbound_atom.cs)
-        true_branch = cnf.join(CNF([true_atom]))
-        false_branch = cnf.join(CNF([false_atom]))
+        true_literal = unbound_atom.to_unit_clause()
+        false_literal = UnitClause([Literal(unbound_atom.atom, False)], unbound_atom.bound_vars, unbound_atom.cs)
+        true_branch = cnf.join(CNF([true_literal]))
+        false_branch = cnf.join(CNF([false_literal]))
 
         return AndNode(compiler.compile(true_branch), compiler.compile(false_branch))
 

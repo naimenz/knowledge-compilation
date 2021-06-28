@@ -38,6 +38,7 @@ class Literal:
         """Return only the constants in the terms of this literal"""
         return self.atom.constants
 
+    # TODO: refactor to sequence of if( and .. and ..) return True else False
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
         if not isinstance(other, Literal):
