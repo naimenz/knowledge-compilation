@@ -80,6 +80,19 @@ class Clause(ABC):
         its grounding is empty, meaning it is independent of everything."""
         return len(self.literals) == 0
 
+    @abstractmethod
+    def is_tautology(self) -> bool:
+        pass
+
+    def is_contradiction(self) -> bool:
+        """Is this clause always false? For now, just check if
+        its constraint set is satisfiable and it contains a literal
+        and its negation
+        NOTE: I don't think that a clause can be a contradiction because
+        it doesn't contain ANDs
+        TODO: check whether clauses can be contradictions"""
+        return False
+
     @property
     def literal_variables(self) -> Set['LogicalVariable']:
         """Return all variables that appear in any literal of the clause"""
@@ -151,6 +164,14 @@ class UnconstrainedClause(Clause):
             constrained_literal = UnitClause([literal], empty_bound_vars, empty_cs)
             constrained_literals.append(constrained_literal)
         return constrained_literals
+
+    def is_tautology(self) -> bool:
+        """Is this clause always true? 
+        For now, just check if it contains a literal and its negation"""
+        for literal in self.literals:
+            if ~literal in self.literals:
+                return True
+        return False
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -241,6 +262,27 @@ class ConstrainedClause(Clause):
                 if isinstance(term, LogicalVariable):
                     logical_variables.add(term)
         return logical_variables
+
+    def is_tautology(self) -> bool:
+        """Is this clause always true? For now, just check if
+        its constrainst set is satisfiable and it contains a literal
+        and its negation"""
+        if not self.cs.is_satisfiable():
+            return True
+
+        for literal in self.literals:
+            if ~literal in self.literals:
+                return True
+        return False
+
+    def is_contradiction(self) -> bool:
+        """Is this clause always false? For now, just check if
+        its constraint set is satisfiable and it contains a literal
+        and its negation
+        NOTE: I don't think that a clause can be a contradiction because
+        it doesn't contain ANDs
+        TODO: check whether clauses can be contradictions"""
+        return False
 
 
     def clauses_independent(self, other_clause: 'Clause') -> bool:

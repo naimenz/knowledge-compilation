@@ -4,7 +4,7 @@ that are used in various places"""
 # for powerset generation
 from itertools import chain, combinations
 
-from typing import TypeVar, Iterable, Set, Tuple, Sequence, Generator, List, Any
+from typing import TypeVar, Iterable, Set, FrozenSet, Tuple, Sequence, Generator, List, Any, Union
 T = TypeVar('T')
 
 def powerset(iterable: Iterable[T]) -> Iterable[Tuple[T, ...]]:
@@ -14,13 +14,13 @@ def powerset(iterable: Iterable[T]) -> Iterable[Tuple[T, ...]]:
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(1, len(s)+1))
 
-def get(s: Set[T]) -> T:
+def get_set_element(s: Iterable[T]) -> T:
         """Simple function to get a (random) element of a set without mutating it.
         Useful for getting the only element of a 1-element set."""
         return next(iter(s))
 
 
-def partition_set(s: Set[T]) -> Generator[Set[Set[T]], None, None]:
+def partition_set(s: Set[T]) -> Generator[Set[FrozenSet[T]], None, None]:
     """Wrapper around the partition function to return a set of sets"""
     collection = list(s)
     partitioned_lists = _partition(collection)

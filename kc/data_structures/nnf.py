@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import ConstraintSet, LogicalVariable
+    from kc.data_structures import ConstraintSet, LogicalVariable, Literal
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
@@ -19,6 +19,26 @@ class NNFNode(ABC):
         # set parents of children?
         for child in self.children:
             child.parents.append(self)
+
+class TrueNode(NNFNode):
+    """A class to represent True in the circuit. Needs no data"""
+    def __init__(self) -> None:
+        # don't need any children but still want to have parents
+        super(TrueNode, self).__init__([])
+
+class FalseNode(NNFNode):
+    """A class to represent False in the circuit. Needs no data"""
+    def __init__(self) -> None:
+        # don't need any children but still want to have parents
+        super(FalseNode, self).__init__([])
+
+class LiteralNode(NNFNode):
+    """A class to represent a single literal in the circuit. 
+    Takes as input the literal it represents"""
+    def __init__(self, literal: 'Literal') -> None:
+        super(LiteralNode, self).__init__([])
+        self.literal = literal
+
 
 class ExtensionalNode(NNFNode):
     """Abstract subclass for AND and OR nodes
@@ -52,9 +72,11 @@ class ForAllNode(IntensionalNode):
 class ExistsNode(IntensionalNode):
     """A node representing an intensional EXISTS operation."""
 
+
 class EmptyNode(NNFNode):
     """A node representing nothing. Realistically these shouldn't be 
     made, but I needed a placeholder.
     TODO: avoid these so I can delete the class again."""
     def __init__(self) -> None:
-        pass
+        # don't need any children but still want to have parents
+        super().__init__([])
