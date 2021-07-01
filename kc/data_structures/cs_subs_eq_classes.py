@@ -74,13 +74,11 @@ class ConstraintSet:
 
         return ConstraintSet(filtered_constraints)
 
-    def drop_constraints_involving_only(self, variable: 'LogicalVariable') -> 'ConstraintSet':
-        """Return a constraint set where all constraints that only involve 'variable'
-        are removed
-        NOTE: We only need to consider set constraints, because logical constraints always have
-        two variables"""
-        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term != variable]
-        return ConstraintSet([*self.logical_constraints, *relevant_set_constraints])
+    def drop_constraints_involving_only_these_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
+        """Return a constraint set where all constraints that only involve variables from 'variables' are removed"""
+        relevant_logical_constraints = [lc for lc in self.logical_constraints if (not lc.left_term in variables and not lc.right_term in variables)]
+        relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
+        return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
     def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
         """Get the domain for a specific variable in this constraint set"""
@@ -145,7 +143,7 @@ class ConstraintSet:
 
     def _find_mutual_inequalities(self, variables: Set['LogicalVariable'],
                                   inequalities: Set['InequalityConstraint']
-                                  ) -> Set[Set['LogicalVariable']]:
+                                  ) -> Set[FrozenSet['LogicalVariable']]:
         """Given a set of inequalities and variables that we care about,
          find every set of mutual inequalities (e.g. X != Y, Y != Z, X != Z)"""
         mutual_inequalities = set()
@@ -153,7 +151,7 @@ class ConstraintSet:
             if len(subset) < 2:
                 continue
             if self._subset_are_all_mutually_unequal(subset, inequalities):
-                mutual_inequalities.add(subset)
+                mutual_inequalities.add(frozenset(subset))
         return mutual_inequalities
 
 

@@ -116,10 +116,10 @@ class CNF:
         return domain_terms
 
         
-    def get_new_logical_variable(self) -> 'LogicalVariable':
+    def get_new_logical_variable(self, symbol: str) -> 'LogicalVariable':
         """Return a logical variable that does not appear in the theory.
-        We'll just use an X followed by underscores."""
-        new_variable_string = 'X'
+        To make it unique, take the symbol and keep adding underscores"""
+        new_variable_string = symbol
         new_variable = LogicalVariable(new_variable_string)
         logical_variables = self.get_logical_variables()
         while new_variable in logical_variables:
