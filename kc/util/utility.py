@@ -14,7 +14,7 @@ def powerset(iterable: Iterable[T]) -> Iterable[Tuple[T, ...]]:
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(1, len(s)+1))
 
-def get_set_element(s: Iterable[T]) -> T:
+def get_element_of_set(s: Iterable[T]) -> T:
         """Simple function to get a (random) element of a set without mutating it.
         Useful for getting the only element of a 1-element set."""
         return next(iter(s))

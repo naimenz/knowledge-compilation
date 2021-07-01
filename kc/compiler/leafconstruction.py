@@ -4,7 +4,7 @@ full rule."""
 
 from kc.data_structures import *
 from kc.compiler import KCRule
-from kc.util import get_set_element
+from kc.util import get_element_of_set
 
 from typing import Tuple, Optional
 from typing import TYPE_CHECKING
@@ -22,7 +22,7 @@ class LeafConstruction(KCRule):
         TODO: Figure out the logic here instead of just returning False"""
         if len(cnf.clauses) == 1:
             # if it's a constrained clause, it can't be a single literal but it could be a tautology/contradiction
-            clause: 'Clause' = get_set_element(cnf.clauses)
+            clause: 'Clause' = get_element_of_set(cnf.clauses)
             if clause.is_contradiction():
                 return True, "Contradiction"
             elif clause.is_tautology():
@@ -42,7 +42,7 @@ class LeafConstruction(KCRule):
             return FalseNode()
         elif node_type == "Literal":
             # must be a single unconstrained clause with one literal
-            return LiteralNode(get_set_element(get_set_element(cnf.u_clauses).literals))
+            return LiteralNode(get_element_of_set(get_element_of_set(cnf.u_clauses).literals))
         else:
             raise ValueError(f"node_type should be one of 'Tautology', 'Contradiction' or 'Literal, not {node_type}")
         
