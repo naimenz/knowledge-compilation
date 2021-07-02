@@ -479,6 +479,58 @@ class InequalityConstraint(LogicalConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+class LessThanConstraint(LogicalConstraint):
+    """This is a constraint on two variables (e.g. Y, Z) enforcing
+    that Y < Z. This is interpreted as the natural order on the constants --
+    since the set of constants is finite, we can always pick an order.
+    NOTE: This constraint is ONLY used in the constraint sets of NNF nodes,
+    so doesn't need any functionality"""
+
+    def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
+
+    @property
+    def left_term(self) -> 'LogicalVariable':
+        return self.terms[0]
+
+    @property
+    def right_term(self) -> 'LogicalVariable':
+        return self.terms[1]
+
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        """
+        raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
+
+    def contains_contradiction(self) -> bool:
+        """Does this constraint contain an obvious contradiction?
+        For InequalityConstraint, this means checking if the two sides are the same term"""
+        raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
+
+
+
+    def __eq__(self, other: Any) -> bool:
+        """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
+        if not isinstance(other, LessThanConstraint):
+            return False
+        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
+        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
+        return same_way or flipped
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
+        return super().__hash__()
+
+    def __str__(self) -> str:
+        less_than_string = ' < '
+        return f'{self.left_term}{less_than_string}{self.right_term}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class InclusionConstraint(SetConstraint):
     """
     A FOL-DC inclusion constraint (between a logical term and a domain term).

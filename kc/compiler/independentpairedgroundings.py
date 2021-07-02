@@ -49,8 +49,8 @@ class IndependentPairedGroundings(KCRule):
         YZ_substitution_pairs_for_Y = [(root_var, new_Y_variable) for root_var in root_class_a]
         YZ_substitution_pairs_for_Z = [(root_var, new_Z_variable) for root_var in root_class_b]
 
-        ZY_substitution_pairs_for_Y = [(root_var, new_Z_variable) for root_var in root_class_a]
-        ZY_substitution_pairs_for_Z = [(root_var, new_Y_variable) for root_var in root_class_b]
+        ZY_substitution_pairs_for_Y = [(root_var, new_Y_variable) for root_var in root_class_b]
+        ZY_substitution_pairs_for_Z = [(root_var, new_Z_variable) for root_var in root_class_a]
 
         YZ_substitution = Substitution([*YZ_substitution_pairs_for_Y, *YZ_substitution_pairs_for_Z])
         ZY_substitution = Substitution([*ZY_substitution_pairs_for_Y, *ZY_substitution_pairs_for_Z])
@@ -60,9 +60,12 @@ class IndependentPairedGroundings(KCRule):
         new_cnf_YZ = cls._substitute_root_vars(cnf, new_variables, YZ_substitution)
         new_cnf_ZY = cls._substitute_root_vars(cnf, new_variables, ZY_substitution)
         new_cnf = new_cnf_YZ.join(new_cnf_ZY)
+
         new_Y_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, all_Y_substitution)
         new_Z_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, all_Z_substitution)
-        new_variables_cs = new_Y_variable_cs.join(new_Z_variable_cs)
+        new_YZ_variables_cs = new_Y_variable_cs.join(new_Z_variable_cs)
+        # adding the less-than constraint between the new variables
+        new_variables_cs = new_YZ_variables_cs.join(ConstraintSet([LessThanConstraint(new_Y_variable, new_Z_variable)]))
         return ForAllNode(compiler.compile(new_cnf), new_variables, new_variables_cs)
 
     @classmethod
@@ -71,7 +74,7 @@ class IndependentPairedGroundings(KCRule):
         need to remove the new variables from the bound vars after substituting them """
 
         new_clauses = set()
-        # NOTE: all clauses are constrained (since must have at least one bound var)
+        # NOTE: all clauses are constrained (since must have at least two bound vars)
         for clause in cnf.c_clauses:
             new_literals = [literal.apply_substitution(sub) for literal in clause.literals]
             new_cs = clause.cs.apply_substitution(sub).drop_constraints_involving_only_these_variables(new_variables)
