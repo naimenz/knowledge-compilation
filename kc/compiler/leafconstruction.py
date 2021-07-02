@@ -7,7 +7,6 @@ from kc.compiler import KCRule
 from kc.util import get_element_of_set
 
 from typing import Tuple, Optional
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
