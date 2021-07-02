@@ -74,7 +74,7 @@ class ConstraintSet:
 
         return ConstraintSet(filtered_constraints)
 
-    def drop_constraints_involving_only_these_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
+    def drop_constraints_involving_only_specific_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
         """Return a constraint set where all constraints that only involve variables from 'variables' are removed"""
         relevant_logical_constraints = [lc for lc in self.logical_constraints if (not lc.left_term in variables and not lc.right_term in variables)]
         relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
