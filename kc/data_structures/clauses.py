@@ -82,6 +82,7 @@ class Clause(ABC):
 
     @abstractmethod
     def is_tautology(self) -> bool:
+
         pass
 
     def is_contradiction(self) -> bool:
