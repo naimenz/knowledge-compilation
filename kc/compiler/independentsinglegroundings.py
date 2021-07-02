@@ -65,7 +65,7 @@ class IndependentSingleGroundings(KCRule):
         """Return a constraint set for the new variable that has the same solutions as the root unifying variables"""
         # we only loop once to get a clause from the cnf
         for clause in cnf.c_clauses: break
-        # should only be 1
+        # must only be one root variable in the intersection
         root_variable = list(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
         new_cs = ConstraintSet(set_constraints)
