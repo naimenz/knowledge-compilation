@@ -36,9 +36,9 @@ class CNF:
         """Combine two CNFs into one."""
         return CNF(self.clauses.union(other.clauses))
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'CNF':
+    def substitute(self, substitution: 'Substitution') -> 'CNF':
         """Return a new CNF, the result of applying substitution to this CNF"""
-        new_clauses = set(clause.apply_substitution(substitution) for clause in self.clauses)
+        new_clauses = set(clause.substitute(substitution) for clause in self.clauses)
         return CNF(new_clauses)
 
     def get_unifying_classes(self) -> 'EquivalenceClasses':
@@ -130,10 +130,7 @@ class CNF:
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses"""
-        if not isinstance(other, CNF):
-            return False
-        same_clauses = (self.clauses == other.clauses)
-        return same_clauses
+        return isinstance(other ,CNF) and self.clauses == other.clauses
 
     def __hash__(self) -> int:
         return hash(self.clauses)

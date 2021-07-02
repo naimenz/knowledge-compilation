@@ -115,9 +115,7 @@ class SetOfConstants(DomainTerm):
 
     def __eq__(self, other: Any) -> bool:
         """Two sets of constants are equal if their constants are the same"""
-        if not isinstance(other, SetOfConstants):
-            return False
-        return self.constants == other.constants
+        return isinstance(other, SetOfConstants) and self.constants == other.constants
 
     def __hash__(self) -> int:
         return hash(self.constants)
@@ -147,10 +145,10 @@ class DomainVariable(DomainTerm):
         self.symbol = symbol
 
     def __eq__(self, other: Any) -> bool:
-        """Two domain variables are equal if they have the same symbol.
-
-        NOTE: I'm not sure if this is the right call, since symbols are sometimes reused.
-        TODO: figure out what to do about symbol reuse and remove warning."""
+        """I do not yet know when two domain variables should be equal.
+        Maybe when they have the same symbol, or maybe when they have the same parent domain
+        and excluded constants?
+        TODO: Work this out"""
         if not isinstance(other, DomainVariable):
             return False
         # this is the case I'm not sure about

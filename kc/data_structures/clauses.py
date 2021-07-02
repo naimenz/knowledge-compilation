@@ -23,11 +23,11 @@ C = TypeVar('C', bound='ConstrainedClause')
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
-    def __init__(self, literals: Sequence['Literal']) -> None:
+    def __init__(self, literals: Iterable['Literal']) -> None:
         self.literals = frozenset(literals)
 
     @abstractmethod
-    def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+    def substitute(self: 'Clause', substitution: 'Substitution') -> 'Clause':
         pass
 
     @abstractmethod
@@ -47,17 +47,16 @@ class Clause(ABC):
         """Convert this clause to a UnitClause object"""
         pass
 
-    def clauses_independent(self, other_clause: 'Clause') -> bool:
+    def is_independent_from_other_clause(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
         if self.has_no_literals() or other_clause.has_no_literals():
             return True
 
-        all_independent = True
         for c_atom in self.get_constrained_atoms():
             for other_c_atom in other_clause.get_constrained_atoms():
                 if c_atom.constrained_atoms_unify(other_c_atom):
-                    all_independent = False
-        return all_independent
+                    return False
+        return True
 
     # TODO: this may be wrong, may need every literal to subsume another
     def is_subsumed_by_clause(self, subsumer: 'Clause') -> bool:
@@ -134,12 +133,6 @@ class UnconstrainedClause(Clause):
     This consists of a set of FOL literals, which form a disjunction
     """
 
-    def __init__(self, literals: Iterable['Literal']) -> None:
-        """NOTE: using a set to represent literals.
-        This is justified because the order is unimportant and repeated literals 
-        in a clause are redundant (they cannot change the disjunction)"""
-        self.literals = frozenset(literals)
-
     def get_constrained_atoms(self) -> List['ConstrainedAtom']:
         """Even though UnconstrainedClauses don't have constraints,
         they still need to produce constrained atoms (with empty bound_vars and
@@ -189,21 +182,13 @@ class UnconstrainedClause(Clause):
         return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
     # TODO:  maybe change name to substitute?
-    def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
+    def substitute(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
         """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
-        return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
+        return self.__class__(literal.substitute(substitution) for literal in self.literals)
 
     def __eq__(self, other: Any) -> bool:
-        """Two unconstrained clauses are equal if they have the same literals
-
-        NOTE: for now the ordering has to be the same
-        TODO: make literals hashable so I can compare as sets"""
-        if not isinstance(other, UnconstrainedClause):
-            return False
-        if len(self.literals) != len(other.literals): 
-            return False
-        same_literals = (self.literals == other.literals)
-        return same_literals
+        """Two unconstrained clauses are equal if they have the same literals"""
+        return isinstance(other, UnconstrainedClause) and self.literals == other.literals
 
     def __hash__(self) -> int:
         return hash(self.literals)
@@ -231,11 +216,11 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
+    def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: assumes that the bound vars aren't substituted"""
-        new_literals = [literal.apply_substitution(substitution) for literal in self.literals]
-        new_cs = self.cs.apply_substitution(substitution)
+        new_literals = [literal.substitute(substitution) for literal in self.literals]
+        new_cs = self.cs.substitute(substitution)
         new_bound_vars = [substitution[var] for var in self.bound_vars]
         assert(all(isinstance(term, LogicalVariable) for term in new_bound_vars)) # should not have constants in bound vars
         bound_vars = cast(List['LogicalVariable'], new_bound_vars) # hack for type checking
@@ -285,17 +270,16 @@ class ConstrainedClause(Clause):
         return False
 
 
-    def clauses_independent(self, other_clause: 'Clause') -> bool:
+    def is_independent_from_other_clause(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
         if self.has_no_literals() or other_clause.has_no_literals():
             return True
 
-        all_independent = True
         for c_atom in self.get_constrained_atoms():
             for other_c_atom in other_clause.get_constrained_atoms():
                 if c_atom.constrained_atoms_unify(other_c_atom):
-                    all_independent = False
-        return all_independent
+                    return False
+        return True
 
     def has_no_literals(self) -> bool:
         """This is called "isConditionalContradiction" in Forclift.
@@ -347,14 +331,10 @@ class ConstrainedClause(Clause):
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
          and the same bound variables"""
-        if not isinstance(other, ConstrainedClause):
-            return False
-        same_literals = (self.literals == other.literals)
-        if len(self.bound_vars) != len(other.bound_vars): 
-            return False
-        same_bound_vars = (self.bound_vars == other.bound_vars)
-        same_cs = (self.cs == other.cs)
-        return same_literals and same_bound_vars and same_cs
+        return isinstance(other, ConstrainedClause) \
+               and self.literals == other.literals \
+               and self.bound_vars == other.bound_vars \
+               and self.cs == other.cs
 
     def __hash__(self) -> int:
        return hash((self.literals, self.bound_vars, self.cs))
@@ -445,7 +425,7 @@ class ConstrainedAtom(UnitClause):
     def independent_or_subsumed_by(self, subsumer: 'ConstrainedAtom') -> bool:
         """Return true if this c-atom (self) is independent of, or subsumed by, the subsumer.
         NOTE: This function is only as correct as 'is_subsumed_by_c_atom'."""
-        return self.clauses_independent(subsumer) or self.is_subsumed_by_c_atom(subsumer)
+        return self.is_independent_from_other_clause(subsumer) or self.is_subsumed_by_c_atom(subsumer)
 
     # TODO: Continue improving this function to work in more cases.
     def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:

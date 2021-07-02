@@ -24,9 +24,9 @@ class Literal:
         self.atom = atom
         self.polarity = polarity
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Literal':
+    def substitute(self, substitution: 'Substitution') -> 'Literal':
         """Return a new Literal, the result of applying substitution to the current Literal"""
-        return Literal(self.atom.apply_substitution(substitution), self.polarity)
+        return Literal(self.atom.substitute(substitution), self.polarity)
 
     @property
     def variables(self) -> FrozenSet['LogicalVariable']:
@@ -41,11 +41,7 @@ class Literal:
     # TODO: refactor to sequence of if( and .. and ..) return True else False
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
-        if not isinstance(other, Literal):
-            return False
-        same_atom = (self.atom == other.atom)
-        same_polarity = self.polarity == other.polarity
-        return same_atom and same_polarity
+        return isinstance(other, Literal) and self.atom == other.atom and self.polarity == other.polarity
 
     def __invert__(self) -> 'Literal':
         """Return a literal with the opposite polarity to this one."""
@@ -80,7 +76,7 @@ class Atom:
         self._variables = frozenset(variables)
         self._constants = frozenset(constants)
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Atom':
+    def substitute(self, substitution: 'Substitution') -> 'Atom':
         """Return a new Atom, the result of applying substitution to the current Atom."""
         new_terms: List['LogicalTerm'] = []
         for term in self.terms:
@@ -138,11 +134,7 @@ class Atom:
 
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""
-        if not isinstance(other, Atom):
-            return False
-        same_predicate = (self.predicate == other.predicate)
-        same_terms = all(self_term == other_term for self_term, other_term in zip(self.terms, other.terms))
-        return same_predicate and same_terms
+        return isinstance(other, Atom) and self.predicate == other.predicate and self.terms == other.terms
 
     def __hash__(self) -> int:
         return hash((self.predicate, self.terms))
@@ -195,11 +187,7 @@ class Predicate:
 
     def __eq__(self, other: Any) -> bool:
         """Two predicates are equal if they have the same name and the same arity"""
-        if not isinstance(other, Predicate): 
-            return False
-        same_name = (self.name == other.name)
-        same_arity = (self.arity == other.arity)
-        return same_name and same_arity
+        return isinstance(other, Predicate) and self.name == other.name and self.arity == other.arity
 
     def __hash__(self) -> int:
         return hash((self.name, self.arity))

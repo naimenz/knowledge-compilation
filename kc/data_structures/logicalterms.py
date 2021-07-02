@@ -33,9 +33,7 @@ class Constant(LogicalTerm):
 
     def __eq__(self, other: Any) -> bool:
         """We say constants are equal if they have the same value"""
-        if not isinstance(other, Constant):
-            return False
-        return self.value == other.value
+        return isinstance(other, Constant) and self.value == other.value
 
     def __hash__(self) -> int:
         return hash(self.__repr__())
@@ -49,20 +47,8 @@ class LogicalVariable(LogicalTerm):
         self.symbol = symbol
 
     def __eq__(self, other: Any) -> bool:
-        """Two logical variables are equal if they have the same symbol.
-
-        NOTE: I'm not sure if this is the right call, since symbols are sometimes reused.
-        TODO: figure out what to do about symbol reuse and remove warning."""
-        if not isinstance(other, LogicalVariable):
-            return False
-        # this is the case I'm not sure about
-        if (self.symbol == other.symbol) and not (self is other):
-            print(f"WARNING: Treating LogicalVariables {self.symbol} as equal but are not the same object")
-            return True
-        elif (self is other):
-            return True
-        else:
-            return False
+        """Two logical variables are equal if they have the same symbol."""
+        return isinstance(other, LogicalVariable) and self.symbol == other.symbol
 
     def __str__(self) -> str:
         return f'{self.symbol}'

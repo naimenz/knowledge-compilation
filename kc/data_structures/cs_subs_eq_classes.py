@@ -57,13 +57,13 @@ class ConstraintSet:
     def is_non_empty(self) -> bool:
         return len(self.constraints) > 0
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
+    def substitute(self, substitution: 'Substitution') -> 'ConstraintSet':
         """Create a ConstraintSet by applying a Substitution to the constraints
         NOTE: this may be counter-intuitive because applying a substitution
         to an EqualityConstraint may produce an InclusionConstraint"""
         new_constraints: List['Constraint'] = []
         for constraint in self.constraints:
-            new_constraint = constraint.apply_substitution(substitution)
+            new_constraint = constraint.substitute(substitution)
             new_constraints.append(new_constraint)
 
         if FalseConstraint() in new_constraints:
@@ -197,10 +197,7 @@ class ConstraintSet:
 
     def __eq__(self, other: Any) -> bool:
         """Two constraint sets are equal if their constraints are equal."""
-        if not isinstance(other, ConstraintSet):
-            return False
-        same_constraints = (self.constraints == other.constraints)
-        return same_constraints
+        return isinstance(other, ConstraintSet) and self.constraints == other.constraints
 
     def __hash__(self) -> int:
         return hash(self.constraints)
@@ -227,7 +224,7 @@ class Constraint(ABC):
         pass
 
     @abstractmethod 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """We need to be able to apply substitutions to constraints"""
         pass
 
@@ -287,7 +284,7 @@ class EmptyConstraint(Constraint):
         (for debugging)"""
         self.debug_message = debug_message
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'EmptyConstraint':
+    def substitute(self, substitution: 'Substitution') -> 'EmptyConstraint':
         """Substitution does nothing because no terms"""
         return EmptyConstraint()
     
@@ -313,7 +310,7 @@ class FalseConstraint(Constraint):
         (for debugging)"""
         self.debug_message = debug_message
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'FalseConstraint':
+    def substitute(self, substitution: 'Substitution') -> 'FalseConstraint':
         """Substitution does nothing because no terms"""
         return FalseConstraint()
     
@@ -349,7 +346,7 @@ class EqualityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         NOTE: This will return an InclusionConstraint if ONE of the new terms is a constant.
         TODO: Figure out how to abstract this up the the base class"""
@@ -383,11 +380,9 @@ class EqualityConstraint(LogicalConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two equality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, EqualityConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        return isinstance(other, EqualityConstraint) \
+               and (self.left_term == other.left_term and self.right_term == other.right_term) \
+               and (self.left_term == other.right_term and self.right_term == other.left_term)
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -424,7 +419,7 @@ class InequalityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         NOTE: This will return a NotInclusionConstraint if ONE of the new terms is a constant.
         """
@@ -454,11 +449,9 @@ class InequalityConstraint(LogicalConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, InequalityConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        return isinstance(other, InequalityConstraint) \
+               and (self.left_term == other.left_term and self.right_term == other.right_term) \
+               and (self.left_term == other.right_term and self.right_term == other.left_term)
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -497,7 +490,7 @@ class LessThanConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         """
         raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
@@ -508,14 +501,11 @@ class LessThanConstraint(LogicalConstraint):
         raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
 
 
-
     def __eq__(self, other: Any) -> bool:
-        """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, LessThanConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        """Two less-than constraints are equal if they mention the same terms (note the order doesn't matter)"""
+        return isinstance(other, LessThanConstraint) \
+               and (self.left_term == other.left_term and self.right_term == other.right_term) \
+               and (self.left_term == other.right_term and self.right_term == other.left_term)
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -550,7 +540,7 @@ class InclusionConstraint(SetConstraint):
     def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         TODO: Include domain substitutions"""
         new_logical_term = substitution[self.logical_term]
@@ -567,7 +557,8 @@ class InclusionConstraint(SetConstraint):
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
-        For InclusionConstraint, this means checking if the logical term is a constant and the domain term a set of constants without the constant"""
+        For InclusionConstraint, this means checking if the logical term is a constant and
+        the domain term a set of constants without the constant"""
         if isinstance(self.logical_term, Constant) and isinstance(self.domain_term, SetOfConstants):
             return not self.logical_term in self.domain_term
         else:
@@ -575,9 +566,9 @@ class InclusionConstraint(SetConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two inclusion constraints are equal if they mention the same logical and domain terms """
-        if not isinstance(other, InclusionConstraint):
-            return False
-        return self.logical_term == other.logical_term and self.domain_term == other.domain_term
+        return isinstance(other, InclusionConstraint) \
+               and self.logical_term == other.logical_term \
+               and self.domain_term == other.domain_term
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -617,7 +608,7 @@ class NotInclusionConstraint(SetConstraint):
     def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         TODO: Include domain substitutions"""
         new_logical_term = substitution[self.logical_term]
@@ -641,10 +632,10 @@ class NotInclusionConstraint(SetConstraint):
             return False
 
     def __eq__(self, other: Any) -> bool:
-        """Two not-inclusion constraints are equal if they mention the same logical and domain terms """
-        if not isinstance(other, NotInclusionConstraint):
-            return False
-        return self.logical_term == other.logical_term and self.domain_term == other.domain_term
+        """Two not inclusion constraints are equal if they mention the same logical and domain terms """
+        return isinstance(other, NotInclusionConstraint) \
+               and self.logical_term == other.logical_term \
+               and self.domain_term == other.domain_term
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -704,9 +695,7 @@ class Substitution:
 
     def __eq__(self, other: Any) -> bool:
         """Two substitutions are equal if they have all the same (variable, term) pairs"""
-        if not isinstance(other, Substitution):
-            return False
-        return self._substitution_dict == other._substitution_dict
+        return isinstance(other, Substitution) and self._substitution_dict == other._substitution_dict
 
     def __hash__(self) -> int:
         """Hashing so I can remove duplicates with sets"""

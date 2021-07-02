@@ -57,7 +57,7 @@ class Independence(KCRule):
 
                 # separate out the clauses into whether they are dependent with the potential_subtheory or not
                 for other_clause in other_clauses:
-                    independent = clause.clauses_independent(other_clause)
+                    independent = clause.is_independent_from_other_clause(other_clause)
                     if not independent:
                         new_potential_subtheory.append(other_clause)
                     else:
