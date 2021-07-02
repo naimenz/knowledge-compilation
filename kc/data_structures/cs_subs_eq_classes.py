@@ -74,13 +74,11 @@ class ConstraintSet:
 
         return ConstraintSet(filtered_constraints)
 
-    def drop_constraints_involving_only(self, variable: 'LogicalVariable') -> 'ConstraintSet':
-        """Return a constraint set where all constraints that only involve 'variable'
-        are removed
-        NOTE: We only need to consider set constraints, because logical constraints always have
-        two variables"""
-        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term != variable]
-        return ConstraintSet([*self.logical_constraints, *relevant_set_constraints])
+    def drop_constraints_involving_only_specific_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
+        """Return a constraint set where all constraints that only involve variables from 'variables' are removed"""
+        relevant_logical_constraints = [lc for lc in self.logical_constraints if (not lc.left_term in variables and not lc.right_term in variables)]
+        relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
+        return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
     def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
         """Get the domain for a specific variable in this constraint set"""
@@ -145,7 +143,7 @@ class ConstraintSet:
 
     def _find_mutual_inequalities(self, variables: Set['LogicalVariable'],
                                   inequalities: Set['InequalityConstraint']
-                                  ) -> Set[Set['LogicalVariable']]:
+                                  ) -> Set[FrozenSet['LogicalVariable']]:
         """Given a set of inequalities and variables that we care about,
          find every set of mutual inequalities (e.g. X != Y, Y != Z, X != Z)"""
         mutual_inequalities = set()
@@ -153,7 +151,7 @@ class ConstraintSet:
             if len(subset) < 2:
                 continue
             if self._subset_are_all_mutually_unequal(subset, inequalities):
-                mutual_inequalities.add(subset)
+                mutual_inequalities.add(frozenset(subset))
         return mutual_inequalities
 
 
@@ -477,6 +475,58 @@ class InequalityConstraint(LogicalConstraint):
     def __str__(self) -> str:
         not_equal_string = ' \u2260 '
         return f'{self.left_term}{not_equal_string}{self.right_term}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+class LessThanConstraint(LogicalConstraint):
+    """This is a constraint on two variables (e.g. Y, Z) enforcing
+    that Y < Z. This is interpreted as the natural order on the constants --
+    since the set of constants is finite, we can always pick an order.
+    NOTE: This constraint is ONLY used in the constraint sets of NNF nodes,
+    so doesn't need any functionality"""
+
+    def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
+
+    @property
+    def left_term(self) -> 'LogicalVariable':
+        return self.terms[0]
+
+    @property
+    def right_term(self) -> 'LogicalVariable':
+        return self.terms[1]
+
+    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        """
+        raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
+
+    def contains_contradiction(self) -> bool:
+        """Does this constraint contain an obvious contradiction?
+        For InequalityConstraint, this means checking if the two sides are the same term"""
+        raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
+
+
+
+    def __eq__(self, other: Any) -> bool:
+        """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
+        if not isinstance(other, LessThanConstraint):
+            return False
+        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
+        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
+        return same_way or flipped
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between EqualityConstraints and InequalityConstraints"""
+        return super().__hash__()
+
+    def __str__(self) -> str:
+        less_than_string = ' < '
+        return f'{self.left_term}{less_than_string}{self.right_term}'
 
     def __repr__(self) -> str:
         return self.__str__()

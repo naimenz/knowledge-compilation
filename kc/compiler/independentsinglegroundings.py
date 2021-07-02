@@ -31,11 +31,11 @@ class IndependentSingleGroundings(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', root_unifying_class: 'VariableEquivalenceClass', compiler: 'Compiler') -> 'NNFNode':
         """Apply IndependentSingleGroundings and return an NNFNode"""
-        new_variable = cnf.get_new_logical_variable()
+        new_variable = cnf.get_new_logical_variable('X')
         root_substitution_pairs = [(root_var, new_variable) for root_var in root_unifying_class]
         substitution = Substitution(root_substitution_pairs)
         new_cnf = cls._substitute_root_vars(cnf, new_variable, substitution)
-        new_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, new_variable, substitution)
+        new_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, substitution)
         return ForAllNode(compiler.compile(new_cnf), [new_variable], new_variable_cs)
 
 
@@ -48,7 +48,7 @@ class IndependentSingleGroundings(KCRule):
         # NOTE: all clauses are constrained (since must have at least one bound var)
         for clause in cnf.c_clauses:
             new_literals = [literal.apply_substitution(sub) for literal in clause.literals]
-            new_cs = clause.cs.apply_substitution(sub).drop_constraints_involving_only(new_variable)
+            new_cs = clause.cs.apply_substitution(sub).drop_constraints_involving_only_specific_variables([new_variable])
             _new_bound_vars = [sub[var] for var in clause.bound_vars if sub[var] != new_variable]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
@@ -60,13 +60,12 @@ class IndependentSingleGroundings(KCRule):
     def _get_new_variable_cs(cls,
                              cnf: 'CNF',
                              root_unifying_class: 'VariableEquivalenceClass',
-                             new_variable: 'LogicalVariable',
                              sub: 'Substitution'
                              ) -> 'ConstraintSet':
         """Return a constraint set for the new variable that has the same solutions as the root unifying variables"""
         # we only loop once to get a clause from the cnf
         for clause in cnf.c_clauses: break
-        # should only be 1
+        # must only be one root variable in the intersection
         root_variable = list(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
         new_cs = ConstraintSet(set_constraints)
