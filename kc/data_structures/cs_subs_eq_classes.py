@@ -381,8 +381,8 @@ class EqualityConstraint(LogicalConstraint):
     def __eq__(self, other: Any) -> bool:
         """Two equality constraints are equal if they mention the same terms (note the order doesn't matter)"""
         return isinstance(other, EqualityConstraint) \
-               and (self.left_term == other.left_term and self.right_term == other.right_term) \
-               and (self.left_term == other.right_term and self.right_term == other.left_term)
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -450,8 +450,8 @@ class InequalityConstraint(LogicalConstraint):
     def __eq__(self, other: Any) -> bool:
         """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
         return isinstance(other, InequalityConstraint) \
-               and (self.left_term == other.left_term and self.right_term == other.right_term) \
-               and (self.left_term == other.right_term and self.right_term == other.left_term)
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -504,8 +504,8 @@ class LessThanConstraint(LogicalConstraint):
     def __eq__(self, other: Any) -> bool:
         """Two less-than constraints are equal if they mention the same terms (note the order doesn't matter)"""
         return isinstance(other, LessThanConstraint) \
-               and (self.left_term == other.left_term and self.right_term == other.right_term) \
-               and (self.left_term == other.right_term and self.right_term == other.left_term)
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
