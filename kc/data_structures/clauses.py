@@ -269,18 +269,6 @@ class ConstrainedClause(Clause):
         TODO: check whether clauses can be contradictions"""
         return False
 
-
-    def is_independent_from_other_clause(self, other_clause: 'Clause') -> bool:
-        """Is this clause independent of the other clause?"""
-        if self.has_no_literals() or other_clause.has_no_literals():
-            return True
-
-        for c_atom in self.get_constrained_atoms():
-            for other_c_atom in other_clause.get_constrained_atoms():
-                if c_atom.constrained_atoms_unify(other_c_atom):
-                    return False
-        return True
-
     def has_no_literals(self) -> bool:
         """This is called "isConditionalContradiction" in Forclift.
         I think this means that the clause contains no literals and so
