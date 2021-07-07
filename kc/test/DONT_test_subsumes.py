@@ -1,5 +1,6 @@
 """Subsumption is hard.
- This file contains a number of test cases for figuring out how it should be calculated"""
+ This file contains a number of test cases for figuring out how it should be calculated
+ NOTE: I think this file is useless because I've removed is_subsumed_by_clause"""
 
 from kc.data_structures import *
 

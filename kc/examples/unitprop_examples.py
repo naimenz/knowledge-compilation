@@ -46,6 +46,9 @@ cs1 = ConstraintSet([X1inPeople, Y1inPeople])
 cs_u = ConstraintSet([X2inPeople])
 
 clause = ConstrainedClause([friendsXY, dislikesXY], [X2, X, Y], cs)
+print(f'Before prop: {clause = }')
+print(f'After prop: {clause.propagate_equality_constraints() = }')
+
 clause1 = ConstrainedClause([~friendsX1Y1, likesX1Y1], [X1, Y1], cs1)
 unitclause = ConstrainedClause([friendsX2X2], [X2], cs_u)
 

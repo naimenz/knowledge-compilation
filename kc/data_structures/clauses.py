@@ -18,13 +18,20 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClasses
 
-# Type variable for arbitrary clauses so I can reuse apply_substitution
+# Type variable for arbitrary clauses so I can reuse substitute
 C = TypeVar('C', bound='ConstrainedClause') 
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
     def __init__(self, literals: Iterable['Literal']) -> None:
         self.literals = frozenset(literals)
+
+    @abstractmethod
+    def propagate_equality_constraints(self: 'Clause') -> 'Clause':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence.
+        NOTE: this is only important for ConstrainedClauses, but needs to be callable on both"""
+        pass
 
     @abstractmethod
     def substitute(self: 'Clause', substitution: 'Substitution') -> 'Clause':
@@ -59,17 +66,13 @@ class Clause(ABC):
         return True
 
     # TODO: this may be wrong, may need every literal to subsume another
-    def is_subsumed_by_clause(self, subsumer: 'Clause') -> bool:
-        """Returns true if this Clause is subsumed by the other.
-        We do this by looking at constrained atoms -- if ANY literal in the subsumer
-        subsumes ANY literal in self, then it is subsumed (because disjunction).
-        NOTE: This is only as correct as 'is_subsumed_by_c_atom' is."""
+    def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
+        """Returns true if this Clause is subsumed by the constrained literal."""
         if self.has_no_literals():
             return True
 
         for c_literal in self.get_constrained_literals():
-            for other_c_literal in subsumer.get_constrained_literals():
-                if c_literal.is_subsumed_by_literal(other_c_literal):
+                if c_literal.is_subsumed_by_literal(subsumer):
                     return True
         return False
 
@@ -181,7 +184,11 @@ class UnconstrainedClause(Clause):
         empty_cs = ConstraintSet([])
         return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
-    # TODO:  maybe change name to substitute?
+    def propagate_equality_constraints(self: 'UnconstrainedClause') -> 'UnconstrainedClause':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence."""
+        return self
+
     def substitute(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
         """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
         return self.__class__(literal.substitute(substitution) for literal in self.literals)
@@ -218,14 +225,27 @@ class ConstrainedClause(Clause):
 
     def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
-        NOTE: assumes that the bound vars aren't substituted"""
+        NOTE: assumes that the bound vars aren't substituted with constants"""
         new_literals = [literal.substitute(substitution) for literal in self.literals]
         new_cs = self.cs.substitute(substitution)
-        new_bound_vars = [substitution[var] for var in self.bound_vars]
-        assert(all(isinstance(term, LogicalVariable) for term in new_bound_vars)) # should not have constants in bound vars
-        bound_vars = cast(List['LogicalVariable'], new_bound_vars) # hack for type checking
-        return self.__class__(new_literals, bound_vars, new_cs)
+        _new_bound_vars = [substitution[var] for var in self.bound_vars]
+        assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) # should not have constants in bound vars
+        new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
+        return self.__class__(new_literals, new_bound_vars, new_cs)
 
+    def propagate_equality_constraints(self: 'C') -> 'C':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence."""
+        var_eq_classes = self.cs.get_var_eq_classes()
+        sub = var_eq_classes.to_substitution()
+        # repeatedly apply the substitution until convergence
+        old_clause = self
+        while True:
+            new_clause = old_clause.substitute(sub)
+            if new_clause != old_clause:
+                old_clause = new_clause
+            else:
+                return new_clause
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:

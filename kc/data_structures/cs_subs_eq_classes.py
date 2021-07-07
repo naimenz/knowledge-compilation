@@ -183,6 +183,7 @@ class ConstraintSet:
         final_eq_classes = initial_eq_classes.make_self_consistent()
         return final_eq_classes
 
+
     def get_logical_variables(self) -> Set['LogicalVariable']:
         """Extract just the variables from each constraint in the constraint set"""
         logical_variables: Set['LogicalVariable'] = set()
@@ -550,7 +551,7 @@ class InclusionConstraint(SetConstraint):
                     return EmptyConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
                     return FalseConstraint(f'{new_logical_term} not in {self.domain_term}')
-            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
+            raise ValueError('Cannot yet handle DomainTerm in substitute')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return InclusionConstraint(logical_var, self.domain_term)
@@ -618,7 +619,7 @@ class NotInclusionConstraint(SetConstraint):
                     return FalseConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
                     return EmptyConstraint(f'{new_logical_term} not in {self.domain_term}')
-            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
+            raise ValueError('Cannot yet handle DomainTerm in substitute')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return NotInclusionConstraint(logical_var, self.domain_term)

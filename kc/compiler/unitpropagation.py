@@ -64,10 +64,14 @@ class UnitPropagation(KCRule):
         gamma_mgu: 'Clause'
         if cs_mgu.is_satisfiable():
             if joint_variables or cs_mgu.is_non_empty(): 
-                gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu)
+                # NOTE DEBUG: before splitting, try propagating equality constraints
+                gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu).propagate_equality_constraints()
+                # NOTE DEBUG: checking satisfiability first
+                if gamma_mgu.cs.is_satisfiable():
+                    return_clauses += cls.split(gamma_mgu, A)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
-            return_clauses += cls.split(gamma_mgu, A)
+                return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
         for e in cs_theta.join(cs_A):
@@ -77,11 +81,16 @@ class UnitPropagation(KCRule):
             gamma_rest: 'Clause'
             if cs_rest.is_satisfiable():
                 if joint_variables or cs_rest.is_non_empty():
-                    gamma_rest = ConstrainedClause(gamma.literals, joint_variables, cs_rest)
+                    # NOTE DEBUG: before splitting, try propagating equality constraints
+                    gamma_rest = ConstrainedClause(gamma.literals, joint_variables, cs_rest).propagate_equality_constraints()
+                    # NOTE DEBUG: checking satisfiability first
+                    # NOTE: splitting the gamma_rests recursively as we build them
+                    if gamma_rest.cs.is_satisfiable():
+                        return_clauses += cls.split(gamma_rest, A)
                 else:
                     gamma_rest = UnconstrainedClause(gamma.literals)
-                # NOTE: splitting the gamma_rests recursively as we build them
-                return_clauses += cls.split(gamma_rest, A)
+                    # NOTE: splitting the gamma_rests recursively as we build them
+                    return_clauses += cls.split(gamma_rest, A)
 
         return return_clauses
 
@@ -90,7 +99,7 @@ class UnitPropagation(KCRule):
         """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'literal'.
         NOTE: assumes that gamma is split wrt the atom in 'literal'
         TODO: currently assuming there are no free or domain variables present."""
-        if gamma.is_subsumed_by_clause(c_literal): # gamma is redundant when we have 'literal'
+        if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
             return None
         else:
             necessary_literals = cls._discard_unsatisfied_literals(gamma, c_literal)
