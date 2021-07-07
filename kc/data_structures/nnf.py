@@ -3,12 +3,12 @@
 
 from abc import ABC, abstractmethod
 
-from typing import Iterable, List, Set
+from typing import Iterable, List, Set, Union
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import ConstraintSet, LogicalVariable, Literal
+    from kc.data_structures import ConstraintSet, LogicalVariable, Literal, DomainVariable
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
@@ -54,7 +54,7 @@ class IntensionalNode(NNFNode):
     """Abstract subclass for FORALL and EXISTS nodes
     In this implementation, Intensional nodes always have exactly one child,
     and (possibly empty) bound variables and constraint sets"""
-    def __init__(self, child: 'NNFNode', bound_vars: Iterable['LogicalVariable'], cs: 'ConstraintSet') -> None:
+    def __init__(self, child: 'NNFNode', bound_vars: Iterable[Union['DomainVariable','LogicalVariable']], cs: 'ConstraintSet') -> None:
         super(IntensionalNode, self).__init__((child,))
         self.child = child
         self.bound_vars = frozenset(bound_vars)

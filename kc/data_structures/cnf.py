@@ -2,7 +2,7 @@
 Class for FO-CNF formulas.
 """
 
-from kc.data_structures import EquivalenceClasses, UnconstrainedClause, ConstrainedClause, LogicalVariable 
+from kc.data_structures import EquivalenceClasses, UnconstrainedClause, ConstrainedClause, LogicalVariable, DomainVariable
 
 from typing import List, Any, Iterable, Set
 from typing import TYPE_CHECKING
@@ -115,6 +115,14 @@ class CNF:
                 domain_terms.add(constraint.domain_term)
         return domain_terms
 
+    def get_domain_variables(self) -> Set['DomainVariable']:
+        """Get all the domain VARIABLES that appear in the cnf"""
+        domain_variables = set()
+        for clause in self.c_clauses: # u_clauses have no domain terms
+            for constraint in clause.cs.set_constraints:
+                if isinstance(constraint.domain_term, DomainVariable):
+                    domain_variables.add(constraint.domain_term)
+        return domain_variables
         
     def get_new_logical_variable(self, symbol: str) -> 'LogicalVariable':
         """Return a logical variable that does not appear in the theory.
@@ -127,10 +135,20 @@ class CNF:
             new_variable = LogicalVariable(new_variable_string)
         return new_variable
 
+    def get_new_domain_variable(self, symbol: str, parent_domain: 'DomainTerm') -> 'DomainVariable':
+        """Return a logical variable that does not appear in the theory.
+        To make it unique, take the symbol and keep adding underscores"""
+        new_variable_string = symbol
+        new_variable = DomainVariable(new_variable_string, parent_domain)
+        domain_variables = self.get_domain_variables()
+        while new_variable in domain_variables:
+            new_variable_string += '_'
+            new_variable = DomainVariable(new_variable_string, parent_domain)
+        return new_variable
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses"""
-        return isinstance(other ,CNF) and self.clauses == other.clauses
+        return isinstance(other, CNF) and self.clauses == other.clauses
 
     def __hash__(self) -> int:
         return hash(self.clauses)

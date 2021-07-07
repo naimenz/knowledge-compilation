@@ -94,7 +94,7 @@ class SetOfConstants(DomainTerm):
         """Return the set difference between this set of constants and the other
         as a SetOfConstants (if both are SetOfConstants)"""
         if not isinstance(other, SetOfConstants):
-            raise NotImplementedError('Cannot compute difference of SetOfConstants with Domainvariable')
+            raise NotImplementedError('Cannot compute difference of SetOfConstants with DomainVariable')
         new_constants = self.constants - other.constants
         return SetOfConstants(new_constants)
 
@@ -132,6 +132,10 @@ class DomainVariable(DomainTerm):
     A FOL domain variable.
     """
 
+    def __init__(self, symbol: str, parent_domain: 'DomainTerm') -> None:
+        self.symbol = symbol
+        self.parent_domain = parent_domain
+
     def difference(self, other: 'DomainTerm') -> 'DomainTerm':
         """Get the difference between this domain variable and another domain TERM"""
         raise NotImplementedError()
@@ -140,9 +144,6 @@ class DomainVariable(DomainTerm):
         """Return the size of this DomainVariable
         TODO: Work out what this means in practice"""
         raise NotImplementedError()
-
-    def __init__(self, symbol: str) -> None:
-        self.symbol = symbol
 
     def __eq__(self, other: Any) -> bool:
         """I do not yet know when two domain variables should be equal.
