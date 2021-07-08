@@ -3,7 +3,8 @@ from kc.data_structures import *
 
 def test_is_not_trivial():
     X = LogicalVariable('X')
-    Y = LogicalVariable('Y') alice = Constant('alice')
+    Y = LogicalVariable('Y') 
+    alice = Constant('alice')
     bob = Constant('bob')
     charlie = Constant('charlie')
     dog = Constant('dog')
@@ -48,9 +49,9 @@ def test_get_bound_variable_inequalities():
     pXY = Literal(Atom(p, [X, Y]))
     pXZ = Literal(Atom(p, [X, Z]))
 
-    XeqY = InequalityConstraint(X, Y)
-    XeqZ = InequalityConstraint(X, Z)
-    YeqZ = InequalityConstraint(Y, Z)
+    XeqY = EqualityConstraint(X, Y)
+    XeqZ = EqualityConstraint(X, Z)
+    YeqZ = EqualityConstraint(Y, Z)
 
     cs = ConstraintSet([~XeqY, ~XeqZ, ~YeqZ])
 
@@ -68,4 +69,3 @@ def test_get_bound_variable_inequalities():
     assert(cclause2.get_bound_variable_inequalities() == target2)
     assert(cclause3.get_bound_variable_inequalities() == target3)
 
-print(test_get_bound_variable_inequalities())

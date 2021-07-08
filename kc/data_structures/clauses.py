@@ -5,7 +5,7 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint
 
 from functools import reduce
 from abc import ABC, abstractmethod
