@@ -451,7 +451,7 @@ class InequalityConstraint(LogicalConstraint):
         right_term_class = EquivalenceClass([self.right_term])
         left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
         right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
-        domain_terms_intersect = DomainTerm.intersection(left_domain, right_domain).size() > 0
+        domain_terms_intersect = DomainTerm.intersection(left_domain, right_domain).size > 0
         return domain_terms_intersect
 
     def contains_contradiction(self) -> bool:
