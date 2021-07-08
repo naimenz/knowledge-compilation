@@ -36,14 +36,10 @@ def test_get_bound_variable_inequalities():
     X = LogicalVariable('X')
     Y = LogicalVariable('Y')
     Z = LogicalVariable('Z')
+    W = LogicalVariable('W')
     alice = Constant('alice')
     bob = Constant('bob')
     charlie = Constant('charlie')
-    dog = Constant('dog')
-    cat = Constant('cat')
-    People = SetOfConstants([alice, bob, charlie])
-    Smokers = SetOfConstants([alice, bob])
-    Animals = SetOfConstants([dog, cat])
 
     p = Predicate('p', 2)
     pXY = Literal(Atom(p, [X, Y]))
@@ -65,7 +61,50 @@ def test_get_bound_variable_inequalities():
     cclause3 = ConstrainedClause([pXY, pXZ], [X, Y, Z], cs)
     target3 = set([~XeqY, ~XeqZ, ~YeqZ])
 
+    cclause4 = ConstrainedClause([pXY, pXZ], [Z, W], ConstraintSet([XeqY]))
+    target4 = set()
+
     assert(cclause1.get_bound_variable_inequalities() == target1)
     assert(cclause2.get_bound_variable_inequalities() == target2)
     assert(cclause3.get_bound_variable_inequalities() == target3)
+    assert(cclause4.get_bound_variable_inequalities() == target4)
+
+def test_get_constant_inequalities():
+    X = LogicalVariable('X')
+    Y = LogicalVariable('Y')
+    Z = LogicalVariable('Z')
+    W = LogicalVariable('W')
+    alice = Constant('alice')
+    bob = Constant('bob')
+    charlie = Constant('charlie')
+
+    People = SetOfConstants([alice, bob, charlie])
+
+    p = Predicate('p', 2)
+    pXY = Literal(Atom(p, [X, Y]))
+    pXZ = Literal(Atom(p, [X, Z]))
+
+    Xeqa = InclusionConstraint(X, SetOfConstants([alice]))
+    Yeqb = InclusionConstraint(Y, SetOfConstants([bob]))
+    Zeqc = InclusionConstraint(Z, SetOfConstants([charlie]))
+    XinPeople = InclusionConstraint(X, People)
+
+    cs = ConstraintSet([~Xeqa, ~Yeqb, ~Zeqc, ~XinPeople])
+
+    cclause1 = ConstrainedClause([pXY, pXZ], [X, Y], cs)
+    target1 = set([~Xeqa, ~Yeqb])
+
+    cclause2 = ConstrainedClause([pXY, pXZ], [X, Z], cs)
+    target2 = set([~Xeqa, ~Zeqc])
+
+    cclause3 = ConstrainedClause([pXY, pXZ], [X, Y, Z], cs)
+    target3 = set([~Xeqa, ~Yeqb, ~Zeqc])
+
+    cclause4 = ConstrainedClause([pXY, pXZ], [W], cs)
+    target4 = set()
+
+    assert(cclause1.get_constant_inequalities() == target1)
+    assert(cclause2.get_constant_inequalities() == target2)
+    assert(cclause3.get_constant_inequalities() == target3)
+    assert(cclause4.get_constant_inequalities() == target4)
 

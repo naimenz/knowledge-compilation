@@ -5,7 +5,7 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants
 
 from functools import reduce
 from abc import ABC, abstractmethod
@@ -276,7 +276,9 @@ class ConstrainedClause(Clause):
         for constraint in self.cs.set_constraints:
             if isinstance(constraint, NotInclusionConstraint):
                 domain_term = constraint.domain_term
-                if isinstance(domain_term, SetOfConstants) and domain_term.size() == 1:
+                if isinstance(domain_term, SetOfConstants) \
+                and domain_term.size == 1 \
+                and constraint.logical_term in self.bound_vars:
                     ineq_constraints.add(constraint)
         return ineq_constraints
 
