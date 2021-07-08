@@ -42,6 +42,14 @@ class UnitPropagation(KCRule):
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
+    def atoms_need_splitting(cls, this_atom: 'ConstrainedAtom', other_atom: 'ConstrainedAtom') -> bool:
+        """Does this_atom need splitting with respect to other_atom?
+         Returns True if it does, and False otherwise."""
+        mgu_eq_classes = this_atom.get_constrained_atom_mgu_eq_classes(other_atom)
+        independent = True if mgu_eq_classes is None else False
+        return not independent and other_atom.does_not_subsume(this_atom, mgu_eq_classes)
+
+    @classmethod
     def split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
         """Split the constrained clause gamma with respect to the constrained atom A.
         Returns a sequence of constrained clauses that are split with respect to a"""

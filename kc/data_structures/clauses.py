@@ -268,6 +268,29 @@ class ConstrainedClause(Clause):
                     logical_variables.add(term)
         return logical_variables
 
+    # TODO: THINK ABOUT FREE VARIABLE CASE
+    def get_constant_inequalities(self) -> Set['NotInclusionConstraint']:
+        """Get inequalities that are between a bound variable and a constant in this clause.
+        NOTE: these will be NotInclusionConstraints because of how I've implemented those"""
+        ineq_constraints = set()
+        for constraint in self.cs.set_constraints:
+            if isinstance(constraint, NotInclusionConstraint):
+                domain_term = constraint.domain_term
+                if isinstance(domain_term, SetOfConstants) and domain_term.size() == 1:
+                    ineq_constraints.add(constraint)
+        return ineq_constraints
+
+    # TODO: THINK ABOUT FREE VARIABLE CASE
+    def get_bound_variable_inequalities(self) -> Set['InequalityConstraint']:
+        """Get inequalities that are between bound variables in this clause"""
+        ineq_constraints = set()
+        for constraint in self.cs.logical_constraints:
+            if isinstance(constraint, InequalityConstraint):
+                if constraint.left_term in self.bound_vars and constraint.right_term in self.bound_vars:
+                    ineq_constraints.add(constraint)
+        return ineq_constraints
+
+
     def is_tautology(self) -> bool:
         """Is this clause always true? For now, just check if
         its constrainst set is satisfiable and it contains a literal
@@ -434,6 +457,45 @@ class ConstrainedAtom(UnitClause):
         """Return true if this c-atom (self) is independent of, or subsumed by, the subsumer.
         NOTE: This function is only as correct as 'is_subsumed_by_c_atom'."""
         return self.is_independent_from_other_clause(subsumer) or self.is_subsumed_by_c_atom(subsumer)
+
+    def subsumes(self, other: 'ConstrainedAtom') -> bool:
+        """Does this atom (self) subsume the other atom (other)?
+        We check this as they do in Forclift - checking if the atoms are split with respect to each other"""
+        return self.needs_splitting(other) and not other.needs_splitting(self)
+
+    def needs_splitting(self, other: 'ConstrainedAtom') -> bool:
+        """Does this atom (self) need splitting with respect to the other atom (other)?
+         Returns True if it does, and False otherwise."""
+        mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
+        independent = True if mgu_eq_classes is None else False
+        return not independent and other.does_not_subsume(self, mgu_eq_classes)
+
+    def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:
+        """Returns True if this ConstrainedAtom (self) does NOT subsume the other ConstrainedAtom (other) """
+        mgu_substitution = mgu_eq_classes.to_substitution()
+        this_atom = self.substitute(mgu_substitution)
+        other_atom = other.substitute(mgu_substitution)
+        if any(len(eq_class.constants) > 0
+               and len(eq_class.variables.intersection(this_atom.bound_vars)) > 0
+               for eq_class in mgu_eq_classes):
+            print(1)
+            return True
+        elif any(len(eq_class.variables.intersection(this_atom.bound_vars)) >= 2
+                 for eq_class in mgu_eq_classes):
+            print(2)
+            return True
+        elif any(inequality not in this_atom.get_constant_inequalities()
+                 for inequality in other_atom.get_constant_inequalities()):
+            print(3)
+            return True
+        elif any(inequality not in this_atom.get_bound_variable_inequalities()
+                 and inequality.is_not_trivial_in(other_atom)
+                 for inequality in other_atom.get_bound_variable_inequalities()):
+            print(4)
+            return True
+        else:
+            return False
+
 
     # TODO: Continue improving this function to work in more cases.
     def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:

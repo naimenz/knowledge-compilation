@@ -443,6 +443,17 @@ class InequalityConstraint(LogicalConstraint):
             right_var = cast('LogicalVariable', new_right_term) # hack for type checking
             return InequalityConstraint(left_var, right_var)
 
+    def is_not_trivial(self, c_atom: 'ConstrainedAtom') -> bool:
+        """Is this inequality constraint between variables 'trivial' given the domains
+        of its variables? I.e. the constraint is trivial if the domains of the variables do not overlap,
+        so they could never be equal anyway"""
+        left_term_class = EquivalenceClass([self.left_term])
+        right_term_class = EquivalenceClass([self.right_term])
+        left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
+        right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
+        domain_terms_intersect = DomainTerm.intersection(left_domain, right_domain).size() > 0
+        return domain_terms_intersect
+
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
         For InequalityConstraint, this means checking if the two sides are the same term"""
