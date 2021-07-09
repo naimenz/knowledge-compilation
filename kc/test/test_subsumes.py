@@ -7,6 +7,8 @@ Y = LogicalVariable('Y')
 Z = LogicalVariable('Z')
 W = LogicalVariable('W')
 
+F = LogicalVariable('F')
+
 alice = Constant('alice')
 bob = Constant('bob')
 charlie = Constant('charlie')
@@ -38,6 +40,9 @@ pZa = Literal(Atom(p, [Z, alice]))
 XeqY = EqualityConstraint(X, Y)
 XeqZ = EqualityConstraint(X, Z)
 YeqZ = EqualityConstraint(Y, Z)
+
+XeqF = EqualityConstraint(X, F)
+ZeqF = EqualityConstraint(Z, F)
 
 Xeqa = InclusionConstraint(X, SetOfConstants([alice]))
 Yeqa = InclusionConstraint(Y, SetOfConstants([alice]))
@@ -172,6 +177,20 @@ def test_does_not_subsume3():
     catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~Zeqa]))
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
     assert(catom1.does_not_subsume(catom3, mgu) != "3")
+    assert(catom3.does_not_subsume(catom1, mgu) != "3")
+
+def test_does_not_subsume3_free_vars():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~XeqF]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom2.does_not_subsume(catom1, mgu) != "3")
+
+    catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~ZeqF]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom1.does_not_subsume(catom3, mgu) != "3")
+    assert(catom3.does_not_subsume(catom1, mgu) != "3")
 
 def test_does_not_subsume4():
     catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~XeqY]))
