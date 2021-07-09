@@ -204,3 +204,25 @@ def test_does_not_subsume4():
     catom4 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinAnimals]))
     mgu = catom3.get_constrained_atom_mgu_eq_classes(catom4)
     assert(catom3.does_not_subsume(catom4, mgu) != "4")
+
+def test_example_4_2():
+    """This is Example 4.2 from the PhD, and it poses a problem, because
+    it is not handled by the does_not_subsume function"""
+    # the relevant c_atom from gamma
+    X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
+    X1 = LogicalVariable('X1')
+    a, b, c = Constant('a'), Constant('b'), Constant('c')
+    D = SetOfConstants([a, b, c])
+    p = Predicate('p', 1)
+    pX = Literal(Atom(p, [X]))
+    pX1 = Literal(Atom(p, [X1]))
+
+    XinD = InclusionConstraint(X, D)
+    X1inD = InclusionConstraint(X1, D)
+    YeqZ = EqualityConstraint(Y, Z)
+    a_gamma = ConstrainedAtom([pX], [X], ConstraintSet([XinD]))
+    aa = ConstrainedAtom([pX1], [X1], ConstraintSet([X1inD, ~YeqZ]))
+
+    mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
+    assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    assert(a_gamma.does_not_subsume(aa, mgu) == False)
