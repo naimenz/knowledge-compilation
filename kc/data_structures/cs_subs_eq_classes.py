@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import CNF, LogicalVariable, LogicalTerm
+    from kc.data_structures import CNF, LogicalVariable, LogicalTerm, ConstrainedAtom
 
 VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
 TEC = TypeVar('TEC', bound='EquivalenceClass') # this is a type var so I can work with eq classes or var eq classes
@@ -318,6 +318,11 @@ class FalseConstraint(Constraint):
     def contains_contradiction(self) -> bool:
         """Always contains a contradiction because it's always false"""
         return True
+
+    def __eq__(self, other: Any) -> bool:
+        """Any two FalseConstraints are effectively equal.
+        They could differ in debug message but this is not important"""
+        return isinstance(other, FalseConstraint)
 
     def __hash__(self) -> int:
         """All EmptyConstraints are the same"""
