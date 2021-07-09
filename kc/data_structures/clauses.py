@@ -225,11 +225,13 @@ class ConstrainedClause(Clause):
 
     def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
-        NOTE: assumes that the bound vars aren't substituted with constants"""
+        NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
         new_literals = [literal.substitute(substitution) for literal in self.literals]
         new_cs = self.cs.substitute(substitution)
-        _new_bound_vars = [substitution[var] for var in self.bound_vars]
-        assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) # should not have constants in bound vars
+        # NOTE: 
+        _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
+        ## allowing substitution of constants to bound vars at the moment
+        # assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) 
         new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
         return self.__class__(new_literals, new_bound_vars, new_cs)
 
@@ -469,32 +471,41 @@ class ConstrainedAtom(UnitClause):
         """Does this atom (self) need splitting with respect to the other atom (other)?
          Returns True if it does, and False otherwise."""
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
-        independent = True if mgu_eq_classes is None else False
-        return not independent and other.does_not_subsume(self, mgu_eq_classes)
+        # check for independence
+        if mgu_eq_classes is None:
+            return False
+        # check for subsumption
+        else:
+            return other.does_not_subsume(self, mgu_eq_classes)
 
     def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:
-        """Returns True if this ConstrainedAtom (self) does NOT subsume the other ConstrainedAtom (other) """
+        """Returns True if this ConstrainedAtom (self) does NOT subsume the
+        other ConstrainedAtom (other) 
+        NOTE: We apply the mgu as a substitution to the atoms so that they can
+        be directly compared.  However, the EquivalenceClasses still refer to
+        the pre-substitution atoms, so we mix and match"""
+
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
         other_atom = other.substitute(mgu_substitution)
         # DEBUG TODO: switch this back to returning True instead of numbers
         if any(len(eq_class.constants) > 0
-               and len(eq_class.variables.intersection(this_atom.bound_vars)) > 0
+               and len(eq_class.variables.intersection(other.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
-            return 1
+            return "1"
             return True
-        elif any(len(eq_class.variables.intersection(this_atom.bound_vars)) >= 2
+        elif any(len(eq_class.variables.intersection(other.bound_vars)) >= 2
                  for eq_class in mgu_eq_classes):
-            return 2
+            return "2"
             return True
-        elif any(inequality not in this_atom.get_constant_inequalities()
-                 for inequality in other_atom.get_constant_inequalities()):
-            return 3
+        elif any(inequality not in other_atom.get_constant_inequalities()
+                 for inequality in this_atom.get_constant_inequalities()):
+            return "3"
             return True
-        elif any(inequality not in this_atom.get_bound_variable_inequalities()
-                 and inequality.is_not_trivial_in(other_atom)
-                 for inequality in other_atom.get_bound_variable_inequalities()):
-            return 4
+        elif any(inequality not in other_atom.get_bound_variable_inequalities()
+                 and inequality.is_not_trivial(this_atom)
+                 for inequality in this_atom.get_bound_variable_inequalities()):
+            return "4"
             return True
         else:
             return False

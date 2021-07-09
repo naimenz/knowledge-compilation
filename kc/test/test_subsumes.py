@@ -112,8 +112,9 @@ def test_does_not_subsume1():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == 1)
-    assert(catom1.does_not_subsume(catom2, mgu) != 1)
+    assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom2.does_not_subsume(catom1, mgu) != "1")
 
     catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
+    assert(catom2.does_not_subsume(catom3, mgu) != "1")
 
