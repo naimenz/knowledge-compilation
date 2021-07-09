@@ -416,8 +416,8 @@ class UnitClause(ConstrainedClause):
         """Check subsumption of literals.
         This is the same as for atoms but with an additional check of their polarities"""
         if self.literal.polarity == subsumer.literal.polarity \
-          and self.to_c_atom().is_subsumed_by_c_atom(subsumer.to_c_atom()):
-                return True
+        and subsumer.to_c_atom().subsumes(self.to_c_atom()):
+            return True
         return False
 
 
@@ -472,8 +472,8 @@ class ConstrainedAtom(UnitClause):
 
     def independent_or_subsumed_by(self, subsumer: 'ConstrainedAtom') -> bool:
         """Return true if this c-atom (self) is independent of, or subsumed by, the subsumer.
-        NOTE: This function is only as correct as 'is_subsumed_by_c_atom'."""
-        return self.is_independent_from_other_clause(subsumer) or self.is_subsumed_by_c_atom(subsumer)
+        NOTE: This function is only as correct as '.subsumes' is."""
+        return self.is_independent_from_other_clause(subsumer) or subsumer.subsumes(self)
 
     def subsumes(self, other: 'ConstrainedAtom') -> bool:
         """Does this atom (self) subsume the other atom (other)?
@@ -507,7 +507,7 @@ class ConstrainedAtom(UnitClause):
                 len(eq_class.constants) > 0 
                 or len(eq_class.variables.intersection(other.get_free_variables())) > 0
                 or len(eq_class.variables.intersection(self.get_free_variables())) > 0
-                )
+               )
                and len(eq_class.variables.intersection(other.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
             return "1"
@@ -527,71 +527,4 @@ class ConstrainedAtom(UnitClause):
             return True
         else:
             return False
-
-
-    # TODO: Continue improving this function to work in more cases.
-    def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:
-        """Does the subsumer (A) subsume this c_atom, the subsumed (B)?
-        NOTE: This is a work in progress, and currently uses the following (incomplete) rules:
-        1) A and B must unify, producing equivalence classes.
-        2) Each equivalence class between a variable X in A and a constant c in B must have
-        c in the shared domain for X (after processing inequality constraints)
-        3) For each equivalence class, its shared domain in B must be a subset of its shared domain in A.
-        4) Each equivalence class must contain only ONE term from B.
-        5) FOR NOW: A free variable anywhere in A breaks subsumption. 
-        A free variable in the constraint set of B does not, but a free variable in its atom does. 
-        (THIS IS WRONG, BUT IS A FIRST DRAFT)
-        The main change I want to make is to check if both clauses contain equivalent free
-        variables, but checking this is hard, especially for the constraint set
-        """
-        # aliases because this is how I've been using them in my notes
-        A, B = subsumer, self
-        # TODO: remove this hack of checking for equality, which only works some of the time
-        # if A == B:
-        #     return True
-        eq_classes = A.get_constrained_atom_mgu_eq_classes(B)
-        # 1)
-        if eq_classes is None:
-            print("DEBUG: Didn't unify")
-            return False
-        for eq_class in eq_classes:
-            var_eq_class = eq_class.get_variables_only()
-            A_shared_domain = var_eq_class.get_shared_domain_from_cs(A.cs)
-            B_shared_domain = var_eq_class.get_shared_domain_from_cs(B.cs)
-
-            # 2) - this is a long, potentially slow check TODO: make it neater
-            for eq_term in eq_class:
-                if isinstance(eq_term, Constant):
-                    for i, arg_term in enumerate(B.atom.terms):
-                        if eq_term == arg_term and isinstance(A.atom.terms[i], LogicalVariable):
-                            if not eq_term in A_shared_domain:
-                                print(f'DEBUG: Constant {eq_term} not in {A_shared_domain=}')
-                                return False
-
-            # 3)
-            if not B_shared_domain.is_subset_of(A_shared_domain):
-                print(f'DEBUG: {B_shared_domain=} is not a subset of {A_shared_domain=}')
-                return False
-
-            # 4)
-            if len(eq_class.members.intersection(B.literal_variables)) > 1:
-                print(f'DEBUG: {eq_class=} and {B.literal_variables=} overlap in more than one place')
-                return False
-
-        # 5)
-        A_free_variables = A.all_variables.difference(A.bound_vars)
-        if len(A_free_variables) > 0:
-            print(f'DEBUG: {A_free_variables=}')
-            return False
-
-        B_literal_free_variables = B.literal_variables.difference(B.bound_vars)
-        if len(B_literal_free_variables) > 0:
-            print(f'DEBUG: {B_literal_free_variables=}')
-            print(B.literal_variables)
-            print(B.bound_vars)
-            return False
-
-        return True
-
-
 
