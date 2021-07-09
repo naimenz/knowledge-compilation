@@ -205,6 +205,46 @@ def test_does_not_subsume4():
     mgu = catom3.get_constrained_atom_mgu_eq_classes(catom4)
     assert(catom3.does_not_subsume(catom4, mgu) != "4")
 
+
+def test_example_4_1():
+    kiwi = Constant('kiwi')
+    penguin = Constant('penguin')
+    dog = Constant('dog')
+    pigeon = Constant('pigeon')
+
+    Animal = SetOfConstants([kiwi, penguin, pigeon, dog])
+    Bird = SetOfConstants([kiwi, penguin, pigeon])
+
+    X = LogicalVariable('X')
+    X1 = LogicalVariable('X1')
+
+    flies = Predicate('flies', 1)
+    haswings = Predicate('haswings', 1)
+
+    fliesX = Literal(Atom(flies, [X]))
+    haswingsX = Literal(Atom(haswings, [X])) 
+    fliesX1 = Literal(Atom(flies, [X1]))
+    haswingsX1 = Literal(Atom(haswings, [X1]))
+
+    Xeqkiwi = EqualityConstraint(X, kiwi)
+    X1eqpenguin = EqualityConstraint(X1, penguin)
+    XinAnimal = InclusionConstraint(X, Animal)
+    X1inBird = InclusionConstraint(X1, Bird)
+
+    cs_gamma = ConstraintSet([~Xeqkiwi, XinAnimal])
+    cs_a = ConstraintSet([~X1eqpenguin, X1inBird])
+
+    a_gamma = ConstrainedAtom([fliesX], [X], cs_gamma)
+    aa = ConstrainedAtom([fliesX1], [X1], cs_a)
+
+    mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
+
+    print(aa.does_not_subsume(a_gamma, mgu))
+    print(a_gamma.does_not_subsume(aa, mgu))
+    assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    assert(a_gamma.does_not_subsume(aa, mgu) in ["1", "2", "3", "4"])
+
+
 def test_example_4_2():
     """This is Example 4.2 from the PhD, and it poses a problem, because
     it is not handled by the does_not_subsume function"""
@@ -226,3 +266,5 @@ def test_example_4_2():
     mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
     assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
     assert(a_gamma.does_not_subsume(aa, mgu) == False)
+
+
