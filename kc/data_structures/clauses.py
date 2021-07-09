@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClasses
+    from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClasses, Constraint
 
 # Type variable for arbitrary clauses so I can reuse substitute
 C = TypeVar('C', bound='ConstrainedClause') 
@@ -228,7 +228,6 @@ class ConstrainedClause(Clause):
         NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
         new_literals = [literal.substitute(substitution) for literal in self.literals]
         new_cs = self.cs.substitute(substitution)
-        # NOTE: 
         _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
         ## allowing substitution of constants to bound vars at the moment
         # assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) 
@@ -270,21 +269,36 @@ class ConstrainedClause(Clause):
                     logical_variables.add(term)
         return logical_variables
 
-    # TODO: THINK ABOUT FREE VARIABLE CASE
-    def get_constant_inequalities(self) -> Set['NotInclusionConstraint']:
-        """Get inequalities that are between a bound variable and a constant in this clause.
-        NOTE: these will be NotInclusionConstraints because of how I've implemented those"""
-        ineq_constraints = set()
-        for constraint in self.cs.set_constraints:
-            if isinstance(constraint, NotInclusionConstraint):
-                domain_term = constraint.domain_term
-                if isinstance(domain_term, SetOfConstants) \
-                and domain_term.size == 1 \
-                and constraint.logical_term in self.bound_vars:
-                    ineq_constraints.add(constraint)
-        return ineq_constraints
+    def get_free_variables(self) -> Set['LogicalVariable']:
+        """Extract just the free variables from this clause"""
+        free_variables: Set['LogicalVariable'] = set()
+        for variable in self.constraint_variables.union(self.literal_variables):
+            if variable not in self.bound_vars:
+                free_variables.add(variable)
+        return free_variables
 
     # TODO: THINK ABOUT FREE VARIABLE CASE
+    def get_constant_or_free_inequalities(self) -> Set['Constraint']:
+        """Get inequalities that are between a bound variable and a constant OR FREE VARIABLE in this clause.
+        NOTE: these will be NotInclusionConstraints because of how I've implemented those
+        NOTE 2: For now, just treating free variables exactly like constnats"""
+        ineq_constraints: Set['Constraint'] = set()
+        # get constant inequalities
+        for set_constraint in self.cs.set_constraints:
+            if isinstance(set_constraint, NotInclusionConstraint):
+                domain_term = set_constraint.domain_term
+                if isinstance(domain_term, SetOfConstants) and domain_term.size == 1 and set_constraint.logical_term in self.bound_vars:
+                    ineq_constraints.add(set_constraint)
+        # get free_variable inequalities
+        free_variables = self.get_free_variables()
+        bound_variables = self.bound_vars
+        for logical_constraint in self.cs.logical_constraints:
+            if isinstance(logical_constraint, InequalityConstraint):
+                if (logical_constraint.left_term in free_variables and logical_constraint.right_term in bound_variables) \
+                or (logical_constraint.right_term in free_variables and logical_constraint.left_term in bound_variables):
+                    ineq_constraints.add(logical_constraint)
+        return ineq_constraints
+
     def get_bound_variable_inequalities(self) -> Set['InequalityConstraint']:
         """Get inequalities that are between bound variables in this clause"""
         ineq_constraints = set()
@@ -293,7 +307,6 @@ class ConstrainedClause(Clause):
                 if constraint.left_term in self.bound_vars and constraint.right_term in self.bound_vars:
                     ineq_constraints.add(constraint)
         return ineq_constraints
-
 
     def is_tautology(self) -> bool:
         """Is this clause always true? For now, just check if
@@ -483,13 +496,18 @@ class ConstrainedAtom(UnitClause):
         other ConstrainedAtom (other) 
         NOTE: We apply the mgu as a substitution to the atoms so that they can
         be directly compared.  However, the EquivalenceClasses still refer to
-        the pre-substitution atoms, so we mix and match"""
+        the pre-substitution atoms, so we mix and match.
+        NOTE 2: I am going to treat free variables exactly like constants and see what happens."""
 
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
         other_atom = other.substitute(mgu_substitution)
         # DEBUG TODO: switch this back to returning True instead of numbers
-        if any(len(eq_class.constants) > 0
+        if any(( 
+                len(eq_class.constants) > 0 
+                or len(eq_class.variables.intersection(other.get_free_variables())) > 0
+                or len(eq_class.variables.intersection(self.get_free_variables())) > 0
+                )
                and len(eq_class.variables.intersection(other.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
             return "1"
@@ -498,8 +516,8 @@ class ConstrainedAtom(UnitClause):
                  for eq_class in mgu_eq_classes):
             return "2"
             return True
-        elif any(inequality not in other_atom.get_constant_inequalities()
-                 for inequality in this_atom.get_constant_inequalities()):
+        elif any(inequality not in other_atom.get_constant_or_free_inequalities()
+                 for inequality in this_atom.get_constant_or_free_inequalities()):
             return "3"
             return True
         elif any(inequality not in other_atom.get_bound_variable_inequalities()

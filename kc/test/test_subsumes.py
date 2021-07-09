@@ -1,4 +1,6 @@
-"""Tests for the whole 'subsumes' set up for ConstrainedAtoms"""
+"""Tests for the whole 'subsumes' set up for ConstrainedAtoms
+NOTE: The does_not_subsume tests only work when the function is 
+edited to return debug strings of '1', '2', '3', '4'."""
 from kc.data_structures import *
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -31,6 +33,7 @@ pXX = Literal(Atom(p, [X, X]))
 pYY = Literal(Atom(p, [Y, Y]))
 pZZ = Literal(Atom(p, [Z, Z]))
 pXa = Literal(Atom(p, [X, alice]))
+pZa = Literal(Atom(p, [Z, alice]))
 
 XeqY = EqualityConstraint(X, Y)
 XeqZ = EqualityConstraint(X, Z)
@@ -79,7 +82,7 @@ def test_get_bound_variable_inequalities():
     assert(cclause3.get_bound_variable_inequalities() == target3)
     assert(cclause4.get_bound_variable_inequalities() == target4)
 
-def test_get_constant_inequalities():
+def test_get_constant_or_free_inequalities():
     X = LogicalVariable('X')
     Y = LogicalVariable('Y')
     Z = LogicalVariable('Z')
@@ -113,10 +116,10 @@ def test_get_constant_inequalities():
     cclause4 = ConstrainedClause([pXY, pXZ], [W], cs)
     target4 = set()
 
-    assert(cclause1.get_constant_inequalities() == target1)
-    assert(cclause2.get_constant_inequalities() == target2)
-    assert(cclause3.get_constant_inequalities() == target3)
-    assert(cclause4.get_constant_inequalities() == target4)
+    assert(cclause1.get_constant_or_free_inequalities() == target1)
+    assert(cclause2.get_constant_or_free_inequalities() == target2)
+    assert(cclause3.get_constant_or_free_inequalities() == target3)
+    assert(cclause4.get_constant_or_free_inequalities() == target4)
 
 def test_does_not_subsume1():
     catom1 = ConstrainedAtom([pXa], [X], ConstraintSet([XinPeople]))
@@ -129,6 +132,22 @@ def test_does_not_subsume1():
     catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
     mgu = catom2.get_constrained_atom_mgu_eq_classes(catom3)
     assert(catom2.does_not_subsume(catom3, mgu) != "1")
+
+def test_does_not_subsume1_free_vars():
+    catom1 = ConstrainedAtom([pXY], [X], ConstraintSet([XinPeople]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom2.does_not_subsume(catom1, mgu) != "1")
+
+    catom3 = ConstrainedAtom([pZa], [Z], ConstraintSet([ZinPeople]))
+
+    # NOTE: I'm not sure what should happen here but it passes
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom3.does_not_subsume(catom1, mgu) != "1")
+    assert(catom1.does_not_subsume(catom3, mgu) != "1")
+
 
 def test_does_not_subsume2():
     catom1 = ConstrainedAtom([pXX], [X], ConstraintSet([XinPeople]))
@@ -166,11 +185,3 @@ def test_does_not_subsume4():
     catom4 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinAnimals]))
     mgu = catom3.get_constrained_atom_mgu_eq_classes(catom4)
     assert(catom3.does_not_subsume(catom4, mgu) != "4")
-
-
-
-
-
-
-
-

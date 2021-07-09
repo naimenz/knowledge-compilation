@@ -293,6 +293,10 @@ class EmptyConstraint(Constraint):
         """Never contains a contradiction because it's always true"""
         return False
 
+    def __eq__(self, other: Any) -> bool:
+        """All EmptyConstraints are equal, because the debug message is not important"""
+        return isinstance(other, EmptyConstraint)
+
     def __hash__(self) -> int:
         """All EmptyConstraints are the same"""
         return hash('EmptyConstraint')
