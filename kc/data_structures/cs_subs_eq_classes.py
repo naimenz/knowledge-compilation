@@ -80,6 +80,12 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
+    def project(self, variable: 'LogicalVariable') -> 'ConstraintSet':
+        """Return a constraint set with only the constraints involving 'variable'"""
+        relevant_logical_constraints = [lc for lc in self.logical_constraints if (lc.left_term == variable or lc.right_term == variable)]
+        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term == variable]
+        return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
+
     def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
         """Get the domain for a specific variable in this constraint set"""
         included_domains = []
@@ -87,7 +93,7 @@ class ConstraintSet:
         for constraint in self:
             if isinstance(constraint, InclusionConstraint) and constraint.logical_term == variable:
                 included_domains.append(constraint.domain_term)
-            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
+            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term == variable:
                 excluded_domains.append(constraint.domain_term)
         # hack for type checking for now since we only work with SetOfConstants
         # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
@@ -277,6 +283,27 @@ class SetConstraint(Constraint):
 
     def __hash__(self) -> int:
         return hash((self.__class__, self.logical_term, self.domain_term))
+
+
+class DomainConstraint(Constraint):
+    """Abstract base class for constraints that involve a relationship between two domain terms.
+    For now, this is just subset constraints"""
+
+    @property
+    @abstractmethod
+    def left_term(self) -> 'DomainTerm':
+        pass
+
+    @property
+    @abstractmethod
+    def right_term(self) -> 'DomainTerm':
+        pass
+
+    def __hash__(self) -> int:
+        """We hash it as a set with the class to make sure
+        flipped constraints have the same hash, and different types of DomainConstraint 
+        have different hashes"""
+        return hash((self.__class__, frozenset((self.left_term, self.right_term))))
 
 class EmptyConstraint(Constraint):
     """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""
