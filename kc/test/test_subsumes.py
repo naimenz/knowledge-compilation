@@ -24,10 +24,18 @@ p = Predicate('p', 2)
 pXY = Literal(Atom(p, [X, Y]))
 pZW = Literal(Atom(p, [Z, W]))
 pXZ = Literal(Atom(p, [X, Z]))
+pXX = Literal(Atom(p, [X, X]))
+pYY = Literal(Atom(p, [Y, Y]))
+pXa = Literal(Atom(p, [X, alice]))
 
 XeqY = EqualityConstraint(X, Y)
 XeqZ = EqualityConstraint(X, Z)
 YeqZ = EqualityConstraint(Y, Z)
+
+Xeqa = InclusionConstraint(X, SetOfConstants([alice]))
+Yeqa = InclusionConstraint(Y, SetOfConstants([alice]))
+Zeqa = InclusionConstraint(Z, SetOfConstants([alice]))
+Weqa = InclusionConstraint(W, SetOfConstants([alice]))
 
 def test_is_not_trivial():
 
@@ -107,7 +115,6 @@ def test_get_constant_inequalities():
     assert(cclause4.get_constant_inequalities() == target4)
 
 def test_does_not_subsume1():
-    pXa = Literal(Atom(p, [X, alice]))
     catom1 = ConstrainedAtom([pXa], [X], ConstraintSet([XinPeople]))
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
@@ -119,8 +126,6 @@ def test_does_not_subsume1():
     assert(catom2.does_not_subsume(catom3, mgu) != "1")
 
 def test_does_not_subsume2():
-    pXX = Literal(Atom(p, [X, X]))
-    pYY = Literal(Atom(p, [Y, Y]))
     catom1 = ConstrainedAtom([pXX], [X], ConstraintSet([XinPeople]))
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
@@ -131,3 +136,15 @@ def test_does_not_subsume2():
     catom3 = ConstrainedAtom([pYY], [Y], ConstraintSet([XinPeople, YinPeople]))
     assert(catom1.does_not_subsume(catom3, mgu) != "2")
 
+def test_does_not_subsume3():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~Xeqa]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    # assert(catom2.does_not_subsume(catom1, mgu) != "3")
+
+    catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~Zeqa]))
+    assert(catom1.does_not_subsume(catom3, mgu) != "3")
+
+test_does_not_subsume3()
