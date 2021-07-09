@@ -1,25 +1,39 @@
 """Tests for the whole 'subsumes' set up for ConstrainedAtoms"""
 from kc.data_structures import *
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+Z = LogicalVariable('Z')
+W = LogicalVariable('W')
+
+alice = Constant('alice')
+bob = Constant('bob')
+charlie = Constant('charlie')
+
+dog = Constant('dog')
+cat = Constant('cat')
+People = SetOfConstants([alice, bob, charlie])
+Smokers = SetOfConstants([alice, bob])
+Animals = SetOfConstants([dog, cat])
+
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
+ZinPeople = InclusionConstraint(Z, People)
+WinPeople = InclusionConstraint(W, People)
+
+p = Predicate('p', 2)
+pXY = Literal(Atom(p, [X, Y]))
+pZW = Literal(Atom(p, [Z, W]))
+pXZ = Literal(Atom(p, [X, Z]))
+
+XeqY = EqualityConstraint(X, Y)
+XeqZ = EqualityConstraint(X, Z)
+YeqZ = EqualityConstraint(Y, Z)
 
 def test_is_not_trivial():
-    X = LogicalVariable('X')
-    Y = LogicalVariable('Y') 
-    alice = Constant('alice')
-    bob = Constant('bob')
-    charlie = Constant('charlie')
-    dog = Constant('dog')
-    cat = Constant('cat')
-    People = SetOfConstants([alice, bob, charlie])
-    Smokers = SetOfConstants([alice, bob])
-    Animals = SetOfConstants([dog, cat])
-
-    p = Predicate('p', 2)
-    pXY = Literal(Atom(p, [X, Y]))
 
     XinPeople = InclusionConstraint(X, People)
     YinSmokers = InclusionConstraint(Y, Smokers)
     YinAnimals = InclusionConstraint(Y, Animals)
-    XeqY = EqualityConstraint(X, Y)
     XneqY = ~XeqY
     cs_smokers = ConstraintSet([XinPeople, YinSmokers, XneqY])
 
@@ -33,22 +47,6 @@ def test_is_not_trivial():
 
 
 def test_get_bound_variable_inequalities():
-    X = LogicalVariable('X')
-    Y = LogicalVariable('Y')
-    Z = LogicalVariable('Z')
-    W = LogicalVariable('W')
-    alice = Constant('alice')
-    bob = Constant('bob')
-    charlie = Constant('charlie')
-
-    p = Predicate('p', 2)
-    pXY = Literal(Atom(p, [X, Y]))
-    pXZ = Literal(Atom(p, [X, Z]))
-
-    XeqY = EqualityConstraint(X, Y)
-    XeqZ = EqualityConstraint(X, Z)
-    YeqZ = EqualityConstraint(Y, Z)
-
     cs = ConstraintSet([~XeqY, ~XeqZ, ~YeqZ])
 
 
@@ -107,4 +105,15 @@ def test_get_constant_inequalities():
     assert(cclause2.get_constant_inequalities() == target2)
     assert(cclause3.get_constant_inequalities() == target3)
     assert(cclause4.get_constant_inequalities() == target4)
+
+def test_does_not_subsume1():
+    pXa = Literal(Atom(p, [X, alice]))
+    catom1 = ConstrainedAtom([pXa], [X], ConstraintSet([XinPeople]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    assert(catom1.does_not_subsume(catom2, mgu) == 1)
+    assert(catom1.does_not_subsume(catom2, mgu) != 1)
+
+    catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
 

@@ -477,23 +477,24 @@ class ConstrainedAtom(UnitClause):
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
         other_atom = other.substitute(mgu_substitution)
+        # DEBUG TODO: switch this back to returning True instead of numbers
         if any(len(eq_class.constants) > 0
                and len(eq_class.variables.intersection(this_atom.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
-            print(1)
+            return 1
             return True
         elif any(len(eq_class.variables.intersection(this_atom.bound_vars)) >= 2
                  for eq_class in mgu_eq_classes):
-            print(2)
+            return 2
             return True
         elif any(inequality not in this_atom.get_constant_inequalities()
                  for inequality in other_atom.get_constant_inequalities()):
-            print(3)
+            return 3
             return True
         elif any(inequality not in this_atom.get_bound_variable_inequalities()
                  and inequality.is_not_trivial_in(other_atom)
                  for inequality in other_atom.get_bound_variable_inequalities()):
-            print(4)
+            return 4
             return True
         else:
             return False
