@@ -20,12 +20,16 @@ YinPeople = InclusionConstraint(Y, People)
 ZinPeople = InclusionConstraint(Z, People)
 WinPeople = InclusionConstraint(W, People)
 
+YinAnimals = InclusionConstraint(Y, Animals)
+WinAnimals = InclusionConstraint(W, Animals)
+
 p = Predicate('p', 2)
 pXY = Literal(Atom(p, [X, Y]))
 pZW = Literal(Atom(p, [Z, W]))
 pXZ = Literal(Atom(p, [X, Z]))
 pXX = Literal(Atom(p, [X, X]))
 pYY = Literal(Atom(p, [Y, Y]))
+pZZ = Literal(Atom(p, [Z, Z]))
 pXa = Literal(Atom(p, [X, alice]))
 
 XeqY = EqualityConstraint(X, Y)
@@ -123,6 +127,7 @@ def test_does_not_subsume1():
     assert(catom2.does_not_subsume(catom1, mgu) != "1")
 
     catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
+    mgu = catom2.get_constrained_atom_mgu_eq_classes(catom3)
     assert(catom2.does_not_subsume(catom3, mgu) != "1")
 
 def test_does_not_subsume2():
@@ -134,6 +139,7 @@ def test_does_not_subsume2():
     assert(catom2.does_not_subsume(catom1, mgu) != "2")
 
     catom3 = ConstrainedAtom([pYY], [Y], ConstraintSet([XinPeople, YinPeople]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
     assert(catom1.does_not_subsume(catom3, mgu) != "2")
 
 def test_does_not_subsume3():
@@ -141,10 +147,30 @@ def test_does_not_subsume3():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
-    # assert(catom2.does_not_subsume(catom1, mgu) != "3")
+    assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom2.does_not_subsume(catom1, mgu) != "3")
 
     catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~Zeqa]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
     assert(catom1.does_not_subsume(catom3, mgu) != "3")
 
-test_does_not_subsume3()
+def test_does_not_subsume4():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~XeqY]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    assert(catom1.does_not_subsume(catom2, mgu) == "4")
+    assert(catom2.does_not_subsume(catom1, mgu) != "4")
+
+    catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinAnimals, ~XeqY]))
+    catom4 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinAnimals]))
+    mgu = catom3.get_constrained_atom_mgu_eq_classes(catom4)
+    assert(catom3.does_not_subsume(catom4, mgu) != "4")
+
+
+
+
+
+
+
+
