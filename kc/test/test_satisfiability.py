@@ -6,8 +6,8 @@ from kc.data_structures import *
 X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
 a, b, c, d = Constant('a'), Constant('b'), Constant('c'), Constant('d')
 
-ab = SetOfConstants([a, b])
-cd = SetOfConstants([c, d])
+ab = RootDomain([a, b], 'ab')
+cd = RootDomain([c, d], 'cd')
 
 Xinab = InclusionConstraint(X, ab)
 Yinab = InclusionConstraint(Y, ab)

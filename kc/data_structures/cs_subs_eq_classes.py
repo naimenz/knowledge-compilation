@@ -126,7 +126,7 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term == variable]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
-    def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
+    def get_domain_for(self, variable: 'LogicalVariable') -> 'ProperDomain':
         """Get the domain for a specific variable in this constraint set
         NOTE: Recently changed this to work with 'ProperDomain', delete the commented
         code if nothing breaks."""
@@ -146,6 +146,21 @@ class ConstraintSet:
         # excluded_domain = DomainTerm.union(*excluded_domains)
         # variable_domain = included_domain.difference(excluded_domain)
         # return variable_domain
+    def get_allowed_constants_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
+        """Get the constants that this variable could be equal to in this constraint set
+        NOTE: This struggles with DomainVariables and partially with free variables"""
+        included_domains = []
+        excluded_domains = []
+        for constraint in self:
+            if isinstance(constraint, InclusionConstraint) and constraint.logical_term == variable:
+                included_domains.append(constraint.domain_term)
+            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term == variable:
+                excluded_domains.append(constraint.domain_term)
+        included_domain = DomainTerm.intersection(*included_domains)
+        excluded_domain = DomainTerm.union(*excluded_domains)
+        variable_domain = included_domain.difference(excluded_domain)
+        return variable_domain
+
 
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
@@ -184,7 +199,7 @@ class ConstraintSet:
 
         # we check for too many variables in too small a domain by taking the union of the domains
         for mutual_inequality in mutual_inequalities:
-            domains_generator = (self.get_domain_for(variable) for variable in mutual_inequality)
+            domains_generator = (self.get_allowed_constants_for(variable) for variable in mutual_inequality)
             combined_domain = DomainTerm.union(*domains_generator)
             if combined_domain.size < len(mutual_inequality):
                 print(f'DEBUG: {mutual_inequality = }, {combined_domain = }')
