@@ -165,9 +165,7 @@ class ConstraintSet:
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
         its variables that do not contain contradictions?
-        NOTE TODO: There still a major flaw with this function:
-            1) It cannot handle domain variables
-        """
+        NOTE TODO: Redo this function altogether? I'm not sure how to approach this"""
         if any(isinstance(constraint, FalseConstraint) for constraint in self.constraints):
             # DEBUG
             fcs = [c for c in self.constraints if isinstance(c, FalseConstraint)]
@@ -178,8 +176,8 @@ class ConstraintSet:
         if not eq_classes.consistent_with_inequality_constraints(self):
             return False
 
-        # Then we construct the possible domains for each equivalence class and
-        # check that they are non-empty
+        # # Then we construct the possible domains for each equivalence class and
+        # # check that they are non-empty
         if not eq_classes.consistent_with_set_constraints(self):
             return False
 
@@ -1103,7 +1101,7 @@ class EquivalenceClasses(Generic[TEC]):
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
         """If any equality class WITH AN INCLUSION CONSTRAINT has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
         NOTE: For now, only works with SetOfConstants, not DomainVariable
-        TODO: Add support for DomainVariable, add support for domainless free variables"""
+        TODO: Add support for DomainVariable"""
         for eq_class in self.classes:
             variables_with_domains = set(c.logical_term for c in cs.set_constraints if isinstance(c, InclusionConstraint) and c.logical_term in eq_class)
 

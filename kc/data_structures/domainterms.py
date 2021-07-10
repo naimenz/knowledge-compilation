@@ -162,7 +162,7 @@ class DomainVariable(DomainTerm, ProperDomain):
     """
 
     def __init__(self, symbol: str, parent_domain: 'DomainTerm', excluded_constants=None) -> None:
-        """Excluded constants are optional but are where we specify which elements of the parent domain
+        """Excluded constants are where we specify which elements of the parent domain
         cannot appear in this domain"""
         self.symbol = symbol
         # DEBUG: making sure we don't pass in a SetOfConstants, which can't be a parent
