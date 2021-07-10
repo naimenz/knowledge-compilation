@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import EquivalenceClass, Clause, Substitution, DomainTerm, Constant
+    from kc.data_structures import EquivalenceClass, Clause, Substitution, DomainTerm, Constant, SetOfConstants
 
 class CNF:
     """
@@ -135,15 +135,18 @@ class CNF:
             new_variable = LogicalVariable(new_variable_string)
         return new_variable
 
-    def get_new_domain_variable(self, symbol: str, parent_domain: 'DomainTerm') -> 'DomainVariable':
+    def get_new_domain_variable(self,
+                                symbol: str,
+                                parent_domain: 'DomainTerm',
+                                excluded_constants: 'SetOfConstants'
+                                ) -> 'DomainVariable':
         """Return a logical variable that does not appear in the theory.
         To make it unique, take the symbol and keep adding underscores"""
         new_variable_string = symbol
-        new_variable = DomainVariable(new_variable_string, parent_domain)
-        domain_variables = self.get_domain_variables()
-        while new_variable in domain_variables:
+        domain_variable_symbols = [d.symbol for d in self.get_domain_variables()]
+        while new_variable_string in domain_variable_symbols:
             new_variable_string += '_'
-            new_variable = DomainVariable(new_variable_string, parent_domain)
+        new_variable = DomainVariable(new_variable_string, parent_domain, excluded_constants)
         return new_variable
 
     def __eq__(self, other: Any) -> bool:

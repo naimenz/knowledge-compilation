@@ -4,7 +4,7 @@ from kc.data_structures import *
 from kc.compiler import KCRule, ShatteredCompilation
 from kc.util import get_element_of_set
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -51,12 +51,18 @@ class AtomCounting(KCRule):
         new_cnf = cnf.join(CNF([true_branch, false_branch]))
         new_cnf.shattered = True  # it must still be shattered at this stage due to preconditions
 
+        print("============== BEG DEBUG ===================")
+        print(f"Domain Variable after AC:\n{domain_variable}")
+        print(f"Domain CS after AC:\n{domain_cs}")
+        print(f"Theory after AC:\n{new_cnf}")
+        print("============== END DEBUG ===================")
+        raise NotImplementedError("end")
         return ExistsNode(compiler.compile(new_cnf), [domain_variable], domain_cs)
         
     @classmethod
     def _construct_domain_cs_from_variable_cs(cls,
             cnf: 'CNF',
-            bound_variable: 'LogicalVariable',
+            bound_var: 'LogicalVariable',
             variable_cs: 'ConstraintSet',
             variable: 'LogicalVariable',
             ) -> Tuple['ConstraintSet', 'DomainVariable']: 
@@ -66,9 +72,20 @@ class AtomCounting(KCRule):
         subdomain_variable = cnf.get_new_domain_variable('D', parent_domain, excluded_constants)
 
         # the new domain variable must be a subset of the allowed domain for the bound variable
-        domain_cs = ConstraintSet([])
-        # for constraint in variable_cs:
+        var_constant_constraints = cls._build_constraints_between_domain_var_and_constants(subdomain_variable, excluded_constants)
+        domain_cs = (ConstraintSet([*var_constant_constraints, SubsetConstraint(subdomain_variable, parent_domain)]))
+                
         return domain_cs, subdomain_variable
+
+    @classmethod
+    def _build_constraints_between_domain_var_and_constants(cls, variable: 'DomainVariable', constants: 'SetOfConstants') -> List['NotSubsetConstraint']:
+        """Return a list of constraints specifying which constants are NOT contained in a DomainVariable"""
+        constraints: List['NotSubsetConstraint'] = []
+        for constant in constants.constants:
+            constraints.append(NotSubsetConstraint(variable, SetOfConstants([constant])))
+        return constraints
+
+        
 
 
 
