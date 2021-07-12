@@ -453,6 +453,7 @@ class ConstrainedAtom(UnitClause):
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
         combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
+        # print(f"DEBUG {combined_constraint_set=}")
         if combined_constraint_set.is_satisfiable():
             return unconstrained_mgu
         else:
@@ -490,9 +491,13 @@ class ConstrainedAtom(UnitClause):
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
         # check for independence
         if mgu_eq_classes is None:
+            print(f'independent')
             return False
         # check for subsumption
         else:
+            # DEBUG
+            if not other.does_not_subsume(self, mgu_eq_classes):
+                print(f'subsumes')
             return other.does_not_subsume(self, mgu_eq_classes)
 
     def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:
@@ -501,7 +506,24 @@ class ConstrainedAtom(UnitClause):
         NOTE: We apply the mgu as a substitution to the atoms so that they can
         be directly compared.  However, the EquivalenceClasses still refer to
         the pre-substitution atoms, so we mix and match.
-        NOTE 2: I am going to treat free variables exactly like constants and see what happens."""
+        NOTE 2: I am going to treat free variables exactly like constants and see what happens.
+
+        If any of the following are true, it does not subsume (the brackets are to avoid ambiguity):
+        1) There is an mgu equivalence class (EC) that contains 
+        (a constant or free variable) AND (a bound variable from self)
+        2) There is an EC that contains TWO bound variables from self
+        3) There is (an inequality between a bound variable and a constant) in the other that is
+        not present in the self.
+        4) There is (an inequality between bound variables in two ECs) in the other that is
+        not present in the self.
+
+        I am adding an experimental 5th rule to deal with domain variables
+        (from getDomainShatteringMgu in Forclift)
+        5) There is a bound variable in this atom (self) whose domain
+        is a subset of the domain of a bound variable in the other atom (other)
+        and the two variables are in the same EC.
+        """
+
 
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
@@ -533,6 +555,19 @@ class ConstrainedAtom(UnitClause):
             # return "4"
             print("DNS 4")
             return True
+        for eq_class in mgu_eq_classes:
+            eq_class_list = list(eq_class)  # to avoid double-counting we use an enumerated list
+            for i, term1 in enumerate(eq_class_list):
+                if term1 in self.bound_vars:
+                    variable1 = term1
+                    for term2 in eq_class_list[i:]:
+                        if term2 in other.bound_vars:
+                            variable2 = term2
+                            this_domain = self.cs.get_domain_for(variable1)
+                            other_domain = other.cs.get_domain_for(variable2)
+                            if this_domain.is_strict_subset_of(other_domain):
+                                return True
+
         else:
             return False
 

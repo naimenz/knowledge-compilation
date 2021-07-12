@@ -127,9 +127,7 @@ class ConstraintSet:
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
     def get_domain_for(self, variable: 'LogicalVariable') -> 'ProperDomain':
-        """Get the domain for a specific variable in this constraint set
-        NOTE: Recently changed this to work with 'ProperDomain', delete the commented
-        code if nothing breaks."""
+        """Get the domain for a specific variable in this constraint set"""
         domains = []
         for constraint in self.inclusion_constraints:
             if constraint.logical_term == variable and isinstance(constraint.domain_term, ProperDomain):
@@ -632,7 +630,7 @@ class InequalityConstraint(LogicalConstraint):
         right_term_class = EquivalenceClass([self.right_term])
         left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
         right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
-        domain_terms_intersect = left_domain.intersect_with(right_domain).size > 0
+        domain_terms_intersect = left_domain.intersect_with(right_domain).size() > 0
         return domain_terms_intersect
 
     def contains_contradiction(self) -> bool:
@@ -969,10 +967,13 @@ class EquivalenceClass:
         shared_domain = ProperDomain.intersect_all(*included_domains)
         # check that none of the excluded domains are supersets of the shared domain
         for excluded_domain in excluded_domains:
-            if excluded_domain.is_strict_superset_of(shared_domain):
+            if excluded_domain.is_strict_superset_of(shared_domain) or excluded_domain == shared_domain:
                 return EmptyDomain(f'Excluded {excluded_domain} is superset of shared {shared_domain}')
-            # elif excluded_domain.is_strict_subset_of(shared_domain):
-            #     raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
+            elif excluded_domain.is_strict_subset_of(shared_domain):
+                # NOTE TODO: trying out a complement domain thing
+                # if excluded_domain.parent_domain == shared_domain:
+
+                raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
         return shared_domain
 
     def is_root_in_cnf(self, cnf: 'CNF') -> bool:
@@ -1105,7 +1106,7 @@ class EquivalenceClasses(Generic[TEC]):
 
             reduced_eq_class = EquivalenceClass(variables_with_domains)
             shared_domain = reduced_eq_class.get_shared_domain_from_cs(cs)
-            if shared_domain.size == 0:
+            if shared_domain.size() == 0:
                 return False
         return True
 
