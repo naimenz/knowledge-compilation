@@ -1,5 +1,5 @@
 from kc.data_structures.logicalterms import LogicalTerm, LogicalVariable, Constant
-from kc.data_structures.domainterms import DomainTerm, SetOfConstants, DomainVariable, ProperDomain, RootDomain
+from kc.data_structures.domainterms import DomainTerm, SetOfConstants, DomainVariable, ProperDomain, RootDomain, EmptyDomain
 
 from kc.data_structures.cs_subs_eq_classes import Constraint, LogicalConstraint, SetConstraint, EqualityConstraint, InequalityConstraint, InclusionConstraint, NotInclusionConstraint, ConstraintSet, FalseConstraint, EmptyConstraint, LessThanConstraint, SubsetConstraint, NotSubsetConstraint
 from kc.data_structures.cs_subs_eq_classes import Substitution

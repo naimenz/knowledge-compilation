@@ -5,7 +5,7 @@ NOTE: at the moment only the types of constraints used in Chapter 4 of the PhD
 are considered.
 """
 
-from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain
+from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain, EmptyDomain
 from kc.util import powerset
 
 from abc import ABC, abstractmethod
@@ -130,23 +130,14 @@ class ConstraintSet:
         """Get the domain for a specific variable in this constraint set
         NOTE: Recently changed this to work with 'ProperDomain', delete the commented
         code if nothing breaks."""
+        domains = []
         for constraint in self.inclusion_constraints:
             if constraint.logical_term == variable and isinstance(constraint.domain_term, ProperDomain):
-                return constraint.domain_term
+                domains.append(constraint.domain_term)
+        return ProperDomain.intersect_all(*domains)
         raise ValueError(f"{variable} has no ProperDomain")
-        # included_domains = []
-        # excluded_domains = []
-        # for constraint in self:
-        #     if isinstance(constraint, InclusionConstraint) and constraint.logical_term == variable:
-        #         included_domains.append(constraint.domain_term)
-        #     elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term == variable:
-        #         excluded_domains.append(constraint.domain_term)
-        # # hack for type checking for now since we only work with SetOfConstants
-        # included_domain = DomainTerm.intersection(*included_domains)
-        # excluded_domain = DomainTerm.union(*excluded_domains)
-        # variable_domain = included_domain.difference(excluded_domain)
-        # return variable_domain
-    def get_allowed_constants_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
+
+    def get_allowed_constants_for(self, variable: 'LogicalVariable') -> FrozenSet['Constant']:
         """Get the constants that this variable could be equal to in this constraint set
         NOTE: This struggles with DomainVariables and partially with free variables"""
         included_domains = []
@@ -156,8 +147,8 @@ class ConstraintSet:
                 included_domains.append(constraint.domain_term)
             elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term == variable:
                 excluded_domains.append(constraint.domain_term)
-        included_domain = DomainTerm.intersection(*included_domains)
-        excluded_domain = DomainTerm.union(*excluded_domains)
+        included_domain = DomainTerm.intersect_constants(*included_domains)
+        excluded_domain = DomainTerm.union_constants(*excluded_domains)
         variable_domain = included_domain.difference(excluded_domain)
         return variable_domain
 
@@ -198,8 +189,8 @@ class ConstraintSet:
         # we check for too many variables in too small a domain by taking the union of the domains
         for mutual_inequality in mutual_inequalities:
             domains_generator = (self.get_allowed_constants_for(variable) for variable in mutual_inequality)
-            combined_domain = DomainTerm.union(*domains_generator)
-            if combined_domain.size < len(mutual_inequality):
+            combined_domain = frozenset.union(*domains_generator)
+            if len(combined_domain) < len(mutual_inequality):
                 print(f'DEBUG: {mutual_inequality = }, {combined_domain = }')
                 return True
         return False
@@ -641,7 +632,7 @@ class InequalityConstraint(LogicalConstraint):
         right_term_class = EquivalenceClass([self.right_term])
         left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
         right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
-        domain_terms_intersect = DomainTerm.intersection(left_domain, right_domain).size > 0
+        domain_terms_intersect = left_domain.intersect_with(right_domain).size > 0
         return domain_terms_intersect
 
     def contains_contradiction(self) -> bool:
@@ -962,22 +953,26 @@ class EquivalenceClass:
         return VariableEquivalenceClass(self._variables)
 
 
-    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'DomainTerm':
+    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'ProperDomain':
         """Get the shared domain for this equivalence class of variables according to a particular constraint set
-        NOTE: Because we don't have inequality constraints involving constants, this covers everything"""
+        NOTE: This now works only with ProperDomains
+        TODO TODO: Add excluded domain part back in"""
         included_domains = []
         excluded_domains = []
         for constraint in cs:
             if isinstance(constraint, InclusionConstraint) and constraint.logical_term in self:
-                included_domains.append(constraint.domain_term)
+                if isinstance(constraint.domain_term, ProperDomain):
+                    included_domains.append(constraint.domain_term)
             elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
-                excluded_domains.append(constraint.domain_term)
-        # hack for type checking for now since we only work with SetOfConstants
-        # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
-        # excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
-        included_domain = DomainTerm.intersection(*included_domains)
-        excluded_domain = DomainTerm.union(*excluded_domains)
-        shared_domain = included_domain.difference(excluded_domain)
+                if isinstance(constraint.domain_term, ProperDomain):
+                    excluded_domains.append(constraint.domain_term)
+        shared_domain = ProperDomain.intersect_all(*included_domains)
+        # check that none of the excluded domains are supersets of the shared domain
+        for excluded_domain in excluded_domains:
+            if excluded_domain.is_strict_superset_of(shared_domain):
+                return EmptyDomain(f'Excluded {excluded_domain} is superset of shared {shared_domain}')
+            # elif excluded_domain.is_strict_subset_of(shared_domain):
+            #     raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
         return shared_domain
 
     def is_root_in_cnf(self, cnf: 'CNF') -> bool:

@@ -2,10 +2,12 @@
 
 from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF
 from kc.compiler import KCRule
+# NOTE DEBUG: Limiting the number of recursions for debugging
+import sys
+sys.setrecursionlimit(500) 
 
 from typing import Optional, Tuple, List, Any, Set
 from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from kc.compiler import Compiler
     from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable
@@ -37,8 +39,8 @@ class UnitPropagation(KCRule):
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
-        propagated_cnf = CNF(unitpropagated_clauses)
-        unit_cnf = CNF([unit_clause])
+        propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
+        unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
@@ -102,6 +104,7 @@ class UnitPropagation(KCRule):
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
             return None
         else:
+            print(f"{gamma = }\n NOT SUBSUMED BY \n{c_literal = }\n")
             necessary_literals = cls._discard_unsatisfied_literals(gamma, c_literal)
             Lambda: 'Clause'
             if isinstance(gamma, ConstrainedClause):

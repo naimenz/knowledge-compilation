@@ -478,6 +478,10 @@ class ConstrainedAtom(UnitClause):
     def subsumes(self, other: 'ConstrainedAtom') -> bool:
         """Does this atom (self) subsume the other atom (other)?
         We check this as they do in Forclift - checking if the atoms are split with respect to each other"""
+        # quick check to handle the case where they're the same, as this is not covered otherwise
+        if self == other:
+            return True
+
         return self.needs_splitting(other) and not other.needs_splitting(self)
 
     def needs_splitting(self, other: 'ConstrainedAtom') -> bool:
@@ -510,20 +514,24 @@ class ConstrainedAtom(UnitClause):
                )
                and len(eq_class.variables.intersection(other.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
-            return "1"
+            # return "1"
+            print("DNS 1")
             return True
         elif any(len(eq_class.variables.intersection(other.bound_vars)) >= 2
                  for eq_class in mgu_eq_classes):
-            return "2"
+            # return "2"
+            print("DNS 2")
             return True
         elif any(inequality not in other_atom.get_constant_or_free_inequalities()
                  for inequality in this_atom.get_constant_or_free_inequalities()):
-            return "3"
+            # return "3"
+            print("DNS 3")
             return True
         elif any(inequality not in other_atom.get_bound_variable_inequalities()
                  and inequality.is_not_trivial(this_atom)
                  for inequality in this_atom.get_bound_variable_inequalities()):
-            return "4"
+            # return "4"
+            print("DNS 4")
             return True
         else:
             return False
