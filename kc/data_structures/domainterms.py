@@ -127,19 +127,30 @@ class SetOfConstants(DomainTerm):
     def __repr__(self) -> str:
         return self.__str__()
 
-class ProperDomain:
+class ProperDomain(DomainTerm):
     """This is supposed to be an abstract class representing domain terms
     that can be the proper domain of a logical variable rather than just some constants.
     TODO: Work out if this approach makes sense"""
 
+    @property
+    @abstractmethod
+    def possible_constants(self) ->  FrozenSet['Constant']:
+        pass
+
 class RootDomain(SetOfConstants, ProperDomain):
     """This is a class to represent a RootDomain, i.e. a specific set of constants
     given as part of the user-defined input. New RootDomains will not be created
-    during compilation."""
+    during compilation.
+    NOTE: I am going to make the same assumption as Forclift: that RootDomains do not overlap"""
     def __init__(self, constants: Iterable['Constant'], symbol: str) -> None:
-        super(RootDomain, self).__init__(constants)
+        SetOfConstants.__init__(self, constants)
         self.symbol = symbol
         self.children: List['DomainTerm'] = []  # will be updated as children are created
+
+    @property
+    def possible_constants(self) -> FrozenSet['Constant']:
+        """The 'possible_constants' for a RootDomain are just all its constants"""
+        return self.constants
 
     def __eq__(self, other: Any) -> bool:
         """Since RootDomains should not be created except at the start,
@@ -155,20 +166,26 @@ class RootDomain(SetOfConstants, ProperDomain):
     def __repr__(self) -> str:
         return self.__str__()
 
-class DomainVariable(DomainTerm, ProperDomain):
+class DomainVariable(ProperDomain):
     """
     A FOL domain variable.
     NOTE: This is based quite heavily on Forclift's "subdomain".
     """
 
-    def __init__(self, symbol: str, parent_domain: 'DomainTerm', excluded_constants=None) -> None:
+    def __init__(self, symbol: str, parent_domain: 'DomainTerm', excluded_constants: Iterable['Constant']=None) -> None:
         """Excluded constants are where we specify which elements of the parent domain
         cannot appear in this domain"""
         self.symbol = symbol
         # DEBUG: making sure we don't pass in a SetOfConstants, which can't be a parent
         assert(isinstance(parent_domain, (RootDomain, DomainVariable)))
         self.parent_domain = parent_domain
-        self.excluded_constants = excluded_constants if excluded_constants is not None else set()
+        self.excluded_constants = frozenset(excluded_constants) if excluded_constants is not None else frozenset()
+
+    @property
+    def possible_constants(self) -> FrozenSet['Constant']:
+        """The 'possible_constants' for a DomainVariable are all its parent's constants
+        without the ones excluded in this domain"""
+        return self.parent_domain.possible_constants - self.excluded_constants
 
     def difference(self, other: 'DomainTerm') -> 'DomainTerm':
         """Get the difference between this domain variable and another domain TERM"""
@@ -179,7 +196,7 @@ class DomainVariable(DomainTerm, ProperDomain):
         """Return the maximum size of this DomainVariable
         NOTE TODO: At the moment I take this as the size of the parent minus the size of the excluded
         constants (which are assumed to be allowed in the parent), but maybe something else is better"""
-        return self.parent_domain.size - len(self.excluded_constants)
+        return len(self.possible_constants)
 
     def __eq__(self, other: Any) -> bool:
         """For now, two DomainVariables are equal when they have the same parent domain
@@ -187,10 +204,12 @@ class DomainVariable(DomainTerm, ProperDomain):
         TODO: Work this out in more detail"""
         if not isinstance(other, DomainVariable):
             return False
-        return self.parent_domain == other.parent_domain and self.excluded_constants == other.excluded_constants
+        return self.parent_domain == other.parent_domain  \
+                and self.excluded_constants == other.excluded_constants \
+                and self.symbol == other.symbol
 
     def __hash__(self) -> int:
-        return hash((self.parent_domain, self.excluded_constants))
+        return hash((self.symbol, self.parent_domain, self.excluded_constants))
 
     def __str__(self) -> str:
         return f'{self.symbol}'

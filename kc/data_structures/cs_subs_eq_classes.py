@@ -80,13 +80,13 @@ class ConstraintSet:
         return inc.union(notinc)
 
 
-    def unequal_constants_for(self, variable: 'LogicalVariable') -> SetOfConstants:
-        """Return a SetOfConstants of all the constants that 'variable' is not equal to"""
+    def unequal_constants_for(self, variable: 'LogicalVariable') -> Set['Constant']:
+        """Return all the constants that 'variable' is not equal to"""
         unequal_constants: Set['Constant'] = set()
         for constraint in self.notinclusion_constraints:
             if constraint.logical_term == variable and isinstance(constraint.domain_term, SetOfConstants):
                 unequal_constants.update(constraint.domain_term.constants)
-        return SetOfConstants(unequal_constants)
+        return unequal_constants
 
 
     def join(self, other: 'ConstraintSet') -> 'ConstraintSet':

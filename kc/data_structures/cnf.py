@@ -137,8 +137,8 @@ class CNF:
 
     def get_new_domain_variable(self,
                                 symbol: str,
-                                parent_domain: 'DomainTerm',
-                                excluded_constants: 'SetOfConstants'
+                                parent_domain: 'ProperDomain',
+                                excluded_constants: Set['Constant']
                                 ) -> 'DomainVariable':
         """Return a logical variable that does not appear in the theory.
         To make it unique, take the symbol and keep adding underscores"""
