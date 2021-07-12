@@ -110,8 +110,9 @@ class Atom:
         # we build up equivalence classes, starting from equivalences between terms in the same position
         # of the two atoms
         term_pairs = zip(self.terms, other_atom.terms)
-        # we only include equivalence classes with more than one unique element
-        initial_eq_classes = EquivalenceClasses( EquivalenceClass([t1, t2]) for t1, t2 in term_pairs if t1 != t2 )
+        # NOTE: Including singleton equivalence classes so they aren't missed by ISG
+        # # we only include equivalence classes with more than one unique element
+        initial_eq_classes = EquivalenceClasses( EquivalenceClass([t1, t2]) for t1, t2 in term_pairs)# if t1 != t2 )
 
         final_eq_classes = initial_eq_classes.make_self_consistent()
         if any(eq_class.is_inconsistent() for eq_class in final_eq_classes):

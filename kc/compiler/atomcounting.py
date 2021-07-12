@@ -51,12 +51,12 @@ class AtomCounting(KCRule):
         new_cnf = cnf.join(CNF([true_branch, false_branch]))
         new_cnf.shattered = True  # it must still be shattered at this stage due to preconditions
 
-        print("============== BEG DEBUG ===================")
-        print(f"Domain Variable after AC:\n{domain_variable}")
-        print(f"Domain CS after AC:\n{domain_cs}")
-        print(f"Theory after AC:\n{new_cnf}")
-        print("============== END DEBUG ===================")
-        raise NotImplementedError("end")
+        # print("============== BEG DEBUG ===================")
+        # print(f"Domain Variable after AC:\n{domain_variable}")
+        # print(f"Domain CS after AC:\n{domain_cs}")
+        # print(f"Theory after AC:\n{new_cnf}")
+        # print("============== END DEBUG ===================")
+        # raise NotImplementedError("end")
         return ExistsNode(compiler.compile(new_cnf), [domain_variable], domain_cs)
         
     @classmethod

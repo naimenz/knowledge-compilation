@@ -53,28 +53,27 @@ class DomainTerm(ABC):
             shared_constants: FrozenSet['Constant'] = frozenset.intersection(*constant_sets)
         return shared_constants
 
-    def is_subset_of(self, other: 'DomainTerm') -> bool:
-        """Return True if THIS SetOfConstants (self) is a subset of 'other' and False otherwise
-        NOTE: For now only works with SetOfConstants"""
-        if all(isinstance(term, SetOfConstants) for term in (self, other) ):
-            domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
-            constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
-            return SetOfConstants(constants) == self
-        else:
-            raise NotImplementedError('is_subset_of only works for SetOfConstants for now')
+    # def is_subset_of(self, other: 'DomainTerm') -> bool:
+    #     """Return True if THIS SetOfConstants (self) is a subset of 'other' and False otherwise
+    #     NOTE: For now only works with SetOfConstants"""
+    #     if all(isinstance(term, SetOfConstants) for term in (self, other) ):
+    #         domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
+    #         constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
+    #         return SetOfConstants(constants) == self
+    #     else:
+    #         raise NotImplementedError('is_subset_of only works for SetOfConstants for now')
 
-    def is_superset_of(self, other: 'DomainTerm') -> bool:
-        """Return True if THIS SetOfConstants (self) is a superset of 'other' and False otherwise
-        NOTE: For now only works with SetOfConstants"""
-        if all(isinstance(term, SetOfConstants) for term in (self, other) ):
-            domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
-            constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
-            return SetOfConstants(constants) == other
-        else:
-            raise NotImplementedError('is_superset_of only works for SetOfConstants for now')
+    # def is_superset_of(self, other: 'DomainTerm') -> bool:
+    #     """Return True if THIS SetOfConstants (self) is a superset of 'other' and False otherwise
+    #     NOTE: For now only works with SetOfConstants"""
+    #     if all(isinstance(term, SetOfConstants) for term in (self, other) ):
+    #         domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
+    #         constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
+    #         return SetOfConstants(constants) == other
+    #     else:
+    #         raise NotImplementedError('is_superset_of only works for SetOfConstants for now')
         
 
-    @property
     @abstractmethod
     def size(self) -> int:
         """I think domain variables will need sizes too"""
@@ -101,7 +100,6 @@ class SetOfConstants(DomainTerm):
         new_constants = self.constants - other.constants
         return SetOfConstants(new_constants)
 
-    @property
     def size(self) -> int:
         return len(self.constants)
 
@@ -141,6 +139,8 @@ class ProperDomain(DomainTerm):
         self.parent_domain = parent_domain
         self.children: List['ProperDomain'] = []  # will be updated as children are created
         self.ancestors = self.get_ancestors()
+        # set as a child of the parent
+        self.parent_domain.children.append(self)
 
     def get_ancestors(self) -> List['ProperDomain']:
         """Get a list of all parents of this domain, in order from most distant to most recent"""
@@ -284,7 +284,6 @@ class DomainVariable(ProperDomain):
         """Get the difference between this domain variable and another domain TERM"""
         raise NotImplementedError()
 
-    @property
     def size(self) -> int:
         """Return the maximum size of this DomainVariable
         NOTE TODO: At the moment I take this as the size of the parent minus the size of the excluded

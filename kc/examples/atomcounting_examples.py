@@ -37,10 +37,16 @@ cs2 = ConstraintSet([X1inPeople, Y1inPeople])
 clause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1)
 clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
 
+D = DomainVariable('D', People)
+XinD = InclusionConstraint(X, D)
+X1inD = InclusionConstraint(X1, D)
+u1 = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople, XinD]))
+u2 = UnitClause([~funX1], [X1], ConstraintSet([X1inPeople, ~X1inD]))
+# print(f'{u1=}')
+# for ca in clause1.get_constrained_atoms():
+#     print(f"================= {ca} =============")
+#     print(ca.needs_splitting(u1))
 cnf = CNF([clause1, clause2])
 cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
 compiler = Compiler()
 nnf = compiler.compile(cnf)
-
-
-

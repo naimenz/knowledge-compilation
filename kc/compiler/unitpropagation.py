@@ -34,13 +34,23 @@ class UnitPropagation(KCRule):
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in cnf.clauses:
+            print(f'======================\n{gamma = }')
             split_gammas = cls.split(gamma, u_atom)
+            print(f'split_gammas with {u_atom = }')
+            print(*split_gammas, sep='\n')
             for gamma_s in split_gammas:
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
+                # print(f'\n\n\n        {unit_clause = }\n            {gamma_s = }\n {conditioned_clause = }')
         propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
         unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
+        print("============== BEG DEBUG ===================")
+        print(f"Propagated Theory after UnitProp:\n{propagated_cnf}")
+        print(f"Unit Clause after UnitProp:\n{unit_cnf}")
+        print(f"Compiled Unit Clause\n{compiler.compile(unit_cnf)}")
+        print("============== END DEBUG ===================")
+        raise NotImplementedError("end")
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
@@ -68,11 +78,13 @@ class UnitPropagation(KCRule):
             if joint_variables or cs_mgu.is_non_empty(): 
                 # NOTE DEBUG: before splitting, try propagating equality constraints
                 gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu).propagate_equality_constraints()
+                # print(f'DEBUG {gamma_mgu = }')
                 # NOTE DEBUG: checking satisfiability first
                 if gamma_mgu.cs.is_satisfiable():
                     return_clauses += cls.split(gamma_mgu, A)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
+                # print(f'DEBUG {gamma_mgu = }')
                 return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
@@ -85,26 +97,36 @@ class UnitPropagation(KCRule):
                 if joint_variables or cs_rest.is_non_empty():
                     # NOTE DEBUG: before splitting, try propagating equality constraints
                     gamma_rest = ConstrainedClause(gamma.literals, joint_variables, cs_rest).propagate_equality_constraints()
+                    # print(f'DEBUG {gamma_rest = }')
                     # NOTE DEBUG: checking satisfiability first
                     # NOTE: splitting the gamma_rests recursively as we build them
                     if gamma_rest.cs.is_satisfiable():
                         return_clauses += cls.split(gamma_rest, A)
                 else:
                     gamma_rest = UnconstrainedClause(gamma.literals)
+                    # print(f'DEBUG {gamma_rest = }')
                     # NOTE: splitting the gamma_rests recursively as we build them
                     return_clauses += cls.split(gamma_rest, A)
 
+        print(f'\n                {A = }')
+        print(f'{constrained_atoms = }')
+        print(f'     {viable_atoms = } {len(viable_atoms) = }')
+        print(f'   {return_clauses = }')
         return return_clauses
 
     @classmethod
     def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:
-        """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'literal'.
-        NOTE: assumes that gamma is split wrt the atom in 'literal'
+        """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'c_literal'.
+        NOTE: assumes that gamma is split wrt the atom in 'c_literal'
         TODO: currently assuming there are no free or domain variables present."""
+        # print("\n==============================")
+        # print(f"{gamma = }")
+        # print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
+            # print(f"SUBSUMED!")
             return None
         else:
-            print(f"{gamma = }\n NOT SUBSUMED BY \n{c_literal = }\n")
+            # print(f"NOT SUBSUMED!")
             necessary_literals = cls._discard_unsatisfied_literals(gamma, c_literal)
             Lambda: 'Clause'
             if isinstance(gamma, ConstrainedClause):
@@ -112,6 +134,7 @@ class UnitPropagation(KCRule):
             else:
                 Lambda = UnconstrainedClause(necessary_literals)
             return Lambda
+        # print("==============================\n")
 
 
     @classmethod
