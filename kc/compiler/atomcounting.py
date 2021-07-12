@@ -31,7 +31,7 @@ class AtomCounting(KCRule):
         """Apply AtomCounting and return an NNFNode
         NOTE: Trying AC in a style similar to how Forclift does"""
         atom = c_atom.atom
-        bound_var = get_element_of_set(c_atom.bound_vars)  # there's only one by the preconditions
+        bound_var = get_element_of_set(c_atom.bound_vars.intersection(atom.variables))
         constants = cnf.get_constants()
         free_vars = cnf.get_free_logical_variables()
         domain_terms = cnf.get_domain_terms()
@@ -51,12 +51,12 @@ class AtomCounting(KCRule):
         new_cnf = cnf.join(CNF([true_branch, false_branch]))
         new_cnf.shattered = True  # it must still be shattered at this stage due to preconditions
 
-        # print("============== BEG DEBUG ===================")
-        # print(f"Domain Variable after AC:\n{domain_variable}")
-        # print(f"Domain CS after AC:\n{domain_cs}")
-        # print(f"Theory after AC:\n{new_cnf}")
-        # print("============== END DEBUG ===================")
-        # raise NotImplementedError("end")
+        print("============== BEG DEBUG ===================")
+        print(f"Domain Variable after AC:\n{domain_variable}")
+        print(f"Domain CS after AC:\n{domain_cs}")
+        print(f"Theory after AC:\n{new_cnf}")
+        print("============== END DEBUG ===================")
+        raise NotImplementedError("end")
         return ExistsNode(compiler.compile(new_cnf), [domain_variable], domain_cs)
         
     @classmethod
