@@ -1,6 +1,7 @@
 """Tests for the whole 'subsumes' set up for ConstrainedAtoms
-NOTE: The does_not_subsume tests only work when the function is 
-edited to return debug strings of '1', '2', '3', '4'."""
+NOTE: The does_not_subsume tests only work properly when the function is 
+edited to return debug strings of '1', '2', '3', '4'.
+These versions are commented out most of the time."""
 from kc.data_structures import *
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -15,9 +16,12 @@ charlie = Constant('charlie')
 
 dog = Constant('dog')
 cat = Constant('cat')
-People = SetOfConstants([alice, bob, charlie])
-Smokers = SetOfConstants([alice, bob])
-Animals = SetOfConstants([dog, cat])
+People = RootDomain([alice, bob, charlie], 'People')
+Smokers = DomainVariable(symbol='Smokers',
+                         parent_domain = People,
+                         included_constants=[alice, bob],
+                         excluded_constants=[charlie])
+Animals = RootDomain([dog, cat], 'Animals')
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
@@ -131,7 +135,8 @@ def test_does_not_subsume1():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
     assert(catom2.does_not_subsume(catom1, mgu) != "1")
 
     catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
@@ -143,7 +148,8 @@ def test_does_not_subsume1_free_vars():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
     assert(catom2.does_not_subsume(catom1, mgu) != "1")
 
     catom3 = ConstrainedAtom([pZa], [Z], ConstraintSet([ZinPeople]))
@@ -159,7 +165,8 @@ def test_does_not_subsume2():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "2")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "2")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
     assert(catom2.does_not_subsume(catom1, mgu) != "2")
 
     catom3 = ConstrainedAtom([pYY], [Y], ConstraintSet([XinPeople, YinPeople]))
@@ -171,7 +178,8 @@ def test_does_not_subsume3():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
     assert(catom2.does_not_subsume(catom1, mgu) != "3")
 
     catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~Zeqa]))
@@ -184,7 +192,8 @@ def test_does_not_subsume3_free_vars():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
     assert(catom2.does_not_subsume(catom1, mgu) != "3")
 
     catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~ZeqF]))
@@ -197,7 +206,8 @@ def test_does_not_subsume4():
     catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
 
     mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
-    assert(catom1.does_not_subsume(catom2, mgu) == "4")
+    # assert(catom1.does_not_subsume(catom2, mgu) == "4")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
     assert(catom2.does_not_subsume(catom1, mgu) != "4")
 
     catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinAnimals, ~XeqY]))
@@ -212,8 +222,8 @@ def test_example_4_1():
     dog = Constant('dog')
     pigeon = Constant('pigeon')
 
-    Animal = SetOfConstants([kiwi, penguin, pigeon, dog])
-    Bird = SetOfConstants([kiwi, penguin, pigeon])
+    Animal = RootDomain([kiwi, penguin, pigeon, dog], 'Animal')
+    Bird = DomainVariable('Bird', parent_domain=Animal, included_constants=[kiwi, penguin, pigeon], excluded_constants=[dog])
 
     X = LogicalVariable('X')
     X1 = LogicalVariable('X1')
@@ -241,8 +251,10 @@ def test_example_4_1():
 
     print(aa.does_not_subsume(a_gamma, mgu))
     print(a_gamma.does_not_subsume(aa, mgu))
-    assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
-    assert(a_gamma.does_not_subsume(aa, mgu) in ["1", "2", "3", "4"])
+    # assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    # assert(a_gamma.does_not_subsume(aa, mgu) in ["1", "2", "3", "4"])
+    assert(aa.does_not_subsume(a_gamma, mgu) == True)
+    assert(a_gamma.does_not_subsume(aa, mgu) == True)
 
 
 def test_example_4_2():
@@ -252,7 +264,7 @@ def test_example_4_2():
     X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
     X1 = LogicalVariable('X1')
     a, b, c = Constant('a'), Constant('b'), Constant('c')
-    D = SetOfConstants([a, b, c])
+    D = RootDomain([a, b, c], 'D')
     p = Predicate('p', 1)
     pX = Literal(Atom(p, [X]))
     pX1 = Literal(Atom(p, [X1]))
@@ -264,7 +276,7 @@ def test_example_4_2():
     aa = ConstrainedAtom([pX1], [X1], ConstraintSet([X1inD, ~YeqZ]))
 
     mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
-    assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    # assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    assert(aa.does_not_subsume(a_gamma, mgu) == True)
     assert(a_gamma.does_not_subsume(aa, mgu) == False)
-
 

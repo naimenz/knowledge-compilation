@@ -45,9 +45,11 @@ class AtomCounting(KCRule):
 
         domain_cs, domain_variable = cls._construct_domain_cs_from_variable_cs(cnf, bound_var, variable_cs, bound_var)
         bound_var_in_domain_variable = InclusionConstraint(bound_var, domain_variable)
+        # this is equivalent to the negation of bound_var_in_domain_variable
+        bound_var_in_complement = InclusionConstraint(bound_var, domain_variable.complement)
 
         true_branch_cs = variable_cs.join(ConstraintSet([bound_var_in_domain_variable]))
-        false_branch_cs = variable_cs.join(ConstraintSet([~bound_var_in_domain_variable]))
+        false_branch_cs = variable_cs.join(ConstraintSet([bound_var_in_complement]))
 
         true_branch = UnitClause([Literal(atom, polarity=True)], [bound_var], true_branch_cs)
         false_branch = UnitClause([Literal(atom, polarity=False)], [bound_var], false_branch_cs)

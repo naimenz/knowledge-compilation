@@ -65,15 +65,17 @@ class Clause(ABC):
                     return False
         return True
 
-    # TODO: this may be wrong, may need every literal to subsume another
     def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
-        """Returns true if this Clause is subsumed by the constrained literal."""
+        """Returns true if this Clause is subsumed by the constrained literal.
+        NOTE: We now say that EVERY literal in self has to be subsumed by some literal in the subsumer
+        TODO: check this is right"""
         if self.has_no_literals():
             return True
 
+        # every literal in the subsumer must subsume some literal in self
         for c_literal in self.get_constrained_literals():
-                if c_literal.is_subsumed_by_literal(subsumer):
-                    return True
+            if c_literal.is_subsumed_by_literal(subsumer):
+                return True
         return False
 
     def has_no_literals(self) -> bool:
@@ -287,7 +289,7 @@ class ConstrainedClause(Clause):
         for set_constraint in self.cs.set_constraints:
             if isinstance(set_constraint, NotInclusionConstraint):
                 domain_term = set_constraint.domain_term
-                if isinstance(domain_term, SetOfConstants) and domain_term.size == 1 and set_constraint.logical_term in self.bound_vars:
+                if isinstance(domain_term, SetOfConstants) and domain_term.size() == 1 and set_constraint.logical_term in self.bound_vars:
                     ineq_constraints.add(set_constraint)
         # get free_variable inequalities
         free_variables = self.get_free_variables()
@@ -418,7 +420,8 @@ class UnitClause(ConstrainedClause):
         if self.literal.polarity == subsumer.literal.polarity \
         and subsumer.to_c_atom().subsumes(self.to_c_atom()):
             return True
-        return False
+        else:
+            return False
 
 
 class ConstrainedAtom(UnitClause):
@@ -478,27 +481,38 @@ class ConstrainedAtom(UnitClause):
 
     def subsumes(self, other: 'ConstrainedAtom') -> bool:
         """Does this atom (self) subsume the other atom (other)?
-        We check this as they do in Forclift - checking if the atoms are split with respect to each other"""
-        # quick check to handle the case where they're the same, as this is not covered otherwise
+        We check this as they do in Forclift - checking if the atoms are split with respect to each other
+        NOTE DEBUG: Trying simplified subsumes.
+        TODO: work out if this is correct and if not, put back to original"""
+        # quick check to handle the case where they're the same
         if self == other:
             return True
 
-        return self.needs_splitting(other) and not other.needs_splitting(self)
+        mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
+        independent = mgu_eq_classes is None
+        if independent:
+            return False
+        self_DNS_other = self.does_not_subsume(other, mgu_eq_classes)
+        if not self_DNS_other:
+            return True
+        else: 
+            return False
+
+        # return self.needs_splitting(other) and not other.needs_splitting(self)
 
     def needs_splitting(self, other: 'ConstrainedAtom') -> bool:
         """Does this atom (self) need splitting with respect to the other atom (other)?
          Returns True if it does, and False otherwise."""
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
-        print("HERE",mgu_eq_classes)
         # check for independence
         if mgu_eq_classes is None:
-            print(f'independent')
+            # print(f'independent')
             return False
         # check for subsumption
         else:
             # DEBUG
-            if not other.does_not_subsume(self, mgu_eq_classes):
-                print(f'subsumes')
+            # if not other.does_not_subsume(self, mgu_eq_classes):
+            #     print(f'subsumes')
             return other.does_not_subsume(self, mgu_eq_classes)
 
     def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:

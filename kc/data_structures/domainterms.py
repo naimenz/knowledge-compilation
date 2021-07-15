@@ -134,7 +134,7 @@ class ProperDomain(DomainTerm):
     Each bound variable should have at least one ProperDomain that it belongs to.
     TODO: Work out if this approach makes sense"""
 
-    def __init__(self, symbol: str, parent_domain: Optional['ProperDomain']):
+    def __init__(self, symbol: str, parent_domain: Optional['ProperDomain'], complement: 'ProperDomain'=None):
         self.symbol = symbol
         self.parent_domain = parent_domain
         self.children: List['ProperDomain'] = []  # will be updated as children are created
@@ -172,6 +172,8 @@ class ProperDomain(DomainTerm):
             return self
         elif self.is_strict_superset_of(other):
             return other
+        elif isinstance(self, DomainVariable) and self.complement == other:
+            return EmptyDomain(f'{self} and {other} are complements')
         else:
             both_ancestors = zip_longest(self.ancestors + [self], other.ancestors + [other])
             # find the first place they differ
@@ -186,6 +188,8 @@ class ProperDomain(DomainTerm):
     @staticmethod
     def intersect_all(*args: 'ProperDomain') -> 'ProperDomain':
         """Intersect a bunch of ProperDomains together, in a pairwise fashion."""
+        if len(args) == 0:
+            return EmptyDomain('No arguments given: empty intersection')
         final_domain = args[0]
         for arg in args[1:]:
             final_domain = final_domain.intersect_with(arg)

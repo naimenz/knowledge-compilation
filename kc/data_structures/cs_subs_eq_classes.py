@@ -6,7 +6,7 @@ are considered.
 """
 
 from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain, EmptyDomain
-from kc.util import powerset
+from kc.util import powerset, get_element_of_set
 
 from abc import ABC, abstractmethod
 from functools import reduce
@@ -162,7 +162,10 @@ class ConstraintSet:
             return False
 
         eq_classes = self.get_var_eq_classes()
-        if not eq_classes.consistent_with_inequality_constraints(self):
+        if not eq_classes.consistent_with_variable_inequality_constraints(self):
+            return False
+
+        if not eq_classes.consistent_with_constant_inequality_constraints(self):
             return False
 
         # # Then we construct the possible domains for each equivalence class and
@@ -189,7 +192,6 @@ class ConstraintSet:
             domains_generator = (self.get_allowed_constants_for(variable) for variable in mutual_inequality)
             combined_domain = frozenset.union(*domains_generator)
             if len(combined_domain) < len(mutual_inequality):
-                print(f'DEBUG: {mutual_inequality = }, {combined_domain = }')
                 return True
         return False
 
@@ -630,6 +632,7 @@ class InequalityConstraint(LogicalConstraint):
         right_term_class = EquivalenceClass([self.right_term])
         left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
         right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
+        print(left_domain, right_domain)
         domain_terms_intersect = left_domain.intersect_with(right_domain).size() > 0
         return domain_terms_intersect
 
@@ -971,7 +974,7 @@ class EquivalenceClass:
                 return EmptyDomain(f'Excluded {excluded_domain} is superset of shared {shared_domain}')
             elif excluded_domain.is_strict_subset_of(shared_domain):
                 # NOTE TODO: trying out a complement domain thing
-                if excluded_domain.parent_domain == shared_domain:
+                if excluded_domain.parent_domain == shared_domain and isinstance(excluded_domain, DomainVariable):
                     return excluded_domain.complement
                 raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
         return shared_domain
@@ -1084,22 +1087,39 @@ class EquivalenceClasses(Generic[TEC]):
         cs = substitution.to_constraint_set()
         return cs
 
-    def consistent_with_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
-        """If the equality classes conflict with the inequality constraints, returns False
-        NOTE: assuming the inequality constraints only contain logical variables"""
+    def consistent_with_variable_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
+        """If the equality classes conflict with the inequality constraints between variables, returns False"""
         for eq_class in self.classes:
-            for constraint in cs:
-                if isinstance(constraint, InequalityConstraint):
-                    if constraint.left_term in eq_class and constraint.right_term in eq_class: 
-                        return False
+            for constraint in cs.inequality_constraints:
+                if constraint.left_term in eq_class and constraint.right_term in eq_class: 
+                    return False
+        return True
+
+    def consistent_with_constant_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
+        """If the equality classes conflict with inequalities between constants, return False"""
+        for eq_class in self.classes:
+            equal_constants: Set['Constant'] = set()
+            unequal_constants: Set['Constant'] = set()
+            for ic in cs.inclusion_constraints:
+                if isinstance(ic.domain_term, SetOfConstants) and ic.domain_term.size() == 1 and ic.logical_term in eq_class:
+                    equal_constants.add(get_element_of_set(ic.domain_term.constants))
+            for nc in cs.notinclusion_constraints:
+                if isinstance(nc.domain_term, SetOfConstants) and nc.domain_term.size() == 1 and nc.logical_term in eq_class:
+                    unequal_constants.add(get_element_of_set(nc.domain_term.constants))
+
+            if len(equal_constants) > 1:
+                return False  # can't be equal to more than one constant
+            if len(equal_constants.intersection(unequal_constants)) >= 1:
+                return False  # can't be equal to constants we have an inequality with
         return True
 
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
-        """If any equality class WITH AN INCLUSION CONSTRAINT has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
-        NOTE: For now, only works with SetOfConstants, not DomainVariable
-        TODO: Add support for DomainVariable"""
+        """If any equality class WITH A PROPER DOMAIN has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
+        SetOfConstants are now handled in separately"""
+        if len(cs.inclusion_constraints) == 0:
+            return True  # no inclusion constraints to conflict with
         for eq_class in self.classes:
-            variables_with_domains = set(c.logical_term for c in cs.set_constraints if isinstance(c, InclusionConstraint) and c.logical_term in eq_class)
+            variables_with_domains = set(c.logical_term for c in cs.inclusion_constraints if c.logical_term in eq_class and isinstance(c.domain_term, ProperDomain))
 
             if len(variables_with_domains) == 0:
                 return True # trivially consistent

@@ -34,10 +34,10 @@ class UnitPropagation(KCRule):
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in cnf.clauses:
-            print(f'======================\n{gamma = }')
+            # print(f'======================\n{gamma = }')
             split_gammas = cls.split(gamma, u_atom)
-            print(f'split_gammas with {u_atom = }')
-            print(*split_gammas, sep='\n')
+            # print(f'split_gammas with {u_atom = }')
+            # print(*split_gammas, sep='\n')
             for gamma_s in split_gammas:
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
@@ -120,11 +120,11 @@ class UnitPropagation(KCRule):
         """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'c_literal'.
         NOTE: assumes that gamma is split wrt the atom in 'c_literal'
         TODO: currently assuming there are no free or domain variables present."""
-        # print("\n==============================")
-        # print(f"{gamma = }")
-        # print(f"{c_literal = }")
+        print("\n==============================")
+        print(f"{gamma = }")
+        print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
-            # print(f"SUBSUMED!")
+            print(f"SUBSUMED!")
             return None
         else:
             # print(f"NOT SUBSUMED!")
@@ -134,6 +134,7 @@ class UnitPropagation(KCRule):
                 Lambda = ConstrainedClause(necessary_literals, gamma.bound_vars, gamma.cs)
             else:
                 Lambda = UnconstrainedClause(necessary_literals)
+            print(f"REDUCED TO {Lambda}!")
             return Lambda
         # print("==============================\n")
 

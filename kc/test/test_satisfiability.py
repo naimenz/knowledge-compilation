@@ -46,3 +46,4 @@ def test_mutual_inequality():
 
 def test_false_constraint():
     assert(not ConstraintSet([Xinab, Yinab, FalseConstraint("false constraint")]).is_satisfiable())
+

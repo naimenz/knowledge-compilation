@@ -47,6 +47,8 @@ def test_uclause():
 def test_cs():
     returned_cs = cs.substitute(subYX)
     target_cs = ConstraintSet([Xeqa, ~Xeqa, XinD])
+    print(cs)
+    print(returned_cs)
     assert(returned_cs == target_cs)
     assert(cs.is_satisfiable())
     assert(not returned_cs.is_satisfiable() )
@@ -61,4 +63,4 @@ def test_cnf():
     returned_cnf = cnf.substitute(subYX)
     target_cnf = CNF([uclause.substitute(subYX), cclause.substitute(subYX)])
     assert(returned_cnf == target_cnf)
-    
+
