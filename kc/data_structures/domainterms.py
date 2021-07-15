@@ -140,7 +140,8 @@ class ProperDomain(DomainTerm):
         self.children: List['ProperDomain'] = []  # will be updated as children are created
         self.ancestors = self.get_ancestors()
         # set as a child of the parent
-        self.parent_domain.children.append(self)
+        if self.parent_domain is not None:
+            self.parent_domain.children.append(self)
 
     def get_ancestors(self) -> List['ProperDomain']:
         """Get a list of all parents of this domain, in order from most distant to most recent"""
@@ -265,11 +266,29 @@ class DomainVariable(ProperDomain):
     NOTE: This is based quite heavily on Forclift's "subdomain".
     """
 
-    def __init__(self, symbol: str, parent_domain: 'ProperDomain', excluded_constants: Iterable['Constant']=None) -> None:
+    def __init__(self,
+                 symbol: str,
+                 parent_domain: 'ProperDomain',
+                 included_constants: Iterable['Constant']=frozenset(),
+                 excluded_constants: Iterable['Constant']=frozenset(),
+                 complement: Optional['DomainVariable']=None
+                 ) -> None:
         """Excluded constants are where we specify which elements of the parent domain
-        cannot appear in this domain"""
+        cannot appear in this domain.
+        Included constants are those that MUST be part of the domain, mostly due to constants
+        that are excluded in the complement, but possibly due to inclusion constraints/
+        NOTE: We now enforce that every DV has a complement and build it if it doesn't exist.  """
         ProperDomain.__init__(self, symbol, parent_domain)
-        self.excluded_constants = frozenset(excluded_constants) if excluded_constants is not None else frozenset()
+        self.parent_domain = parent_domain  # hack for type checking (since it's optional in ProperDomain)
+        self.excluded_constants = frozenset(excluded_constants) 
+        self.included_constants = frozenset(included_constants) 
+        if complement is not None:
+            self.complement = complement
+        else:
+            # note that we swap included and excluded constants
+            complement_symbol = self.parent_domain.symbol + '\\' + self.symbol
+            self.complement = DomainVariable(complement_symbol, self.parent_domain, excluded_constants, included_constants, self)
+
 
     @property
     def possible_constants(self) -> FrozenSet['Constant']:

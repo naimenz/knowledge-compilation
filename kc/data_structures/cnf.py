@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import EquivalenceClass, Clause, Substitution, DomainTerm, Constant, SetOfConstants
+    from kc.data_structures import EquivalenceClass, Clause, Substitution, DomainTerm, Constant, SetOfConstants, ProperDomain
 
 class CNF:
     """
@@ -146,7 +146,7 @@ class CNF:
         domain_variable_symbols = [d.symbol for d in self.get_domain_variables()]
         while new_variable_string in domain_variable_symbols:
             new_variable_string += '_'
-        new_variable = DomainVariable(new_variable_string, parent_domain, excluded_constants)
+        new_variable = DomainVariable(new_variable_string, parent_domain, excluded_constants=excluded_constants)
         return new_variable
 
     def __eq__(self, other: Any) -> bool:

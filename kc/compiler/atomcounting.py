@@ -7,6 +7,7 @@ from kc.util import get_element_of_set
 from typing import Tuple, Optional, List, Set
 from typing import TYPE_CHECKING
 
+DEBUG_FLAG = False
 if TYPE_CHECKING:
     from kc.compiler import Compiler
 
@@ -36,6 +37,9 @@ class AtomCounting(KCRule):
         free_vars = cnf.get_free_logical_variables()
         domain_terms = cnf.get_domain_terms()
 
+        global DEBUG_FLAG
+        if DEBUG_FLAG:
+            raise NotImplementedError("starting second AC")
         # drop all irrelevant constraints (this is like getting cs_a from the pseudocode in the PhD)        
         variable_cs = c_atom.cs.project(bound_var)
 
@@ -57,6 +61,7 @@ class AtomCounting(KCRule):
         # print(f"Theory after AC:\n{new_cnf}")
         # print("============== END DEBUG ===================")
         # raise NotImplementedError("end")
+        DEBUG_FLAG = True
         return ExistsNode(compiler.compile(new_cnf), [domain_variable], domain_cs)
         
     @classmethod

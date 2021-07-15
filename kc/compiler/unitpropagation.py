@@ -74,6 +74,7 @@ class UnitPropagation(KCRule):
 
         return_clauses: List['Clause'] = []
         gamma_mgu: 'Clause'
+        print(f'{cs_mgu = }, {cs_mgu.is_satisfiable() = }')
         if cs_mgu.is_satisfiable():
             if joint_variables or cs_mgu.is_non_empty(): 
                 # NOTE DEBUG: before splitting, try propagating equality constraints
@@ -108,10 +109,10 @@ class UnitPropagation(KCRule):
                     # NOTE: splitting the gamma_rests recursively as we build them
                     return_clauses += cls.split(gamma_rest, A)
 
-        print(f'\n                {A = }')
-        print(f'{constrained_atoms = }')
-        print(f'     {viable_atoms = } {len(viable_atoms) = }')
-        print(f'   {return_clauses = }')
+        # print(f'\n                {A = }')
+        # print(f'{constrained_atoms = }')
+        # print(f'     {viable_atoms = } {len(viable_atoms) = }')
+        # print(f'   {return_clauses = }')
         return return_clauses
 
     @classmethod

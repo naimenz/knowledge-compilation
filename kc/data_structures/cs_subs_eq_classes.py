@@ -971,8 +971,8 @@ class EquivalenceClass:
                 return EmptyDomain(f'Excluded {excluded_domain} is superset of shared {shared_domain}')
             elif excluded_domain.is_strict_subset_of(shared_domain):
                 # NOTE TODO: trying out a complement domain thing
-                # if excluded_domain.parent_domain == shared_domain:
-
+                if excluded_domain.parent_domain == shared_domain:
+                    return excluded_domain.complement
                 raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
         return shared_domain
 
