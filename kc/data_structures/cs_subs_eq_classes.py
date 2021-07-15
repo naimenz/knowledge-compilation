@@ -773,8 +773,12 @@ class InclusionConstraint(SetConstraint):
 
     def __invert__(self) -> 'NotInclusionConstraint':
         """This method overrides the '~' operator.
-        I use it to negate the constraint -- e.g. turn = into !="""
-        return NotInclusionConstraint(self.logical_term, self.domain_term)
+        I use it to negate the constraint -- e.g. turn = into !=
+        NOTE: If this involves a DomainVariable, we return another InclusionConstraint with its complement"""
+        if isinstance(self.domain_term, DomainVariable):
+            return InclusionConstraint(self.logical_term, self.domain_term.complement)
+        else:
+            return NotInclusionConstraint(self.logical_term, self.domain_term)
 
     def __str__(self) -> str:
         element_of_string = ' \u2208 '
