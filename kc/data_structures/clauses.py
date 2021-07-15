@@ -489,6 +489,7 @@ class ConstrainedAtom(UnitClause):
         """Does this atom (self) need splitting with respect to the other atom (other)?
          Returns True if it does, and False otherwise."""
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
+        print("HERE",mgu_eq_classes)
         # check for independence
         if mgu_eq_classes is None:
             print(f'independent')
@@ -556,16 +557,16 @@ class ConstrainedAtom(UnitClause):
             print("DNS 4")
             return True
         for eq_class in mgu_eq_classes:
-            eq_class_list = list(eq_class)  # to avoid double-counting we use an enumerated list
-            for i, term1 in enumerate(eq_class_list):
+            for term1 in eq_class:
                 if term1 in self.bound_vars:
                     variable1 = term1
-                    for term2 in eq_class_list[i:]:
+                    for term2 in eq_class:
                         if term2 in other.bound_vars:
                             variable2 = term2
                             this_domain = self.cs.get_domain_for(variable1)
                             other_domain = other.cs.get_domain_for(variable2)
                             if this_domain.is_strict_subset_of(other_domain):
+                                print("DNS 5")
                                 return True
 
         else:
