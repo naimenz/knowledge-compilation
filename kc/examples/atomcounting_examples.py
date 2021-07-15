@@ -18,6 +18,7 @@ friends = Predicate('friends', 2)
 fun = Predicate('fun', 1)
 
 friendsXY = Literal(Atom(friends, [X, Y]))
+friendsYX = Literal(Atom(friends, [Y, X]))
 funX = Literal(Atom(fun, [X]))
 
 friendsY1X1 = Literal(Atom(friends, [Y1, X1]))
@@ -42,7 +43,8 @@ cs1 = ConstraintSet([XinPeople, YinPeople])
 cs2 = ConstraintSet([X1inPeople, Y1inPeople])
 
 clause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1)
-clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
+# clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
+clause2 = ConstrainedClause([funX, ~friendsYX], [X, Y], cs1)
 
 splitclause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1.join(ConstraintSet([XinD])))
 splitclause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2.join(ConstraintSet([X1inDcomp])))
@@ -62,3 +64,9 @@ cnf = CNF([clause1, clause2])
 cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
 compiler = Compiler()
 nnf = compiler.compile(cnf)
+
+current_node = nnf
+while len(current_node.children) > 0:
+    print(current_node)
+    current_node = current_node.children[0]
+

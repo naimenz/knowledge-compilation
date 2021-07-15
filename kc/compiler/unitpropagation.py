@@ -1,10 +1,11 @@
 """File for unit propagation compilation rule"""
 
-from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF
+from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable
 from kc.compiler import KCRule
 # NOTE DEBUG: Limiting the number of recursions for debugging
 import sys
 sys.setrecursionlimit(500) 
+DEBUG_FLAG = False
 
 from typing import Optional, Tuple, List, Any, Set
 from typing import TYPE_CHECKING
@@ -45,12 +46,16 @@ class UnitPropagation(KCRule):
                 # print(f'\n\n\n        {unit_clause = }\n            {gamma_s = }\n {conditioned_clause = }')
         propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
         unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
-        print("============== BEG DEBUG ===================")
-        print(f"Propagated Theory after UnitProp:\n{propagated_cnf}")
-        print(f"Unit Clause after UnitProp:\n{unit_cnf}")
-        print(f"Compiled Unit Clause\n{compiler.compile(unit_cnf)}")
-        print("============== END DEBUG ===================")
-        raise NotImplementedError("end")
+        # print("============== BEG DEBUG ===================")
+        # print(f"Propagated Theory after UnitProp:\n{propagated_cnf}")
+        # print(f"Unit Clause after UnitProp:\n{unit_cnf}")
+        # print(f"Compiled Unit Clause\n{compiler.compile(unit_cnf)}")
+        # print("============== END DEBUG ===================")
+        # raise NotImplementedError("end")
+        # global DEBUG_FLAG
+        # if DEBUG_FLAG:
+        #     raise NotImplementedError('STOP AFTER SECOND UNIT PROP')
+        DEBUG_FLAG = True
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
@@ -62,19 +67,26 @@ class UnitPropagation(KCRule):
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]
-
         cs_gamma = a_gamma.cs
         cs_A = A.cs
-        theta = A.get_constrained_atom_mgu_substitution(a_gamma)
-        if theta is None:
+
+        mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
+        # we apply a preprocessing step to the variables in the expressions
+        # to avoid messiness
+        if mgu_eq_classes is None:
             raise ValueError(f"a_gamma = {a_gamma} and A = {A} are independent but shouldn't be")
+        # print(f'before {a_gamma = }, {A = }')
+        # a_gamma, A  = cls._preprocess_expressions(a_gamma, A, mgu_eq_classes) 
+        # print(f' after {a_gamma = }, {A = }')
+
+        theta = mgu_eq_classes.to_substitution()
         cs_theta = theta.to_constraint_set()
         cs_mgu = cs_gamma.join(cs_theta).join(cs_A)
         joint_variables = A.bound_vars.union(a_gamma.bound_vars)
 
         return_clauses: List['Clause'] = []
         gamma_mgu: 'Clause'
-        print(f'{cs_mgu = }, {cs_mgu.is_satisfiable() = }')
+        # print(f'{cs_mgu = }, {cs_mgu.is_satisfiable() = }')
         if cs_mgu.is_satisfiable():
             if joint_variables or cs_mgu.is_non_empty(): 
                 # NOTE DEBUG: before splitting, try propagating equality constraints
@@ -85,7 +97,6 @@ class UnitPropagation(KCRule):
                     return_clauses += cls.split(gamma_mgu, A)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
-                # print(f'DEBUG {gamma_mgu = }')
                 return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
@@ -116,15 +127,33 @@ class UnitPropagation(KCRule):
         return return_clauses
 
     @classmethod
+    def _preprocess_expressions(cls,
+                                c_atom: 'ConstrainedAtom',
+                                other_c_atom: 'ConstrainedAtom',
+                                eq_classes: 'EquivalenceClasses'
+                                ) -> Tuple['ConstrainedAtom', 'ConstrainedAtom']:
+        """Apply preprocessing to the variables of two c_atoms, according to their mgu, to prevent
+        more than two bound variables being introduced to any clauses"""
+        substitution_pairs: List[Tuple['LogicalVariable', 'LogicalVariable']] = []
+        for variable in c_atom.bound_vars:
+            for eq_class in eq_classes:
+                if variable in eq_class:
+                    for term in eq_class:
+                        if isinstance(term, LogicalVariable):
+                            substitution_pairs.append((term, variable))
+        substitution = Substitution(substitution_pairs)
+        new_c_atom, other_new_c_atom = c_atom.substitute(substitution), other_c_atom.substitute(substitution)
+        return new_c_atom, other_new_c_atom
+
+    @classmethod
     def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:
         """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'c_literal'.
-        NOTE: assumes that gamma is split wrt the atom in 'c_literal'
-        TODO: currently assuming there are no free or domain variables present."""
-        print("\n==============================")
-        print(f"{gamma = }")
-        print(f"{c_literal = }")
+        NOTE: assumes that gamma is split wrt the atom in 'c_literal'"""
+        # print("\n==============================")
+        # print(f"{gamma = }")
+        # print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
-            print(f"SUBSUMED!")
+            # print(f"SUBSUMED!")
             return None
         else:
             # print(f"NOT SUBSUMED!")
@@ -134,7 +163,7 @@ class UnitPropagation(KCRule):
                 Lambda = ConstrainedClause(necessary_literals, gamma.bound_vars, gamma.cs)
             else:
                 Lambda = UnconstrainedClause(necessary_literals)
-            print(f"REDUCED TO {Lambda}!")
+            # print(f"REDUCED TO {Lambda}!")
             return Lambda
         # print("==============================\n")
 
