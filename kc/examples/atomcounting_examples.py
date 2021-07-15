@@ -1,5 +1,6 @@
 from kc.data_structures import *
 from kc.compiler import *
+from kc.util import build_nx_graph_from_nnf
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -66,7 +67,21 @@ compiler = Compiler()
 nnf = compiler.compile(cnf)
 
 current_node = nnf
-while len(current_node.children) > 0:
-    print(current_node)
-    current_node = current_node.children[0]
+graph = build_nx_graph_from_nnf(current_node)
+print(graph)
 
+import matplotlib.pyplot as plt
+import pydot
+import networkx as nx
+from networkx.drawing.nx_pydot import graphviz_layout
+pos = graphviz_layout(graph, prog="dot")
+nx.draw(graph, pos)
+
+label_pos = {}
+y_off = 10  # offset on the y axis
+
+for k, v in pos.items():
+    label_pos[k] = (v[0], v[1]+y_off)
+node_labels = nx.get_node_attributes(graph, 'label')
+nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
+plt.show()
