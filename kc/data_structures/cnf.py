@@ -34,7 +34,8 @@ class CNF:
 
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one."""
-        return CNF(self.clauses.union(other.clauses))
+        shattered = self.shattered == other.shattered == True  # only shattered if both components are
+        return CNF(self.clauses.union(other.clauses), shattered=shattered)
 
     def substitute(self, substitution: 'Substitution') -> 'CNF':
         """Return a new CNF, the result of applying substitution to this CNF"""
@@ -127,12 +128,14 @@ class CNF:
     def get_new_logical_variable(self, symbol: str) -> 'LogicalVariable':
         """Return a logical variable that does not appear in the theory.
         To make it unique, take the symbol and keep adding underscores"""
+        count = 1
         new_variable_string = symbol
         new_variable = LogicalVariable(new_variable_string)
         logical_variables = self.get_logical_variables()
         while new_variable in logical_variables:
-            new_variable_string += '_'
+            new_variable_string = symbol + str(count)
             new_variable = LogicalVariable(new_variable_string)
+            count += 1
         return new_variable
 
     def get_new_domain_variable(self,

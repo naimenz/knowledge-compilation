@@ -39,7 +39,7 @@ class Compiler:
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
         global ITERS
-        if ITERS > 100:
+        if ITERS > 30:
             raise ValueError('Too many iterations')
         else:
             ITERS += 1

@@ -44,8 +44,16 @@ cs1 = ConstraintSet([XinPeople, YinPeople])
 cs2 = ConstraintSet([X1inPeople, Y1inPeople])
 
 clause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1)
-# clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
-clause2 = ConstrainedClause([funX, ~friendsYX], [X, Y], cs1)
+clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
+# clause2 = ConstrainedClause([funX, ~friendsYX], [X, Y], cs1)
+c_atom = ConstrainedAtom([friendsXY], [X, Y], cs1)
+other_c_atom = ConstrainedAtom([friendsYX], [X, Y], cs1)
+
+d_other_c_atom = UnitPropagation._make_variables_different(c_atom, other_c_atom)
+new_other_atom, new_clause = UnitPropagation._align_variables(c_atom, other_c_atom, clause2)
+# print(f'atoms: {c_atom = }, {other_c_atom = }')
+# print(f'{d_other_c_atom = }')
+# print(f'{new_other_atom = }, {new_clause = }')
 
 splitclause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1.join(ConstraintSet([XinD])))
 splitclause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2.join(ConstraintSet([X1inDcomp])))

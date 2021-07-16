@@ -8,10 +8,13 @@ sys.setrecursionlimit(500)
 DEBUG_FLAG = False
 
 from typing import Optional, Tuple, List, Any, Set
+from typing import TypeVar
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kc.compiler import Compiler
     from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable
+
+C = TypeVar('C', bound='ConstrainedClause')
 
 class UnitPropagation(KCRule):
     
@@ -51,11 +54,11 @@ class UnitPropagation(KCRule):
         # print(f"Unit Clause after UnitProp:\n{unit_cnf}")
         # print(f"Compiled Unit Clause\n{compiler.compile(unit_cnf)}")
         # print("============== END DEBUG ===================")
-        # raise NotImplementedError("end")
+        # # raise NotImplementedError("end")
         # global DEBUG_FLAG
         # if DEBUG_FLAG:
         #     raise NotImplementedError('STOP AFTER SECOND UNIT PROP')
-        DEBUG_FLAG = True
+        # DEBUG_FLAG = True
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod
@@ -67,6 +70,11 @@ class UnitPropagation(KCRule):
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]
+
+        # if we have a viable atom, apply some preprocessing to the clauses to 
+        # avoid variable name issues
+        # DEBUG TODO: This is experimental
+        a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
         cs_gamma = a_gamma.cs
         cs_A = A.cs
 
@@ -127,23 +135,50 @@ class UnitPropagation(KCRule):
         return return_clauses
 
     @classmethod
-    def _preprocess_expressions(cls,
-                                c_atom: 'ConstrainedAtom',
-                                other_c_atom: 'ConstrainedAtom',
-                                eq_classes: 'EquivalenceClasses'
-                                ) -> Tuple['ConstrainedAtom', 'ConstrainedAtom']:
-        """Apply preprocessing to the variables of two c_atoms, according to their mgu, to prevent
-        more than two bound variables being introduced to any clauses"""
-        substitution_pairs: List[Tuple['LogicalVariable', 'LogicalVariable']] = []
-        for variable in c_atom.bound_vars:
-            for eq_class in eq_classes:
-                if variable in eq_class:
-                    for term in eq_class:
-                        if isinstance(term, LogicalVariable):
-                            substitution_pairs.append((term, variable))
-        substitution = Substitution(substitution_pairs)
-        new_c_atom, other_new_c_atom = c_atom.substitute(substitution), other_c_atom.substitute(substitution)
-        return new_c_atom, other_new_c_atom
+    def _make_variables_different(cls,
+                                clause: C,
+                                other_clause: C,
+                                target_clause: Optional[C]=None
+                                ) -> Tuple[C, Optional[C]]:
+        """Apply preprocessing to the BOUND variables of two clauses to make them 
+        all distinct. Also optionally apply this same substitution to another clause"""
+
+        # all the variables that need to be substituted
+        overlapping_variables: List['LogicalVariable'] = []
+        for variable in clause.bound_vars:
+            if variable in other_clause.bound_vars:
+                overlapping_variables.append(variable)
+
+        new_clause, new_other_clause = clause, other_clause
+        for variable in overlapping_variables:
+            temp_cnf = CNF([new_clause, new_other_clause])  # taking advantage of existing methods in CNF
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
+            sub = Substitution([(variable, sub_target)])
+            new_other_clause = new_other_clause.substitute(sub)
+            if target_clause is not None:
+                target_clause = target_clause.substitute(sub)
+        return new_other_clause, target_clause
+
+    @classmethod
+    def _align_variables(cls,
+                         c_atom: 'ConstrainedAtom',
+                         other_c_atom: 'ConstrainedAtom',
+                         clause: 'ConstrainedClause'
+                         ) -> Tuple['ConstrainedAtom', 'ConstrainedClause']:
+        """'Line up' the variables in the  other_c_atom to match those in the first (c_atom), and
+        apply this to the whole clause.
+        This is done to make the mgu meaningful, rather than just having it rename variables to match.
+        First, separate out all the bound variables.
+        Then for each bound variable in the terms of this c_atom, we rename the other to match, as long as it 
+        also is a bound variable."""
+        other_c_atom, clause = cls._make_variables_different(c_atom, other_c_atom, clause)
+        for term, other_term in zip(c_atom.atom.terms, other_c_atom.atom.terms):
+            if term in c_atom.bound_vars and other_term in other_c_atom.bound_vars:
+                assert(isinstance(other_term, LogicalVariable))  # hack for type checking
+                sub = Substitution([(other_term, term)])
+                other_c_atom = other_c_atom.substitute(sub)
+                clause = clause.substitute(sub)
+        return other_c_atom, clause
 
     @classmethod
     def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:

@@ -2,6 +2,7 @@
 In non-CNF form, this is smokes(X) ^ friends(X, Y) => smokes(Y)"""
 from kc.data_structures import *
 from kc.compiler import *
+from kc.util import build_nx_graph_from_nnf
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
