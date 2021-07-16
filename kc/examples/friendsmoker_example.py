@@ -58,9 +58,11 @@ unit_clause = ConstrainedAtom([smokesX], [X],
 # print(c_literal.is_subsumed_by_literal(unit_clause))
 # print(UnitPropagation.condition(gamma_s2, unit_clause))
 
+# clause = ConstrainedClause([~smokesX, ~friendsXY, smokesY], [X, Y], cs.join(ConstraintSet([EqualityConstraint(X, Y)])))
+
 
 cnf = CNF([clause])
-cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
+# cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
 compiler = Compiler()
 nnf = compiler.compile(cnf)
 

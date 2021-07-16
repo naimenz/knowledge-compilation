@@ -534,11 +534,13 @@ class EqualityConstraint(LogicalConstraint):
         TODO: Figure out how to abstract this up the the base class"""
         new_left_term = substitution[self.left_term]
         new_right_term = substitution[self.right_term]
+        # avoid trivial constraints
+        if new_left_term == new_right_term:
+            return EmptyConstraint(f'{new_left_term} == {new_right_term}')
+
         if isinstance(new_left_term, Constant):
             if isinstance(new_right_term, Constant):
-                if new_left_term == new_right_term:
-                    return EmptyConstraint(f'{new_left_term} == {new_right_term}')
-                else:
+                if new_left_term != new_right_term:
                     return FalseConstraint(f'{new_left_term} != {new_right_term}')
             else:
                 right_var = cast('LogicalVariable', new_right_term) # hack for type checking
