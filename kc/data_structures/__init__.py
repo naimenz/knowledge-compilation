@@ -7,5 +7,5 @@ from kc.data_structures.cs_subs_eq_classes import EquivalenceClass, VariableEqui
 
 from kc.data_structures.literals import Literal, Atom, GroundAtom, Predicate
 from kc.data_structures.clauses import Clause, UnconstrainedClause, ConstrainedClause, UnitClause, ConstrainedAtom
+from kc.data_structures.clauses import CNF
 from kc.data_structures.nnf import NNFNode, ExtensionalNode, IntensionalNode, AndNode, OrNode, ForAllNode, ExistsNode, EmptyNode, TrueNode, FalseNode, LiteralNode
-from kc.data_structures.cnf import CNF
