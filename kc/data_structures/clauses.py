@@ -5,7 +5,7 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution
 
 from functools import reduce
 from abc import ABC, abstractmethod
@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain
+    from kc.data_structures import Atom, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain
 
 # Type variable for arbitrary clauses so I can reuse substitute
 C = TypeVar('C', bound='ConstrainedClause') 
@@ -72,8 +72,10 @@ class Clause(ABC):
         if self.has_no_literals():
             return True
 
-        # every literal in the subsumer must subsume some literal in self
+        # every literal in the subsumer (which is just 1) must subsume some literal in self
+        print(f'{subsumer = }')
         for c_literal in self.get_constrained_literals():
+            print(f'{c_literal = }')
             if c_literal.is_subsumed_by_literal(subsumer):
                 return True
         return False
@@ -488,6 +490,10 @@ class ConstrainedAtom(UnitClause):
         if self == other:
             return True
 
+        # first, we make the variables different
+        # TODO: move this
+        other = other.make_variables_different(self)
+
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
         independent = mgu_eq_classes is None
         if independent:
@@ -504,6 +510,11 @@ class ConstrainedAtom(UnitClause):
     def needs_splitting(self, other: 'ConstrainedAtom') -> bool:
         """Does this atom (self) need splitting with respect to the other atom (other)?
          Returns True if it does, and False otherwise."""
+
+        # first, we make the variables different
+        # TODO: move this
+        other = other.make_variables_different(self)
+
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
         # check for independence
         if mgu_eq_classes is None:
@@ -539,9 +550,6 @@ class ConstrainedAtom(UnitClause):
         is a subset of the domain of a bound variable in the other atom (other)
         and the two variables are in the same EC.
         """
-
-        # before everything else, rename to avoid overlapping bound variables
-        other = other.make_variables_different(self)
 
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
@@ -601,7 +609,7 @@ class ConstrainedAtom(UnitClause):
         new_c_atom, new_other_c_atom = self, other_c_atom
         for variable in overlapping_variables:
             temp_cnf = CNF([new_c_atom, new_other_c_atom])  # taking advantage of existing methods in CNF
-            sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol[0])  # just taking the character
             sub = Substitution([(variable, sub_target)])
             new_c_atom = new_c_atom.substitute(sub)
         return new_c_atom

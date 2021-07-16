@@ -190,7 +190,7 @@ class UnitPropagation(KCRule):
         # print(f"{gamma = }")
         # print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
-            # print(f"SUBSUMED!")
+            print(f"SUBSUMED!")
             return None
         else:
             # print(f"NOT SUBSUMED!")
