@@ -67,6 +67,8 @@ class UnitPropagation(KCRule):
         Returns a sequence of constrained clauses that are split with respect to a"""
         constrained_atoms = gamma.get_constrained_atoms()
         viable_atoms = [a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)]
+        print(f'{viable_atoms = }')
+        print(f'{A = }')
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]

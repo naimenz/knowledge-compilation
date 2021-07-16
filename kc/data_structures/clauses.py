@@ -5,7 +5,7 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, CNF
 
 from functools import reduce
 from abc import ABC, abstractmethod
@@ -492,6 +492,7 @@ class ConstrainedAtom(UnitClause):
         independent = mgu_eq_classes is None
         if independent:
             return False
+        assert(mgu_eq_classes is not None)  # hack for type checking
         self_DNS_other = self.does_not_subsume(other, mgu_eq_classes)
         if not self_DNS_other:
             return True
@@ -539,6 +540,8 @@ class ConstrainedAtom(UnitClause):
         and the two variables are in the same EC.
         """
 
+        # before everything else, rename to avoid overlapping bound variables
+        other = other.make_variables_different(self)
 
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
@@ -585,4 +588,22 @@ class ConstrainedAtom(UnitClause):
 
         else:
             return False
+
+    def make_variables_different(self, other_c_atom: 'ConstrainedAtom') -> 'ConstrainedAtom':
+        """Make the bound variables of this c_atom (self) different to those in other_c_atom.
+        NOTE: This is very similar to the method in UnitPropagation but serves a slightly different purpose"""
+
+        overlapping_variables: List['LogicalVariable'] = []
+        for variable in self.bound_vars:
+            if variable in other_c_atom.bound_vars:
+                overlapping_variables.append(variable)
+
+        new_c_atom, new_other_c_atom = self, other_c_atom
+        for variable in overlapping_variables:
+            temp_cnf = CNF([new_c_atom, new_other_c_atom])  # taking advantage of existing methods in CNF
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
+            sub = Substitution([(variable, sub_target)])
+            new_c_atom = new_c_atom.substitute(sub)
+        return new_c_atom
+
 
