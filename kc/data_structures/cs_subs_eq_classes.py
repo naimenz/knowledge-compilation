@@ -120,10 +120,11 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
-    def project(self, variable: 'LogicalVariable') -> 'ConstraintSet':
-        """Return a constraint set with only the constraints involving 'variable'"""
-        relevant_logical_constraints = [lc for lc in self.logical_constraints if (lc.left_term == variable or lc.right_term == variable)]
-        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term == variable]
+    def project(self, c_atom: 'ConstrainedAtom') -> 'ConstraintSet':
+        """Return a constraint set with only the constraints involving a specific c_atom"""
+        relevant_variables = c_atom.literal_variables  # TODO: replace with non-property version
+        relevant_logical_constraints = [lc for lc in self.logical_constraints if (lc.left_term in relevant_variables and lc.right_term in relevant_variables)]
+        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term in relevant_variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
     def get_domain_for(self, variable: 'LogicalVariable') -> 'ProperDomain':
@@ -160,6 +161,11 @@ class ConstraintSet:
             fcs = [c for c in self.constraints if isinstance(c, FalseConstraint)]
             print([fc.debug_message for fc in fcs])
             return False
+
+        # a bit of a hack but can catch some cases
+        for c in self.constraints:
+            if ~c in self.constraints:
+                return False
 
         eq_classes = self.get_var_eq_classes()
         if not eq_classes.consistent_with_variable_inequality_constraints(self):
@@ -542,6 +548,9 @@ class EqualityConstraint(LogicalConstraint):
             if isinstance(new_right_term, Constant):
                 if new_left_term != new_right_term:
                     return FalseConstraint(f'{new_left_term} != {new_right_term}')
+                else:
+                    # this branch won't be reached, just for type-checking
+                    return EmptyConstraint(f'{new_left_term} == {new_right_term}')  
             else:
                 right_var = cast('LogicalVariable', new_right_term) # hack for type checking
                 return InclusionConstraint(right_var, SetOfConstants([new_left_term]))
@@ -773,7 +782,7 @@ class InclusionConstraint(SetConstraint):
         NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
         return super().__hash__()
 
-    def __invert__(self) -> 'NotInclusionConstraint':
+    def __invert__(self) -> 'SetConstraint':
         """This method overrides the '~' operator.
         I use it to negate the constraint -- e.g. turn = into !=
         NOTE: If this involves a DomainVariable, we return another InclusionConstraint with its complement"""

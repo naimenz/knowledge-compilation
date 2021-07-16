@@ -41,7 +41,9 @@ class AtomCounting(KCRule):
         if DEBUG_FLAG:
             raise NotImplementedError("starting second AC")
         # drop all irrelevant constraints (this is like getting cs_a from the pseudocode in the PhD)        
-        variable_cs = c_atom.cs.project(bound_var)
+        print(f'{c_atom.cs = }')
+        variable_cs = c_atom.cs.project(c_atom)
+        print(f'{variable_cs = }')
 
         domain_cs, domain_variable = cls._construct_domain_cs_from_variable_cs(cnf, bound_var, variable_cs, bound_var)
         bound_var_in_domain_variable = InclusionConstraint(bound_var, domain_variable)

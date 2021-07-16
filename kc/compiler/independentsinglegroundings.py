@@ -3,7 +3,7 @@
 from kc.data_structures import *
 from kc.compiler import KCRule
 
-from typing import Tuple, Optional, cast, List
+from typing import Tuple, Optional, cast, List, Set
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class IndependentSingleGroundings(KCRule):
         """We can't simply use the substitute method because we
         need to remove the new variable from the bound vars after substituting it """
 
-        new_clauses = set()
+        new_clauses: Set['Clause'] = set()
         # NOTE: all clauses are constrained (since must have at least one bound var)
         for clause in cnf.c_clauses:
             new_literals = [literal.substitute(sub) for literal in clause.literals]
@@ -72,7 +72,8 @@ class IndependentSingleGroundings(KCRule):
         # must only be one root variable in the intersection
         root_variable = list(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
-        new_cs = ConstraintSet(set_constraints)
+        logical_constraints = [lc for lc in clause.cs.logical_constraints if lc.left_term == root_variable or lc.right_term == root_variable]
+        new_cs = ConstraintSet([*set_constraints, *logical_constraints])
         return new_cs.substitute(sub)
 
 

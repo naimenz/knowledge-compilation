@@ -70,7 +70,7 @@ bigger_uclause = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople]))
 #     print(ca.needs_splitting(u1))
 # print(*UnitPropagation.split(clause2, u1), sep='\n')
 cnf = CNF([clause1, clause2])
-cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
+# cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
 compiler = Compiler()
 nnf = compiler.compile(cnf)
 

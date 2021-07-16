@@ -73,9 +73,9 @@ class Clause(ABC):
             return True
 
         # every literal in the subsumer (which is just 1) must subsume some literal in self
-        print(f'{subsumer = }')
+        # print(f'{subsumer = }')
         for c_literal in self.get_constrained_literals():
-            print(f'{c_literal = }')
+            # print(f'{c_literal = }')
             if c_literal.is_subsumed_by_literal(subsumer):
                 return True
         return False

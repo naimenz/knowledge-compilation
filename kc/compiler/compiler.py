@@ -10,6 +10,10 @@ from kc.compiler import Independence, ShannonDecomposition, ShatteredCompilation
 from kc.compiler import IndependentSingleGroundings, IndependentPairedGroundings, AtomCounting
 from kc.compiler import Ground
 
+# NOTE DEBUG: Limiting the number of recursions for debugging
+import sys
+sys.setrecursionlimit(100) 
+
 
 from typing import Dict, Optional, Tuple, Any, Type
 
@@ -46,6 +50,7 @@ class Compiler:
         # if there are no clauses in the theory, then nothing to do
         #  TODO: make this nicer
         if len(theory.clauses) == 0:
+            print("EMPTY HERE")
             return EmptyNode()
 
         if self.cache_contains(theory):

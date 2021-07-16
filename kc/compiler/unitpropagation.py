@@ -2,9 +2,6 @@
 
 from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable
 from kc.compiler import KCRule
-# NOTE DEBUG: Limiting the number of recursions for debugging
-import sys
-sys.setrecursionlimit(500) 
 DEBUG_FLAG = False
 
 from typing import Optional, Tuple, List, Any, Set
@@ -67,8 +64,8 @@ class UnitPropagation(KCRule):
         Returns a sequence of constrained clauses that are split with respect to a"""
         constrained_atoms = gamma.get_constrained_atoms()
         viable_atoms = [a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)]
-        print(f'{viable_atoms = }')
-        print(f'{A = }')
+        # print(f'{viable_atoms = }')
+        # print(f'{A = }')
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]
@@ -190,7 +187,7 @@ class UnitPropagation(KCRule):
         # print(f"{gamma = }")
         # print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
-            print(f"SUBSUMED!")
+            # print(f"SUBSUMED!")
             return None
         else:
             # print(f"NOT SUBSUMED!")
