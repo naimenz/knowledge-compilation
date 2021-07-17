@@ -76,8 +76,8 @@ class IndependentPairedGroundings(KCRule):
         new_clauses = set()
         # NOTE: all clauses are constrained (since must have at least two bound vars)
         for clause in cnf.c_clauses:
-            new_literals = [literal.apply_substitution(sub) for literal in clause.literals]
-            new_cs = clause.cs.apply_substitution(sub).drop_constraints_involving_only_specific_variables(new_variables)
+            new_literals = [literal.substitute(sub) for literal in clause.literals]
+            new_cs = clause.cs.substitute(sub).drop_constraints_involving_only_specific_variables(new_variables)
             _new_bound_vars = [sub[var] for var in clause.bound_vars if not sub[var] in new_variables]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
