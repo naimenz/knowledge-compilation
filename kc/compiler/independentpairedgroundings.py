@@ -81,7 +81,11 @@ class IndependentPairedGroundings(KCRule):
             _new_bound_vars = [sub[var] for var in clause.bound_vars if not sub[var] in new_variables]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
-            new_clauses.add(ConstrainedClause(new_literals, new_bound_vars, new_cs))
+            # handle making unconstrained clauses
+            if new_bound_vars == [] and new_cs == ConstraintSet([]):
+                new_clauses.add(UnconstrainedClause(new_literals))
+            else:
+                new_clauses.add(ConstrainedClause(new_literals, new_bound_vars, new_cs))
         # shattering is preserved during this operation
         return CNF(new_clauses, shattered = cnf.shattered)
             

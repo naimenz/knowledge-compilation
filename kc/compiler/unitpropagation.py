@@ -45,7 +45,12 @@ class UnitPropagation(KCRule):
                     unitpropagated_clauses.append(conditioned_clause)
                 # print(f'\n\n\n        {unit_clause = }\n            {gamma_s = }\n {conditioned_clause = }')
         propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
-        unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
+        # NOTE: a quick check here to see if the unit_clause is really unconstrained, and if so, return
+        # it that way
+        if len(unit_clause.bound_vars) == 0 and unit_clause.cs == ConstraintSet([]):
+            unit_cnf = CNF([UnconstrainedClause(unit_clause.literals)], shattered=cnf.shattered)
+        else:
+            unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
         # print("============== BEG DEBUG ===================")
         # print(f"Propagated Theory after UnitProp:\n{propagated_cnf}")
         # print(f"Unit Clause after UnitProp:\n{unit_cnf}")
