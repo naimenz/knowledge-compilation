@@ -17,9 +17,6 @@ sys.setrecursionlimit(100)
 
 from typing import Dict, Optional, Tuple, Any, Type
 
-# TODO DEBUG: Remove this counter 
-ITERS = 0
-ITER_LIMIT = 50
 
 class Compiler:
     """A knowledge compilation compiler that takes CNFs and produces 
@@ -43,12 +40,6 @@ class Compiler:
     def compile(self, theory: 'CNF') -> 'NNFNode':
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
-        # DEBUG: limiting iterations so it doesn't go on for ever when failing
-        global ITERS
-        if ITERS > ITER_LIMIT:
-            raise ValueError('Too many iterations')
-        else:
-            ITERS += 1
         # if there are no clauses in the theory, then nothing to do
         #  TODO: make this nicer
         if len(theory.clauses) == 0:

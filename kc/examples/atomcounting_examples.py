@@ -70,9 +70,14 @@ bigger_uclause = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople]))
 #     print(ca.needs_splitting(u1))
 # print(*UnitPropagation.split(clause2, u1), sep='\n')
 cnf = CNF([clause1, clause2])
-# cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
-compiler = Compiler()
-nnf = compiler.compile(cnf)
+cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
+import time
+tic = time.perf_counter()
+for i in range(10):
+    compiler = Compiler()
+    nnf = compiler.compile(cnf)
+toc = time.perf_counter()
+print(f'10 comps took {toc - tic:0.4f} seconds')
 
 current_node = nnf
 graph = build_nx_graph_from_nnf(current_node)
