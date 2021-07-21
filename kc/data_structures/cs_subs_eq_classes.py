@@ -5,8 +5,8 @@ NOTE: at the moment only the types of constraints used in Chapter 4 of the PhD
 are considered.
 """
 
-from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm
-from kc.util import powerset
+from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain, EmptyDomain
+from kc.util import powerset, get_element_of_set
 
 from abc import ABC, abstractmethod
 from functools import reduce
@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import CNF, LogicalVariable, LogicalTerm
+    from kc.data_structures import CNF, LogicalVariable, LogicalTerm, ConstrainedAtom
 
 VarTermPair = Tuple['LogicalVariable', 'LogicalTerm']
 TEC = TypeVar('TEC', bound='EquivalenceClass') # this is a type var so I can work with eq classes or var eq classes
@@ -29,25 +29,65 @@ class ConstraintSet:
 
     def __init__(self, constraints: Iterable['Constraint']) -> None:
         self._constraints = frozenset(constraints)
-        logical_constraints, set_constraints = set(), set()
+        # make it easier to access different types of constraints 
+        equality_constraints, inequality_constraints = set(), set()
+        inclusion_constraints, notinclusion_constraints = set(), set()
+
         for constraint in constraints:
-            if isinstance(constraint, LogicalConstraint):
-                logical_constraints.add(constraint)
-            elif isinstance(constraint, SetConstraint):
-                set_constraints.add(constraint)
-        self._logical_constraints = frozenset(logical_constraints)
-        self._set_constraints = frozenset(set_constraints)
+            if isinstance(constraint, EqualityConstraint):
+                equality_constraints.add(constraint)
+            elif isinstance(constraint, InequalityConstraint):
+                inequality_constraints.add(constraint)
+            elif isinstance(constraint, InclusionConstraint):
+                inclusion_constraints.add(constraint)
+            elif isinstance(constraint, NotInclusionConstraint):
+                notinclusion_constraints.add(constraint)
+        self._inequality_constraints = frozenset(inequality_constraints)
+        self._equality_constraints = frozenset(equality_constraints)
+        self._inclusion_constraints = frozenset(inclusion_constraints)
+        self._notinclusion_constraints = frozenset(notinclusion_constraints)
 
     @property
     def constraints(self) -> FrozenSet['Constraint']:
         return self._constraints
 
     @property
+    def equality_constraints(self) -> FrozenSet['EqualityConstraint']:
+        return self._equality_constraints
+
+    @property
+    def inequality_constraints(self) -> FrozenSet['InequalityConstraint']:
+        return self._inequality_constraints
+
+    @property
+    def inclusion_constraints(self) -> FrozenSet['InclusionConstraint']:
+        return self._inclusion_constraints
+
+    @property
+    def notinclusion_constraints(self) -> FrozenSet['NotInclusionConstraint']:
+        return self._notinclusion_constraints
+
+    @property
     def logical_constraints(self) -> FrozenSet['LogicalConstraint']:
-        return self._logical_constraints
+        eq = cast(FrozenSet['LogicalConstraint'], self.equality_constraints) # hack for type checking
+        ineq = cast(FrozenSet['LogicalConstraint'], self.inequality_constraints) # hack for type checking
+        return eq.union(ineq)
+
     @property
     def set_constraints(self) -> FrozenSet['SetConstraint']:
-        return self._set_constraints
+        inc = cast(FrozenSet['SetConstraint'], self.inclusion_constraints) # hack for type checking
+        notinc = cast(FrozenSet['SetConstraint'], self.notinclusion_constraints) # hack for type checking
+        return inc.union(notinc)
+
+
+    def unequal_constants_for_variable(self, variable: 'LogicalVariable') -> Set['Constant']:
+        """Return all the constants that 'variable' is not equal to"""
+        unequal_constants: Set['Constant'] = set()
+        for constraint in self.notinclusion_constraints:
+            if constraint.logical_term == variable and isinstance(constraint.domain_term, SetOfConstants):
+                unequal_constants.update(constraint.domain_term.constants)
+        return unequal_constants
+
 
     def join(self, other: 'ConstraintSet') -> 'ConstraintSet':
         """Create a ConstraintSet by joining together the constraints of two constraint sets"""
@@ -57,13 +97,13 @@ class ConstraintSet:
     def is_non_empty(self) -> bool:
         return len(self.constraints) > 0
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'ConstraintSet':
+    def substitute(self, substitution: 'Substitution') -> 'ConstraintSet':
         """Create a ConstraintSet by applying a Substitution to the constraints
         NOTE: this may be counter-intuitive because applying a substitution
         to an EqualityConstraint may produce an InclusionConstraint"""
         new_constraints: List['Constraint'] = []
         for constraint in self.constraints:
-            new_constraint = constraint.apply_substitution(substitution)
+            new_constraint = constraint.substitute(substitution)
             new_constraints.append(new_constraint)
 
         if FalseConstraint() in new_constraints:
@@ -80,41 +120,62 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
-    def get_domain_for(self, variable: 'LogicalVariable') -> 'DomainTerm':
+    def project(self, c_atom: 'ConstrainedAtom') -> 'ConstraintSet':
+        """Return a constraint set with only the constraints involving a specific c_atom"""
+        relevant_variables = c_atom.literal_variables  # TODO: replace with non-property version
+        relevant_logical_constraints = [lc for lc in self.logical_constraints if (lc.left_term in relevant_variables and lc.right_term in relevant_variables)]
+        relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term in relevant_variables]
+        return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
+
+    def get_domain_for_variable(self, variable: 'LogicalVariable') -> 'ProperDomain':
         """Get the domain for a specific variable in this constraint set"""
+        domains = []
+        for constraint in self.inclusion_constraints:
+            if constraint.logical_term == variable and isinstance(constraint.domain_term, ProperDomain):
+                domains.append(constraint.domain_term)
+        return ProperDomain.intersect_all(*domains)
+        raise ValueError(f"{variable} has no ProperDomain")
+
+    def get_allowed_constants_for(self, variable: 'LogicalVariable') -> FrozenSet['Constant']:
+        """Get the constants that this variable could be equal to in this constraint set
+        NOTE: This struggles with DomainVariables and partially with free variables"""
         included_domains = []
         excluded_domains = []
         for constraint in self:
             if isinstance(constraint, InclusionConstraint) and constraint.logical_term == variable:
                 included_domains.append(constraint.domain_term)
-            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
+            elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term == variable:
                 excluded_domains.append(constraint.domain_term)
-        # hack for type checking for now since we only work with SetOfConstants
-        # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
-        # excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
-        included_domain = DomainTerm.intersection(*included_domains)
-        excluded_domain = DomainTerm.union(*excluded_domains)
+        included_domain = DomainTerm.intersect_constants(*included_domains)
+        excluded_domain = DomainTerm.union_constants(*excluded_domains)
         variable_domain = included_domain.difference(excluded_domain)
         return variable_domain
+
 
     def is_satisfiable(self) -> bool:
         """Is this constraint set satisfiable? i.e. are there any substitutions to
         its variables that do not contain contradictions?
-        NOTE TODO: There still a major flaw with this function:
-            1) It cannot handle domain variables
-        """
+        NOTE TODO: Redo this function altogether? I'm not sure how to approach this"""
         if any(isinstance(constraint, FalseConstraint) for constraint in self.constraints):
             # DEBUG
             fcs = [c for c in self.constraints if isinstance(c, FalseConstraint)]
             print([fc.debug_message for fc in fcs])
             return False
 
+        # a bit of a hack but can catch some cases
+        for c in self.constraints:
+            if ~c in self.constraints:
+                return False
+
         eq_classes = self.get_var_eq_classes()
-        if not eq_classes.consistent_with_inequality_constraints(self):
+        if not eq_classes.consistent_with_variable_inequality_constraints(self):
             return False
 
-        # Then we construct the possible domains for each equivalence class and
-        # check that they are non-empty
+        if not eq_classes.consistent_with_constant_inequality_constraints(self):
+            return False
+
+        # # Then we construct the possible domains for each equivalence class and
+        # # check that they are non-empty
         if not eq_classes.consistent_with_set_constraints(self):
             return False
 
@@ -134,10 +195,9 @@ class ConstraintSet:
 
         # we check for too many variables in too small a domain by taking the union of the domains
         for mutual_inequality in mutual_inequalities:
-            domains_generator = (self.get_domain_for(variable) for variable in mutual_inequality)
-            combined_domain = DomainTerm.union(*domains_generator)
-            if combined_domain.size < len(mutual_inequality):
-                print(f'DEBUG: {mutual_inequality = }, {combined_domain = }')
+            domains_generator = (self.get_allowed_constants_for(variable) for variable in mutual_inequality)
+            combined_domain = frozenset.union(*domains_generator)
+            if len(combined_domain) < len(mutual_inequality):
                 return True
         return False
 
@@ -183,6 +243,7 @@ class ConstraintSet:
         final_eq_classes = initial_eq_classes.make_self_consistent()
         return final_eq_classes
 
+
     def get_logical_variables(self) -> Set['LogicalVariable']:
         """Extract just the variables from each constraint in the constraint set"""
         logical_variables: Set['LogicalVariable'] = set()
@@ -197,10 +258,7 @@ class ConstraintSet:
 
     def __eq__(self, other: Any) -> bool:
         """Two constraint sets are equal if their constraints are equal."""
-        if not isinstance(other, ConstraintSet):
-            return False
-        same_constraints = (self.constraints == other.constraints)
-        return same_constraints
+        return isinstance(other, ConstraintSet) and self.constraints == other.constraints
 
     def __hash__(self) -> int:
         return hash(self.constraints)
@@ -219,7 +277,7 @@ class Constraint(ABC):
     This covers equality constraints, inclusion constraints, and their negations (plus more if needed).
     """
     
-    terms: Tuple['LogicalVariable', Union['LogicalVariable', 'DomainTerm']] # every constraint needs some terms
+    terms: Tuple[Union['LogicalTerm', 'DomainTerm'], Union['LogicalTerm', 'DomainTerm']] 
 
     @abstractmethod
     def __hash__(self) -> int:
@@ -227,7 +285,7 @@ class Constraint(ABC):
         pass
 
     @abstractmethod 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """We need to be able to apply substitutions to constraints"""
         pass
 
@@ -280,6 +338,124 @@ class SetConstraint(Constraint):
     def __hash__(self) -> int:
         return hash((self.__class__, self.logical_term, self.domain_term))
 
+
+class DomainConstraint(Constraint):
+    """Abstract base class for constraints that involve a relationship between two domain terms.
+    For now, this is just subset constraints"""
+
+    @property
+    @abstractmethod
+    def left_term(self) -> 'DomainTerm':
+        pass
+
+    @property
+    @abstractmethod
+    def right_term(self) -> 'DomainTerm':
+        pass
+
+    def __hash__(self) -> int:
+        """We hash it as a set with the class to make sure
+        flipped constraints have the same hash, and different types of DomainConstraint 
+        have different hashes"""
+        return hash((self.__class__, frozenset((self.left_term, self.right_term))))
+
+class SubsetConstraint(DomainConstraint):
+    """A class for one domain term being a subset of another
+    NOTE: For now I will enforce that the left term is a DomainVariable, but I don't know
+    if this is strictly necessary"""
+
+    def __init__(self, left_term: 'DomainVariable', right_term: 'DomainTerm') -> None:
+        self.terms: Tuple['DomainVariable', 'DomainTerm'] = (left_term, right_term)
+
+    @property
+    def left_term(self) -> 'DomainVariable':
+        return self.terms[0]
+
+    @property
+    def right_term(self) -> 'DomainTerm':
+        return self.terms[1]
+
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        TODO: Include domain substitutions"""
+        raise NotImplementedError("Hopefully won't substitute domains")
+
+    def contains_contradiction(self) -> bool:
+        raise NotImplementedError("Hopefully we won't be checking Subset constraints for contradictions")
+
+    def __eq__(self, other: Any) -> bool:
+        """Two inclusion constraints are equal if they mention the same logical and domain terms """
+        return isinstance(other, SubsetConstraint) \
+               and self.left_term == other.left_term \
+               and self.right_term == other.right_term
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+
+        NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
+        return super().__hash__()
+
+    def __invert__(self) -> 'NotSubsetConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return NotSubsetConstraint(self.left_term, self.right_term)
+
+    def __str__(self) -> str:
+        subset_of_string = ' \u2286 '
+        return f'{self.left_term}{subset_of_string}{self.right_term}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+class NotSubsetConstraint(DomainConstraint):
+    """A class for one domain term NOT being a subset of another
+    NOTE: For now I will enforce that the left term is a DomainVariable, but I don't know
+    if this is strictly necessary"""
+
+    def __init__(self, left_term: 'DomainVariable', right_term: 'DomainTerm') -> None:
+        self.terms: Tuple['DomainVariable', 'DomainTerm'] = (left_term, right_term)
+
+    @property
+    def left_term(self) -> 'DomainVariable':
+        return self.terms[0]
+
+    @property
+    def right_term(self) -> 'DomainTerm':
+        return self.terms[1]
+
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
+        """Apply a substitution to the constraint, returning a new constraint.
+        TODO: Include domain substitutions"""
+        raise NotImplementedError("Hopefully won't substitute domains")
+
+    def contains_contradiction(self) -> bool:
+        raise NotImplementedError("Hopefully we won't be checking Subset constraints for contradictions")
+
+    def __eq__(self, other: Any) -> bool:
+        """Two inclusion constraints are equal if they mention the same logical and domain terms """
+        return isinstance(other, NotSubsetConstraint) \
+               and self.left_term == other.left_term \
+               and self.right_term == other.right_term
+
+    def __hash__(self) -> int:
+        """Just using the parent hash function.
+        We have to redefine it because we overrode __eq__.
+        """
+        return super().__hash__()
+
+    def __invert__(self) -> 'SubsetConstraint':
+        """This method overrides the '~' operator.
+        I use it to negate the constraint -- e.g. turn = into !="""
+        return SubsetConstraint(self.left_term, self.right_term)
+
+    def __str__(self) -> str:
+        not_subset_of_string = ' \u2288 '
+        return f'{self.left_term}{not_subset_of_string}{self.right_term}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class EmptyConstraint(Constraint):
     """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""
     def __init__(self, debug_message: str ='') -> None:
@@ -287,13 +463,17 @@ class EmptyConstraint(Constraint):
         (for debugging)"""
         self.debug_message = debug_message
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'EmptyConstraint':
+    def substitute(self, substitution: 'Substitution') -> 'EmptyConstraint':
         """Substitution does nothing because no terms"""
         return EmptyConstraint()
     
     def contains_contradiction(self) -> bool:
         """Never contains a contradiction because it's always true"""
         return False
+
+    def __eq__(self, other: Any) -> bool:
+        """All EmptyConstraints are equal, because the debug message is not important"""
+        return isinstance(other, EmptyConstraint)
 
     def __hash__(self) -> int:
         """All EmptyConstraints are the same"""
@@ -313,13 +493,18 @@ class FalseConstraint(Constraint):
         (for debugging)"""
         self.debug_message = debug_message
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'FalseConstraint':
+    def substitute(self, substitution: 'Substitution') -> 'FalseConstraint':
         """Substitution does nothing because no terms"""
         return FalseConstraint()
     
     def contains_contradiction(self) -> bool:
         """Always contains a contradiction because it's always false"""
         return True
+
+    def __eq__(self, other: Any) -> bool:
+        """Any two FalseConstraints are effectively equal.
+        They could differ in debug message but this is not important"""
+        return isinstance(other, FalseConstraint)
 
     def __hash__(self) -> int:
         """All EmptyConstraints are the same"""
@@ -349,18 +534,23 @@ class EqualityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         NOTE: This will return an InclusionConstraint if ONE of the new terms is a constant.
         TODO: Figure out how to abstract this up the the base class"""
         new_left_term = substitution[self.left_term]
         new_right_term = substitution[self.right_term]
+        # avoid trivial constraints
+        if new_left_term == new_right_term:
+            return EmptyConstraint(f'{new_left_term} == {new_right_term}')
+
         if isinstance(new_left_term, Constant):
             if isinstance(new_right_term, Constant):
-                if new_left_term == new_right_term:
-                    return EmptyConstraint(f'{new_left_term} == {new_right_term}')
-                else:
+                if new_left_term != new_right_term:
                     return FalseConstraint(f'{new_left_term} != {new_right_term}')
+                else:
+                    # this branch won't be reached, just for type-checking
+                    return EmptyConstraint(f'{new_left_term} == {new_right_term}')  
             else:
                 right_var = cast('LogicalVariable', new_right_term) # hack for type checking
                 return InclusionConstraint(right_var, SetOfConstants([new_left_term]))
@@ -383,11 +573,9 @@ class EqualityConstraint(LogicalConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two equality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, EqualityConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        return isinstance(other, EqualityConstraint) \
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -424,7 +612,7 @@ class InequalityConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         NOTE: This will return a NotInclusionConstraint if ONE of the new terms is a constant.
         """
@@ -447,6 +635,18 @@ class InequalityConstraint(LogicalConstraint):
             right_var = cast('LogicalVariable', new_right_term) # hack for type checking
             return InequalityConstraint(left_var, right_var)
 
+    def is_not_trivial(self, c_atom: 'ConstrainedAtom') -> bool:
+        """Is this inequality constraint between variables 'trivial' given the domains
+        of its variables? I.e. the constraint is trivial if the domains of the variables do not overlap,
+        so they could never be equal anyway"""
+        left_term_class = EquivalenceClass([self.left_term])
+        right_term_class = EquivalenceClass([self.right_term])
+        left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
+        right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
+        print(left_domain, right_domain)
+        domain_terms_intersect = left_domain.intersect_with(right_domain).size() > 0
+        return domain_terms_intersect
+
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
         For InequalityConstraint, this means checking if the two sides are the same term"""
@@ -454,11 +654,9 @@ class InequalityConstraint(LogicalConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, InequalityConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        return isinstance(other, InequalityConstraint) \
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -497,7 +695,7 @@ class LessThanConstraint(LogicalConstraint):
     def right_term(self) -> 'LogicalVariable':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         """
         raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
@@ -508,14 +706,11 @@ class LessThanConstraint(LogicalConstraint):
         raise NotImplementedError('LessThanConstraint should not actually be used - it is for NNFNodes')
 
 
-
     def __eq__(self, other: Any) -> bool:
-        """Two inequality constraints are equal if they mention the same terms (note the order doesn't matter)"""
-        if not isinstance(other, LessThanConstraint):
-            return False
-        same_way = (self.left_term == other.left_term and self.right_term == other.right_term)
-        flipped = (self.left_term == other.right_term and self.right_term == other.left_term)
-        return same_way or flipped
+        """Two less-than constraints are equal if they mention the same terms (note the order doesn't matter)"""
+        return isinstance(other, LessThanConstraint) \
+               and ( (self.left_term == other.left_term and self.right_term == other.right_term) \
+               or (self.left_term == other.right_term and self.right_term == other.left_term) )
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -550,7 +745,7 @@ class InclusionConstraint(SetConstraint):
     def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         TODO: Include domain substitutions"""
         new_logical_term = substitution[self.logical_term]
@@ -560,14 +755,15 @@ class InclusionConstraint(SetConstraint):
                     return EmptyConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
                     return FalseConstraint(f'{new_logical_term} not in {self.domain_term}')
-            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
+            raise ValueError('Cannot yet handle DomainTerm in substitute')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return InclusionConstraint(logical_var, self.domain_term)
 
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
-        For InclusionConstraint, this means checking if the logical term is a constant and the domain term a set of constants without the constant"""
+        For InclusionConstraint, this means checking if the logical term is a constant and
+        the domain term a set of constants without the constant"""
         if isinstance(self.logical_term, Constant) and isinstance(self.domain_term, SetOfConstants):
             return not self.logical_term in self.domain_term
         else:
@@ -575,9 +771,9 @@ class InclusionConstraint(SetConstraint):
 
     def __eq__(self, other: Any) -> bool:
         """Two inclusion constraints are equal if they mention the same logical and domain terms """
-        if not isinstance(other, InclusionConstraint):
-            return False
-        return self.logical_term == other.logical_term and self.domain_term == other.domain_term
+        return isinstance(other, InclusionConstraint) \
+               and self.logical_term == other.logical_term \
+               and self.domain_term == other.domain_term
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -586,10 +782,14 @@ class InclusionConstraint(SetConstraint):
         NOTE: this may cause collisions between InclusionConstraints and NotInclusionConstraints"""
         return super().__hash__()
 
-    def __invert__(self) -> 'NotInclusionConstraint':
+    def __invert__(self) -> 'SetConstraint':
         """This method overrides the '~' operator.
-        I use it to negate the constraint -- e.g. turn = into !="""
-        return NotInclusionConstraint(self.logical_term, self.domain_term)
+        I use it to negate the constraint -- e.g. turn = into !=
+        NOTE: If this involves a DomainVariable, we return another InclusionConstraint with its complement"""
+        if isinstance(self.domain_term, DomainVariable):
+            return InclusionConstraint(self.logical_term, self.domain_term.complement)
+        else:
+            return NotInclusionConstraint(self.logical_term, self.domain_term)
 
     def __str__(self) -> str:
         element_of_string = ' \u2208 '
@@ -617,7 +817,7 @@ class NotInclusionConstraint(SetConstraint):
     def domain_term(self) -> 'DomainTerm':
         return self.terms[1]
 
-    def apply_substitution(self, substitution: 'Substitution') -> 'Constraint':
+    def substitute(self, substitution: 'Substitution') -> 'Constraint':
         """Apply a substitution to the constraint, returning a new constraint.
         TODO: Include domain substitutions"""
         new_logical_term = substitution[self.logical_term]
@@ -627,7 +827,7 @@ class NotInclusionConstraint(SetConstraint):
                     return FalseConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
                     return EmptyConstraint(f'{new_logical_term} not in {self.domain_term}')
-            raise ValueError('Cannot yet handle DomainTerm in apply_substitution')
+            raise ValueError('Cannot yet handle DomainTerm in substitute')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return NotInclusionConstraint(logical_var, self.domain_term)
@@ -641,10 +841,10 @@ class NotInclusionConstraint(SetConstraint):
             return False
 
     def __eq__(self, other: Any) -> bool:
-        """Two not-inclusion constraints are equal if they mention the same logical and domain terms """
-        if not isinstance(other, NotInclusionConstraint):
-            return False
-        return self.logical_term == other.logical_term and self.domain_term == other.domain_term
+        """Two not inclusion constraints are equal if they mention the same logical and domain terms """
+        return isinstance(other, NotInclusionConstraint) \
+               and self.logical_term == other.logical_term \
+               and self.domain_term == other.domain_term
 
     def __hash__(self) -> int:
         """Just using the parent hash function.
@@ -704,9 +904,7 @@ class Substitution:
 
     def __eq__(self, other: Any) -> bool:
         """Two substitutions are equal if they have all the same (variable, term) pairs"""
-        if not isinstance(other, Substitution):
-            return False
-        return self._substitution_dict == other._substitution_dict
+        return isinstance(other, Substitution) and self._substitution_dict == other._substitution_dict
 
     def __hash__(self) -> int:
         """Hashing so I can remove duplicates with sets"""
@@ -771,22 +969,29 @@ class EquivalenceClass:
         return VariableEquivalenceClass(self._variables)
 
 
-    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'DomainTerm':
+    def get_shared_domain_from_cs(self, cs: 'ConstraintSet') -> 'ProperDomain':
         """Get the shared domain for this equivalence class of variables according to a particular constraint set
-        NOTE: Because we don't have inequality constraints involving constants, this covers everything"""
+        NOTE: This now works only with ProperDomains
+        TODO TODO: Add excluded domain part back in"""
         included_domains = []
         excluded_domains = []
         for constraint in cs:
             if isinstance(constraint, InclusionConstraint) and constraint.logical_term in self:
-                included_domains.append(constraint.domain_term)
+                if isinstance(constraint.domain_term, ProperDomain):
+                    included_domains.append(constraint.domain_term)
             elif isinstance(constraint, NotInclusionConstraint) and constraint.logical_term in self:
-                excluded_domains.append(constraint.domain_term)
-        # hack for type checking for now since we only work with SetOfConstants
-        # included_domain = cast('SetOfConstants', DomainTerm.intersection(*included_domains)) 
-        # excluded_domain = cast('SetOfConstants', DomainTerm.union(*excluded_domains)) 
-        included_domain = DomainTerm.intersection(*included_domains)
-        excluded_domain = DomainTerm.union(*excluded_domains)
-        shared_domain = included_domain.difference(excluded_domain)
+                if isinstance(constraint.domain_term, ProperDomain):
+                    excluded_domains.append(constraint.domain_term)
+        shared_domain = ProperDomain.intersect_all(*included_domains)
+        # check that none of the excluded domains are supersets of the shared domain
+        for excluded_domain in excluded_domains:
+            if excluded_domain.is_strict_superset_of(shared_domain) or excluded_domain == shared_domain:
+                return EmptyDomain(f'Excluded {excluded_domain} is superset of shared {shared_domain}')
+            elif excluded_domain.is_strict_subset_of(shared_domain):
+                # NOTE TODO: trying out a complement domain thing
+                if excluded_domain.parent_domain == shared_domain and isinstance(excluded_domain, DomainVariable):
+                    return excluded_domain.complement
+                raise ValueError(f'Complex shared domain! Shared {shared_domain}, excluded {excluded_domain}')
         return shared_domain
 
     def is_root_in_cnf(self, cnf: 'CNF') -> bool:
@@ -897,29 +1102,46 @@ class EquivalenceClasses(Generic[TEC]):
         cs = substitution.to_constraint_set()
         return cs
 
-    def consistent_with_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
-        """If the equality classes conflict with the inequality constraints, returns False
-        NOTE: assuming the inequality constraints only contain logical variables"""
+    def consistent_with_variable_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
+        """If the equality classes conflict with the inequality constraints between variables, returns False"""
         for eq_class in self.classes:
-            for constraint in cs:
-                if isinstance(constraint, InequalityConstraint):
-                    if constraint.left_term in eq_class and constraint.right_term in eq_class: 
-                        return False
+            for constraint in cs.inequality_constraints:
+                if constraint.left_term in eq_class and constraint.right_term in eq_class: 
+                    return False
+        return True
+
+    def consistent_with_constant_inequality_constraints(self, cs: 'ConstraintSet') -> bool:
+        """If the equality classes conflict with inequalities between constants, return False"""
+        for eq_class in self.classes:
+            equal_constants: Set['Constant'] = set()
+            unequal_constants: Set['Constant'] = set()
+            for ic in cs.inclusion_constraints:
+                if isinstance(ic.domain_term, SetOfConstants) and ic.domain_term.size() == 1 and ic.logical_term in eq_class:
+                    equal_constants.add(get_element_of_set(ic.domain_term.constants))
+            for nc in cs.notinclusion_constraints:
+                if isinstance(nc.domain_term, SetOfConstants) and nc.domain_term.size() == 1 and nc.logical_term in eq_class:
+                    unequal_constants.add(get_element_of_set(nc.domain_term.constants))
+
+            if len(equal_constants) > 1:
+                return False  # can't be equal to more than one constant
+            if len(equal_constants.intersection(unequal_constants)) >= 1:
+                return False  # can't be equal to constants we have an inequality with
         return True
 
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
-        """If any equality class WITH AN INCLUSION CONSTRAINT has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
-        NOTE: For now, only works with SetOfConstants, not DomainVariable
-        TODO: Add support for DomainVariable, add support for domainless free variables"""
+        """If any equality class WITH A PROPER DOMAIN has an empty domain, then it is not consistent (inclusion constraint condition is so free variables don't mess it up)
+        SetOfConstants are now handled in separately"""
+        if len(cs.inclusion_constraints) == 0:
+            return True  # no inclusion constraints to conflict with
         for eq_class in self.classes:
-            variables_with_domains = set(c.logical_term for c in cs.set_constraints if isinstance(c, InclusionConstraint) and c.logical_term in eq_class)
+            variables_with_domains = set(c.logical_term for c in cs.inclusion_constraints if c.logical_term in eq_class and isinstance(c.domain_term, ProperDomain))
 
             if len(variables_with_domains) == 0:
                 return True # trivially consistent
 
             reduced_eq_class = EquivalenceClass(variables_with_domains)
             shared_domain = reduced_eq_class.get_shared_domain_from_cs(cs)
-            if shared_domain.size == 0:
+            if shared_domain.size() == 0:
                 return False
         return True
 

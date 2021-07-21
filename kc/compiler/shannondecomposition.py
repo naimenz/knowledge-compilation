@@ -2,8 +2,9 @@
 
 from kc.data_structures import *
 from kc.compiler import KCRule
+from kc.util import get_element_of_set
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -25,10 +26,11 @@ class ShannonDecomposition(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', unbound_atom: 'ConstrainedAtom', compiler: 'Compiler') -> 'NNFNode':
         """Apply ShannonDecomposition and return an NNFNode"""
-        true_literal = unbound_atom.to_unit_clause()
-        false_literal = UnitClause([Literal(unbound_atom.atom, False)], unbound_atom.bound_vars, unbound_atom.cs)
-        true_branch = cnf.join(CNF([true_literal]))
-        false_branch = cnf.join(CNF([false_literal]))
+        # NOTE: these 'literals' are technically a single-item set of literals
+        true_literal = get_element_of_set(unbound_atom.literals)
+        false_literal = ~true_literal
+        true_branch = cnf.join(CNF([UnconstrainedClause([true_literal])]))
+        false_branch = cnf.join(CNF([UnconstrainedClause([false_literal])]))
 
-        return AndNode(compiler.compile(true_branch), compiler.compile(false_branch))
+        return OrNode(compiler.compile(true_branch), compiler.compile(false_branch))
 

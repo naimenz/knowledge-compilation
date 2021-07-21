@@ -33,7 +33,8 @@ class ShatteredCompilation(KCRule):
         shattered_clauses_list = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
         empty_set: Set['ConstrainedClause'] = set() # hack for type checking
         flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)
-        return compiler.compile(CNF(flattened_shattered_clauses, shattered=True))
+        propagated_shattered_clauses = [c.propagate_equality_constraints() for c in flattened_shattered_clauses]
+        return compiler.compile(CNF(propagated_shattered_clauses, shattered=True))
 
     @classmethod
     def shatter_clause(cls,

@@ -5,7 +5,7 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution
 
 from functools import reduce
 from abc import ABC, abstractmethod
@@ -16,18 +16,25 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import Atom, Substitution, ConstraintSet, EquivalenceClasses
+    from kc.data_structures import Atom, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain
 
-# Type variable for arbitrary clauses so I can reuse apply_substitution
+# Type variable for arbitrary clauses so I can reuse substitute
 C = TypeVar('C', bound='ConstrainedClause') 
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
-    def __init__(self, literals: Sequence['Literal']) -> None:
+    def __init__(self, literals: Iterable['Literal']) -> None:
         self.literals = frozenset(literals)
 
     @abstractmethod
-    def apply_substitution(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+    def propagate_equality_constraints(self: 'Clause') -> 'Clause':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence.
+        NOTE: this is only important for ConstrainedClauses, but needs to be callable on both"""
+        pass
+
+    @abstractmethod
+    def substitute(self: 'Clause', substitution: 'Substitution') -> 'Clause':
         pass
 
     @abstractmethod
@@ -47,31 +54,30 @@ class Clause(ABC):
         """Convert this clause to a UnitClause object"""
         pass
 
-    def clauses_independent(self, other_clause: 'Clause') -> bool:
+    def is_independent_from_other_clause(self, other_clause: 'Clause') -> bool:
         """Is this clause independent of the other clause?"""
         if self.has_no_literals() or other_clause.has_no_literals():
             return True
 
-        all_independent = True
         for c_atom in self.get_constrained_atoms():
             for other_c_atom in other_clause.get_constrained_atoms():
                 if c_atom.constrained_atoms_unify(other_c_atom):
-                    all_independent = False
-        return all_independent
+                    return False
+        return True
 
-    # TODO: this may be wrong, may need every literal to subsume another
-    def is_subsumed_by_clause(self, subsumer: 'Clause') -> bool:
-        """Returns true if this Clause is subsumed by the other.
-        We do this by looking at constrained atoms -- if ANY literal in the subsumer
-        subsumes ANY literal in self, then it is subsumed (because disjunction).
-        NOTE: This is only as correct as 'is_subsumed_by_c_atom' is."""
+    def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
+        """Returns true if this Clause is subsumed by the constrained literal.
+        NOTE: We now say that EVERY literal in self has to be subsumed by some literal in the subsumer
+        TODO: check this is right"""
         if self.has_no_literals():
             return True
 
+        # every literal in the subsumer (which is just 1) must subsume some literal in self
+        # print(f'{subsumer = }')
         for c_literal in self.get_constrained_literals():
-            for other_c_literal in subsumer.get_constrained_literals():
-                if c_literal.is_subsumed_by_literal(other_c_literal):
-                    return True
+            # print(f'{c_literal = }')
+            if c_literal.is_subsumed_by_literal(subsumer):
+                return True
         return False
 
     def has_no_literals(self) -> bool:
@@ -134,12 +140,6 @@ class UnconstrainedClause(Clause):
     This consists of a set of FOL literals, which form a disjunction
     """
 
-    def __init__(self, literals: Iterable['Literal']) -> None:
-        """NOTE: using a set to represent literals.
-        This is justified because the order is unimportant and repeated literals 
-        in a clause are redundant (they cannot change the disjunction)"""
-        self.literals = frozenset(literals)
-
     def get_constrained_atoms(self) -> List['ConstrainedAtom']:
         """Even though UnconstrainedClauses don't have constraints,
         they still need to produce constrained atoms (with empty bound_vars and
@@ -188,22 +188,18 @@ class UnconstrainedClause(Clause):
         empty_cs = ConstraintSet([])
         return UnitClause(self.literals, empty_bound_vars, empty_cs)
 
-    # TODO:  maybe change name to substitute?
-    def apply_substitution(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
+    def propagate_equality_constraints(self: 'UnconstrainedClause') -> 'UnconstrainedClause':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence."""
+        return self
+
+    def substitute(self: 'UnconstrainedClause', substitution: 'Substitution') -> 'UnconstrainedClause':
         """Return a new UnconstrainedClause, the result of applying substitution to this UnconstrainedClause"""
-        return self.__class__(literal.apply_substitution(substitution) for literal in self.literals)
+        return self.__class__(literal.substitute(substitution) for literal in self.literals)
 
     def __eq__(self, other: Any) -> bool:
-        """Two unconstrained clauses are equal if they have the same literals
-
-        NOTE: for now the ordering has to be the same
-        TODO: make literals hashable so I can compare as sets"""
-        if not isinstance(other, UnconstrainedClause):
-            return False
-        if len(self.literals) != len(other.literals): 
-            return False
-        same_literals = (self.literals == other.literals)
-        return same_literals
+        """Two unconstrained clauses are equal if they have the same literals"""
+        return isinstance(other, UnconstrainedClause) and self.literals == other.literals
 
     def __hash__(self) -> int:
         return hash(self.literals)
@@ -231,16 +227,30 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    def apply_substitution(self: 'C', substitution: 'Substitution') -> 'C':
+    def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
-        NOTE: assumes that the bound vars aren't substituted"""
-        new_literals = [literal.apply_substitution(substitution) for literal in self.literals]
-        new_cs = self.cs.apply_substitution(substitution)
-        new_bound_vars = [substitution[var] for var in self.bound_vars]
-        assert(all(isinstance(term, LogicalVariable) for term in new_bound_vars)) # should not have constants in bound vars
-        bound_vars = cast(List['LogicalVariable'], new_bound_vars) # hack for type checking
-        return self.__class__(new_literals, bound_vars, new_cs)
+        NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
+        new_literals = [literal.substitute(substitution) for literal in self.literals]
+        new_cs = self.cs.substitute(substitution)
+        _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
+        ## allowing substitution of constants to bound vars at the moment
+        # assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) 
+        new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
+        return self.__class__(new_literals, new_bound_vars, new_cs)
 
+    def propagate_equality_constraints(self: 'C') -> 'C':
+        """Propagate the equality constraints through the clause by building a substitution
+        from them and applying it until convergence."""
+        var_eq_classes = self.cs.get_var_eq_classes()
+        sub = var_eq_classes.to_substitution()
+        # repeatedly apply the substitution until convergence
+        old_clause = self
+        while True:
+            new_clause = old_clause.substitute(sub)
+            if new_clause != old_clause:
+                old_clause = new_clause
+            else:
+                return new_clause
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -263,6 +273,42 @@ class ConstrainedClause(Clause):
                     logical_variables.add(term)
         return logical_variables
 
+    def get_free_variables(self) -> Set['LogicalVariable']:
+        """Extract just the free variables from this clause"""
+        free_variables: Set['LogicalVariable'] = self.all_variables.difference(self.bound_vars)
+        return free_variables
+
+    # TODO: THINK ABOUT FREE VARIABLE CASE
+    def get_constant_or_free_inequalities(self) -> Set['Constraint']:
+        """Get inequalities that are between a bound variable and a constant OR FREE VARIABLE in this clause.
+        NOTE: these will be NotInclusionConstraints because of how I've implemented those
+        NOTE 2: For now, just treating free variables exactly like constnats"""
+        ineq_constraints: Set['Constraint'] = set()
+        # get constant inequalities
+        for set_constraint in self.cs.set_constraints:
+            if isinstance(set_constraint, NotInclusionConstraint):
+                domain_term = set_constraint.domain_term
+                if isinstance(domain_term, SetOfConstants) and domain_term.size() == 1 and set_constraint.logical_term in self.bound_vars:
+                    ineq_constraints.add(set_constraint)
+        # get free_variable inequalities
+        free_variables = self.get_free_variables()
+        bound_variables = self.bound_vars
+        for logical_constraint in self.cs.logical_constraints:
+            if isinstance(logical_constraint, InequalityConstraint):
+                if (logical_constraint.left_term in free_variables and logical_constraint.right_term in bound_variables) \
+                or (logical_constraint.right_term in free_variables and logical_constraint.left_term in bound_variables):
+                    ineq_constraints.add(logical_constraint)
+        return ineq_constraints
+
+    def get_bound_variable_inequalities(self) -> Set['InequalityConstraint']:
+        """Get inequalities that are between bound variables in this clause"""
+        ineq_constraints = set()
+        for constraint in self.cs.logical_constraints:
+            if isinstance(constraint, InequalityConstraint):
+                if constraint.left_term in self.bound_vars and constraint.right_term in self.bound_vars:
+                    ineq_constraints.add(constraint)
+        return ineq_constraints
+
     def is_tautology(self) -> bool:
         """Is this clause always true? For now, just check if
         its constrainst set is satisfiable and it contains a literal
@@ -283,19 +329,6 @@ class ConstrainedClause(Clause):
         it doesn't contain ANDs
         TODO: check whether clauses can be contradictions"""
         return False
-
-
-    def clauses_independent(self, other_clause: 'Clause') -> bool:
-        """Is this clause independent of the other clause?"""
-        if self.has_no_literals() or other_clause.has_no_literals():
-            return True
-
-        all_independent = True
-        for c_atom in self.get_constrained_atoms():
-            for other_c_atom in other_clause.get_constrained_atoms():
-                if c_atom.constrained_atoms_unify(other_c_atom):
-                    all_independent = False
-        return all_independent
 
     def has_no_literals(self) -> bool:
         """This is called "isConditionalContradiction" in Forclift.
@@ -347,14 +380,10 @@ class ConstrainedClause(Clause):
     def __eq__(self, other: Any) -> bool:
         """Two constrained literals are equal if they have the same unconstrained literals, the same constraint sets,
          and the same bound variables"""
-        if not isinstance(other, ConstrainedClause):
-            return False
-        same_literals = (self.literals == other.literals)
-        if len(self.bound_vars) != len(other.bound_vars): 
-            return False
-        same_bound_vars = (self.bound_vars == other.bound_vars)
-        same_cs = (self.cs == other.cs)
-        return same_literals and same_bound_vars and same_cs
+        return isinstance(other, ConstrainedClause) \
+               and self.literals == other.literals \
+               and self.bound_vars == other.bound_vars \
+               and self.cs == other.cs
 
     def __hash__(self) -> int:
        return hash((self.literals, self.bound_vars, self.cs))
@@ -388,9 +417,10 @@ class UnitClause(ConstrainedClause):
         """Check subsumption of literals.
         This is the same as for atoms but with an additional check of their polarities"""
         if self.literal.polarity == subsumer.literal.polarity \
-          and self.to_c_atom().is_subsumed_by_c_atom(subsumer.to_c_atom()):
-                return True
-        return False
+        and subsumer.to_c_atom().subsumes(self.to_c_atom()):
+            return True
+        else:
+            return False
 
 
 class ConstrainedAtom(UnitClause):
@@ -425,6 +455,7 @@ class ConstrainedAtom(UnitClause):
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
         combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
+        # print(f"DEBUG {combined_constraint_set=}")
         if combined_constraint_set.is_satisfiable():
             return unconstrained_mgu
         else:
@@ -444,72 +475,295 @@ class ConstrainedAtom(UnitClause):
 
     def independent_or_subsumed_by(self, subsumer: 'ConstrainedAtom') -> bool:
         """Return true if this c-atom (self) is independent of, or subsumed by, the subsumer.
-        NOTE: This function is only as correct as 'is_subsumed_by_c_atom'."""
-        return self.clauses_independent(subsumer) or self.is_subsumed_by_c_atom(subsumer)
+        NOTE: This function is only as correct as '.subsumes' is."""
+        return self.is_independent_from_other_clause(subsumer) or subsumer.subsumes(self)
 
-    # TODO: Continue improving this function to work in more cases.
-    def is_subsumed_by_c_atom(self, subsumer: 'ConstrainedAtom') -> bool:
-        """Does the subsumer (A) subsume this c_atom, the subsumed (B)?
-        NOTE: This is a work in progress, and currently uses the following (incomplete) rules:
-        1) A and B must unify, producing equivalence classes.
-        2) Each equivalence class between a variable X in A and a constant c in B must have
-        c in the shared domain for X (after processing inequality constraints)
-        3) For each equivalence class, its shared domain in B must be a subset of its shared domain in A.
-        4) Each equivalence class must contain only ONE term from B.
-        5) FOR NOW: A free variable anywhere in A breaks subsumption. 
-        A free variable in the constraint set of B does not, but a free variable in its atom does. 
-        (THIS IS WRONG, BUT IS A FIRST DRAFT)
-        The main change I want to make is to check if both clauses contain equivalent free
-        variables, but checking this is hard, especially for the constraint set
+    def subsumes(self, other: 'ConstrainedAtom') -> bool:
+        """Does this atom (self) subsume the other atom (other)?
+        We check this as they do in Forclift - checking if the atoms are split with respect to each other
+        NOTE DEBUG: Trying simplified subsumes.
+        TODO: work out if this is correct and if not, put back to original"""
+        # quick check to handle the case where they're the same
+        if self == other:
+            return True
+
+        # first, we make the variables different
+        # TODO: move this
+        other = other.make_variables_different(self)
+
+        mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
+        independent = mgu_eq_classes is None
+        if independent:
+            return False
+        assert(mgu_eq_classes is not None)  # hack for type checking
+        self_DNS_other = self.does_not_subsume(other, mgu_eq_classes)
+        if not self_DNS_other:
+            return True
+        else: 
+            return False
+
+        # return self.needs_splitting(other) and not other.needs_splitting(self)
+
+    def needs_splitting(self, other: 'ConstrainedAtom') -> bool:
+        """Does this atom (self) need splitting with respect to the other atom (other)?
+         Returns True if it does, and False otherwise."""
+
+        # first, we make the variables different
+        # TODO: move this
+        other = other.make_variables_different(self)
+
+        mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
+        # check for independence
+        if mgu_eq_classes is None:
+            # print(f'independent')
+            return False
+        # check for subsumption
+        else:
+            # DEBUG
+            # if not other.does_not_subsume(self, mgu_eq_classes):
+            #     print(f'subsumes')
+            return other.does_not_subsume(self, mgu_eq_classes)
+
+    def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:
+        """Returns True if this ConstrainedAtom (self) does NOT subsume the
+        other ConstrainedAtom (other) 
+        NOTE: We apply the mgu as a substitution to the atoms so that they can
+        be directly compared.  However, the EquivalenceClasses still refer to
+        the pre-substitution atoms, so we mix and match.
+        NOTE 2: I am going to treat free variables exactly like constants and see what happens.
+
+        If any of the following are true, it does not subsume (the brackets are to avoid ambiguity):
+        1) There is an mgu equivalence class (EC) that contains 
+        (a constant or free variable) AND (a bound variable from self)
+        2) There is an EC that contains TWO bound variables from self
+        3) There is (an inequality between a bound variable and a constant) in the other that is
+        not present in the self.
+        4) There is (an inequality between bound variables in two ECs) in the other that is
+        not present in the self.
+
+        I am adding an experimental 5th rule to deal with domain variables
+        (from getDomainShatteringMgu in Forclift)
+        5) There is a bound variable in this atom (self) whose domain
+        is a subset of the domain of a bound variable in the other atom (other)
+        and the two variables are in the same EC.
         """
-        # aliases because this is how I've been using them in my notes
-        A, B = subsumer, self
-        # TODO: remove this hack of checking for equality, which only works some of the time
-        # if A == B:
-        #     return True
-        eq_classes = A.get_constrained_atom_mgu_eq_classes(B)
-        # 1)
-        if eq_classes is None:
-            print("DEBUG: Didn't unify")
+
+        mgu_substitution = mgu_eq_classes.to_substitution()
+        this_atom = self.substitute(mgu_substitution)
+        other_atom = other.substitute(mgu_substitution)
+        # DEBUG TODO: switch this back to returning True instead of numbers
+        if any(( 
+                len(eq_class.constants) > 0 
+                or len(eq_class.variables.intersection(other.get_free_variables())) > 0
+                or len(eq_class.variables.intersection(self.get_free_variables())) > 0
+               )
+               and len(eq_class.variables.intersection(other.bound_vars)) > 0
+               for eq_class in mgu_eq_classes):
+            # return "1"
+            print("DNS 1")
+            return True
+        elif any(len(eq_class.variables.intersection(other.bound_vars)) >= 2
+                 for eq_class in mgu_eq_classes):
+            # return "2"
+            print("DNS 2")
+            return True
+        elif any(inequality not in other_atom.get_constant_or_free_inequalities()
+                 for inequality in this_atom.get_constant_or_free_inequalities()):
+            # return "3"
+            print("DNS 3")
+            return True
+        elif any(inequality not in other_atom.get_bound_variable_inequalities()
+                 and inequality.is_not_trivial(this_atom)
+                 for inequality in this_atom.get_bound_variable_inequalities()):
+            # return "4"
+            print("DNS 4")
+            return True
+        for eq_class in mgu_eq_classes:
+            for term1 in eq_class:
+                if term1 in self.bound_vars:
+                    variable1 = term1
+                    for term2 in eq_class:
+                        if term2 in other.bound_vars:
+                            variable2 = term2
+                            this_domain = self.cs.get_domain_for_variable(variable1)
+                            other_domain = other.cs.get_domain_for_variable(variable2)
+                            if this_domain.is_strict_subset_of(other_domain):
+                                print("DNS 5")
+                                return True
+
+        else:
             return False
-        for eq_class in eq_classes:
-            var_eq_class = eq_class.get_variables_only()
-            A_shared_domain = var_eq_class.get_shared_domain_from_cs(A.cs)
-            B_shared_domain = var_eq_class.get_shared_domain_from_cs(B.cs)
 
-            # 2) - this is a long, potentially slow check TODO: make it neater
-            for eq_term in eq_class:
-                if isinstance(eq_term, Constant):
-                    for i, arg_term in enumerate(B.atom.terms):
-                        if eq_term == arg_term and isinstance(A.atom.terms[i], LogicalVariable):
-                            if not eq_term in A_shared_domain:
-                                print(f'DEBUG: Constant {eq_term} not in {A_shared_domain=}')
-                                return False
+    def make_variables_different(self, other_c_atom: 'ConstrainedAtom') -> 'ConstrainedAtom':
+        """Make the bound variables of this c_atom (self) different to those in other_c_atom.
+        NOTE: This is very similar to the method in UnitPropagation but serves a slightly different purpose"""
 
-            # 3)
-            if not B_shared_domain.is_subset_of(A_shared_domain):
-                print(f'DEBUG: {B_shared_domain=} is not a subset of {A_shared_domain=}')
+        overlapping_variables: List['LogicalVariable'] = []
+        for variable in self.bound_vars:
+            if variable in other_c_atom.bound_vars:
+                overlapping_variables.append(variable)
+
+        new_c_atom, new_other_c_atom = self, other_c_atom
+        for variable in overlapping_variables:
+            temp_cnf = CNF([new_c_atom, new_other_c_atom])  # taking advantage of existing methods in CNF
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol[0])  # just taking the character
+            sub = Substitution([(variable, sub_target)])
+            new_c_atom = new_c_atom.substitute(sub)
+        return new_c_atom
+
+
+class CNF:
+    """
+    A FOL-DC CNF.
+    This consists of a set of (CONSTRAINED OR UNCONSTRAINED) clauses, which form a conjunction.
+    """
+
+    def __init__(self, clauses: Iterable['Clause'], shattered: bool = False) -> None:
+        """Initialise with a set of clauses and (optionally) the shattering status of the cnf"""
+        self.clauses = frozenset(clauses)
+
+        u_clauses, c_clauses = set(), set()
+        for clause in clauses:
+            if isinstance(clause, UnconstrainedClause):
+                u_clauses.add(clause)
+            elif isinstance(clause, ConstrainedClause):
+                c_clauses.add(clause)
+        self.u_clauses = frozenset(u_clauses)
+        self.c_clauses = frozenset(c_clauses)
+
+        self.shattered = shattered # keep track of whether this cnf has undergone shattering
+
+    def join(self, other: 'CNF') -> 'CNF':
+        """Combine two CNFs into one."""
+        shattered = self.shattered == other.shattered == True  # only shattered if both components are
+        return CNF(self.clauses.union(other.clauses), shattered=shattered)
+
+    def substitute(self, substitution: 'Substitution') -> 'CNF':
+        """Return a new CNF, the result of applying substitution to this CNF"""
+        new_clauses = set(clause.substitute(substitution) for clause in self.clauses)
+        return CNF(new_clauses)
+
+    def get_unifying_classes(self) -> 'EquivalenceClasses':
+        """Construct all unifying classes from this CNF
+        and return them as EquivalenceClasse
+        TODO: decide whether this should only consider bound variables (as per the definitions)
+        or include free variables too (as per the examples and Forclift)"""
+        initial_eq_class_pairs: List['EquivalenceClass'] = []
+        for clause in self.clauses:
+            for other_clause in self.clauses:
+                for c_atom in clause.get_constrained_atoms():
+                    for other_c_atom in other_clause.get_constrained_atoms():
+                        eq_classes = c_atom.get_constrained_atom_mgu_eq_classes(other_c_atom)
+                        if not eq_classes is None:
+                            initial_eq_class_pairs += eq_classes
+        initial_eq_classes = EquivalenceClasses(initial_eq_class_pairs)
+        final_eq_classes = initial_eq_classes.make_self_consistent()
+        return final_eq_classes
+
+    def eq_class_has_one_variable(self, eq_class: 'EquivalenceClass') -> bool:
+        """Determine whether a given root equivalence class has a single bound variable
+        per clause or not.
+        NOTE: We assume that this equivalence class is root in the cnf"""
+        # first check if there are any unconstrained clauses, in which case we can't do this
+        if len(self.u_clauses) > 0:
+            return False
+
+        for clause in self.c_clauses: 
+            if len(eq_class.members.intersection(clause.bound_vars)) != 1:
                 return False
-
-            # 4)
-            if len(eq_class.members.intersection(B.literal_variables)) > 1:
-                print(f'DEBUG: {eq_class=} and {B.literal_variables=} overlap in more than one place')
-                return False
-
-        # 5)
-        A_free_variables = A.all_variables.difference(A.bound_vars)
-        if len(A_free_variables) > 0:
-            print(f'DEBUG: {A_free_variables=}')
-            return False
-
-        B_literal_free_variables = B.literal_variables.difference(B.bound_vars)
-        if len(B_literal_free_variables) > 0:
-            print(f'DEBUG: {B_literal_free_variables=}')
-            print(B.literal_variables)
-            print(B.bound_vars)
-            return False
-
         return True
 
+    def eq_class_has_two_variables(self, eq_class: 'EquivalenceClass') -> bool:
+        """Determine whether a given root equivalence class has two bound variables
+        per clause or not.
+        NOTE: We assume that this equivalence class is root in the cnf"""
+        # first check if there are any unconstrained clauses, in which case we can't do this
+        if len(self.u_clauses) > 0:
+            return False
 
+        for clause in self.c_clauses: 
+            if len(eq_class.members.intersection(clause.bound_vars)) != 2:
+                return False
+        return True
+
+    def get_logical_variables(self) -> Set['LogicalVariable']:
+        """Return a set of all the logical variables that appear in the cnf"""
+        logical_variables: Set['LogicalVariable'] = set()
+        clause_logical_variables = [clause.all_variables for clause in self.clauses]
+        logical_variables.update(*clause_logical_variables)
+        return logical_variables
+
+    def get_free_logical_variables(self) -> Set['LogicalVariable']:
+        """Return a set of all FREE logical variables in the cnf
+        NOTE: kind of assumes each variable appears in one clause"""
+        all_variables = self.get_logical_variables()
+        bound_variables: Set['LogicalVariable']  = set() # hack for type checking
+        clause_bound_variables = [cc.bound_vars for cc in self.c_clauses]
+        bound_variables.update(*clause_bound_variables)
+        return all_variables - bound_variables
+
+    def get_constants(self) -> Set['Constant']:
+        """Get all constants that appear as logical terms (i.e. not in domain terms) in the cnf"""
+        constants: Set['Constant'] = set()
+        clause_constants = [clause.constants for clause in self.clauses]
+        constants.update(*clause_constants)
+        return constants
+
+    def get_domain_terms(self) -> Set['DomainTerm']:
+        """Get all the domain terms that appear in the cnf"""
+        domain_terms = set()
+        for clause in self.c_clauses: # u_clauses have no domain terms
+            for constraint in clause.cs.set_constraints:
+                domain_terms.add(constraint.domain_term)
+        return domain_terms
+
+    def get_domain_variables(self) -> Set['DomainVariable']:
+        """Get all the domain VARIABLES that appear in the cnf"""
+        domain_variables = set()
+        for clause in self.c_clauses: # u_clauses have no domain terms
+            for constraint in clause.cs.set_constraints:
+                if isinstance(constraint.domain_term, DomainVariable):
+                    domain_variables.add(constraint.domain_term)
+        return domain_variables
+        
+    def get_new_logical_variable(self, symbol: str) -> 'LogicalVariable':
+        """Return a logical variable that does not appear in the theory.
+        To make it unique, take the symbol and keep adding underscores"""
+        count = 1
+        new_variable_string = symbol
+        new_variable = LogicalVariable(new_variable_string)
+        logical_variables = self.get_logical_variables()
+        while new_variable in logical_variables:
+            new_variable_string = symbol + str(count)
+            new_variable = LogicalVariable(new_variable_string)
+            count += 1
+        return new_variable
+
+    def get_new_domain_variable(self,
+                                symbol: str,
+                                parent_domain: 'ProperDomain',
+                                excluded_constants: Set['Constant']
+                                ) -> 'DomainVariable':
+        """Return a logical variable that does not appear in the theory.
+        To make it unique, take the symbol and keep adding underscores"""
+        new_variable_string = symbol
+        domain_variable_symbols = [d.symbol for d in self.get_domain_variables()]
+        while new_variable_string in domain_variable_symbols:
+            new_variable_string += '_'
+        new_variable = DomainVariable(new_variable_string, parent_domain, excluded_constants=excluded_constants)
+        return new_variable
+
+    def __eq__(self, other: Any) -> bool:
+        """Two CNFs are equal if they have the same clauses"""
+        return isinstance(other, CNF) and self.clauses == other.clauses
+
+    def __hash__(self) -> int:
+        return hash(self.clauses)
+
+    def __str__(self) -> str:
+        clause_strs = [f'({str(clause)})' for clause in self.clauses]
+        return '\nAND\n'.join(clause_strs)
+
+    def __repr__(self) -> str:
+        return self.__str__()
 

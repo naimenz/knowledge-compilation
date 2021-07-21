@@ -10,11 +10,13 @@ from kc.compiler import Independence, ShannonDecomposition, ShatteredCompilation
 from kc.compiler import IndependentSingleGroundings, IndependentPairedGroundings, AtomCounting
 from kc.compiler import Ground
 
+# NOTE DEBUG: Limiting the number of recursions for debugging
+import sys
+sys.setrecursionlimit(100) 
+
 
 from typing import Dict, Optional, Tuple, Any, Type
 
-# TODO DEBUG: Remove this counter 
-ITERS = 0
 
 class Compiler:
     """A knowledge compilation compiler that takes CNFs and produces 
@@ -38,14 +40,10 @@ class Compiler:
     def compile(self, theory: 'CNF') -> 'NNFNode':
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
-        global ITERS
-        if ITERS > 10:
-            raise ValueError('Too many iterations')
-        else:
-            ITERS += 1
         # if there are no clauses in the theory, then nothing to do
         #  TODO: make this nicer
         if len(theory.clauses) == 0:
+            print("EMPTY HERE")
             return EmptyNode()
 
         if self.cache_contains(theory):

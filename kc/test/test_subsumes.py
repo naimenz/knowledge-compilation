@@ -1,100 +1,282 @@
-"""Subsumption is hard.
- This file contains a number of test cases for figuring out how it should be calculated"""
-
+"""Tests for the whole 'subsumes' set up for ConstrainedAtoms
+NOTE: The does_not_subsume tests only work properly when the function is 
+edited to return debug strings of '1', '2', '3', '4'.
+These versions are commented out most of the time."""
 from kc.data_structures import *
+X = LogicalVariable('X')
+Y = LogicalVariable('Y')
+Z = LogicalVariable('Z')
+W = LogicalVariable('W')
 
-X, Y =  LogicalVariable('X'), LogicalVariable('Y')
-Z, W = LogicalVariable('Z'), LogicalVariable('W')
-X1, Y1 = LogicalVariable('X1'), LogicalVariable('Y1')
-Z1, W1 =  LogicalVariable('Z1'), LogicalVariable('W1')
-a, b, c, d = Constant('a'), Constant('b'), Constant('c'), Constant('d')
+F = LogicalVariable('F')
 
-ab = SetOfConstants([a, b])
-cd = SetOfConstants([c, d])
+alice = Constant('alice')
+bob = Constant('bob')
+charlie = Constant('charlie')
 
-Xinab = InclusionConstraint(X, ab)
-Yinab = InclusionConstraint(Y, ab)
-Zinab = InclusionConstraint(Z, ab)
+dog = Constant('dog')
+cat = Constant('cat')
+People = RootDomain([alice, bob, charlie], 'People')
+Smokers = DomainVariable(symbol='Smokers',
+                         parent_domain = People,
+                         included_constants=[alice, bob],
+                         excluded_constants=[charlie])
+Animals = RootDomain([dog, cat], 'Animals')
 
-X1inab = InclusionConstraint(X1, ab)
-Y1inab = InclusionConstraint(Y1, ab)
-Z1inab = InclusionConstraint(Z1, ab)
+XinPeople = InclusionConstraint(X, People)
+YinPeople = InclusionConstraint(Y, People)
+ZinPeople = InclusionConstraint(Z, People)
+WinPeople = InclusionConstraint(W, People)
 
-Xincd = InclusionConstraint(X, cd)
-Yincd = InclusionConstraint(Y, cd)
+YinAnimals = InclusionConstraint(Y, Animals)
+WinAnimals = InclusionConstraint(W, Animals)
 
-Xeqa = InclusionConstraint(X, SetOfConstants([a]))
-Yeqa = InclusionConstraint(Y, SetOfConstants([a]))
+p = Predicate('p', 2)
+pXY = Literal(Atom(p, [X, Y]))
+pZW = Literal(Atom(p, [Z, W]))
+pXZ = Literal(Atom(p, [X, Z]))
+pXX = Literal(Atom(p, [X, X]))
+pYY = Literal(Atom(p, [Y, Y]))
+pZZ = Literal(Atom(p, [Z, Z]))
+pXa = Literal(Atom(p, [X, alice]))
+pZa = Literal(Atom(p, [Z, alice]))
 
 XeqY = EqualityConstraint(X, Y)
 XeqZ = EqualityConstraint(X, Z)
 YeqZ = EqualityConstraint(Y, Z)
-ZeqW = EqualityConstraint(Z, W)
 
-p = Predicate('p', 2)
-pXY = Literal(Atom(p, [X, Y]))
-pX1Y1 = Literal(Atom(p, [X1, Y1]))
-pXZ = Literal(Atom(p, [X, Z]))
-literals = [pXY]
+XeqF = EqualityConstraint(X, F)
+ZeqF = EqualityConstraint(Z, F)
 
-q = Predicate('q', 1)
-qX = Literal(Atom(q, [X]))
+Xeqa = InclusionConstraint(X, SetOfConstants([alice]))
+Yeqa = InclusionConstraint(Y, SetOfConstants([alice]))
+Zeqa = InclusionConstraint(Z, SetOfConstants([alice]))
+Weqa = InclusionConstraint(W, SetOfConstants([alice]))
+
+def test_is_not_trivial():
+
+    XinPeople = InclusionConstraint(X, People)
+    YinSmokers = InclusionConstraint(Y, Smokers)
+    YinAnimals = InclusionConstraint(Y, Animals)
+    XneqY = ~XeqY
+    cs_smokers = ConstraintSet([XinPeople, YinSmokers, XneqY])
+
+    cs_animals = ConstraintSet([XinPeople, YinAnimals, XneqY])
+
+    c_atom_smokers = ConstrainedAtom([pXY], [X, Y], cs_smokers)
+    assert(XneqY.is_not_trivial(c_atom_smokers))
+
+    c_atom_animals = ConstrainedAtom([pXY], [X, Y], cs_animals)
+    assert(not XneqY.is_not_trivial(c_atom_animals))
 
 
-clause1 = ConstrainedClause([pXY], [X, Y], ConstraintSet([Xinab, Yinab]))
-clause1p = ConstrainedClause([pX1Y1], [X1, Y1], ConstraintSet([X1inab, Y1inab]))
-clause2 = ConstrainedClause(literals, [X, Y], ConstraintSet([Xinab, Yinab, XeqY]))
-clause3 = ConstrainedClause(literals, [X, Y], ConstraintSet([Xinab, Yinab, ~XeqY]))
-def test_simple_subsumes():
-    assert(clause1.is_subsumed_by_clause(clause1))
-    assert(clause2.is_subsumed_by_clause(clause1))
-    assert(not clause1.is_subsumed_by_clause(clause2))
-    assert(clause3.is_subsumed_by_clause(clause1))
-    assert(not clause1.is_subsumed_by_clause(clause3))
+def test_get_bound_variable_inequalities():
+    cs = ConstraintSet([~XeqY, ~XeqZ, ~YeqZ])
 
-clause4 = ConstrainedClause(literals, [X, Y], ConstraintSet([Xinab, Yincd]))
-clause5 = ConstrainedClause(literals, [X, Y], ConstraintSet([Xinab, Yincd, XeqY]))
-clause6 = ConstrainedClause(literals, [X, Y], ConstraintSet([Xinab, Yincd, XeqZ]))
-def test_disjoint_domains():
-    assert(clause6.is_subsumed_by_clause(clause4))
-    assert(not clause4.is_subsumed_by_clause(clause6))
 
-fclause1 = ConstrainedClause([pXY], [X, Y], ConstraintSet([Xinab, Yinab]))
-fclause2 = ConstrainedClause([pXZ], [X], ConstraintSet([Xinab]))
-fclause3 = ConstrainedClause([pXY], [X, Y], ConstraintSet([Xinab, Yinab, YeqZ]))
-fclause4 = ConstrainedClause([pXY], [X, Y], ConstraintSet([Xinab, Yinab, ~ZeqW]))
-fclause4a = ConstrainedClause([pX1Y1], [X1, Y1], ConstraintSet([X1inab, Y1inab, ~ZeqW]))
-def test_free_variables():
-    assert(not fclause2.is_subsumed_by_clause(fclause1))
-    assert(not fclause1.is_subsumed_by_clause(fclause2))
-    assert(fclause3.is_subsumed_by_clause(fclause1))
-    assert(not fclause2.is_subsumed_by_clause(fclause3))
-    assert(fclause1.is_subsumed_by_clause(fclause1))
-    assert(fclause4.is_subsumed_by_clause(fclause4a))
+    cclause1 = ConstrainedClause([pXY, pXZ], [X, Y], cs)
+    target1 = set([~XeqY])
 
-a_gamma = ConstrainedClause([qX], [X], ConstraintSet([Xinab]))
-A = ConstrainedClause([qX], [X], ConstraintSet([Xinab, ~YeqZ]))
-def test_example_42():
-    # example 4.2 from splitting in the PhD
-    assert(not a_gamma.is_subsumed_by_clause(A))
-    assert(A.is_subsumed_by_clause(a_gamma))
+    cclause2 = ConstrainedClause([pXY, pXZ], [X, Z], cs)
+    target2 = set([~XeqZ])
 
-def test_subsumes_self():
-    assert(clause1.is_subsumed_by_clause(clause1))
-    assert(clause1p.is_subsumed_by_clause(clause1))
-    assert(clause1.is_subsumed_by_clause(clause1p))
+    cclause3 = ConstrainedClause([pXY, pXZ], [X, Y, Z], cs)
+    target3 = set([~XeqY, ~XeqZ, ~YeqZ])
 
-    assert(clause2.is_subsumed_by_clause(clause2))
-    assert(clause3.is_subsumed_by_clause(clause3))
-    assert(clause4.is_subsumed_by_clause(clause4))
-    # clause5 doesn't subsume itself because its cs unsatisfiable
-    # i'm not sure how to feel about that
-    # assert(clause5.is_subsumed_by_clause(clause5))
-    assert(clause6.is_subsumed_by_clause(clause6))
-    assert(fclause1.is_subsumed_by_clause(fclause1))
-    assert(fclause2.is_subsumed_by_clause(fclause2))
-    assert(fclause3.is_subsumed_by_clause(fclause3))
-    assert(a_gamma.is_subsumed_by_clause(a_gamma))
-    assert(A.is_subsumed_by_clause(A))
-        
-assert(fclause4.is_subsumed_by_clause(fclause4a))
+    cclause4 = ConstrainedClause([pXY, pXZ], [Z, W], ConstraintSet([XeqY]))
+    target4 = set()
+
+    assert(cclause1.get_bound_variable_inequalities() == target1)
+    assert(cclause2.get_bound_variable_inequalities() == target2)
+    assert(cclause3.get_bound_variable_inequalities() == target3)
+    assert(cclause4.get_bound_variable_inequalities() == target4)
+
+def test_get_constant_or_free_inequalities():
+    X = LogicalVariable('X')
+    Y = LogicalVariable('Y')
+    Z = LogicalVariable('Z')
+    W = LogicalVariable('W')
+    alice = Constant('alice')
+    bob = Constant('bob')
+    charlie = Constant('charlie')
+
+    People = SetOfConstants([alice, bob, charlie])
+
+    p = Predicate('p', 2)
+    pXY = Literal(Atom(p, [X, Y]))
+    pXZ = Literal(Atom(p, [X, Z]))
+
+    Xeqa = InclusionConstraint(X, SetOfConstants([alice]))
+    Yeqb = InclusionConstraint(Y, SetOfConstants([bob]))
+    Zeqc = InclusionConstraint(Z, SetOfConstants([charlie]))
+    XinPeople = InclusionConstraint(X, People)
+
+    cs = ConstraintSet([~Xeqa, ~Yeqb, ~Zeqc, ~XinPeople])
+
+    cclause1 = ConstrainedClause([pXY, pXZ], [X, Y], cs)
+    target1 = set([~Xeqa, ~Yeqb])
+
+    cclause2 = ConstrainedClause([pXY, pXZ], [X, Z], cs)
+    target2 = set([~Xeqa, ~Zeqc])
+
+    cclause3 = ConstrainedClause([pXY, pXZ], [X, Y, Z], cs)
+    target3 = set([~Xeqa, ~Yeqb, ~Zeqc])
+
+    cclause4 = ConstrainedClause([pXY, pXZ], [W], cs)
+    target4 = set()
+
+    assert(cclause1.get_constant_or_free_inequalities() == target1)
+    assert(cclause2.get_constant_or_free_inequalities() == target2)
+    assert(cclause3.get_constant_or_free_inequalities() == target3)
+    assert(cclause4.get_constant_or_free_inequalities() == target4)
+
+def test_does_not_subsume1():
+    catom1 = ConstrainedAtom([pXa], [X], ConstraintSet([XinPeople]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "1")
+
+    catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople]))
+    mgu = catom2.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom2.does_not_subsume(catom3, mgu) != "1")
+
+def test_does_not_subsume1_free_vars():
+    catom1 = ConstrainedAtom([pXY], [X], ConstraintSet([XinPeople]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "1")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "1")
+
+    catom3 = ConstrainedAtom([pZa], [Z], ConstraintSet([ZinPeople]))
+
+    # NOTE: I'm not sure what should happen here but it passes
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom3.does_not_subsume(catom1, mgu) != "1")
+    assert(catom1.does_not_subsume(catom3, mgu) != "1")
+
+
+def test_does_not_subsume2():
+    catom1 = ConstrainedAtom([pXX], [X], ConstraintSet([XinPeople]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "2")
+    assert(catom1.does_not_subsume(catom2, mgu) == True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "2")
+
+    catom3 = ConstrainedAtom([pYY], [Y], ConstraintSet([XinPeople, YinPeople]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom1.does_not_subsume(catom3, mgu) != "2")
+
+def test_does_not_subsume3():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~Xeqa]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "3")
+
+    catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~Zeqa]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom1.does_not_subsume(catom3, mgu) != "3")
+    assert(catom3.does_not_subsume(catom1, mgu) != "3")
+
+def test_does_not_subsume3_free_vars():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~XeqF]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "3")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "3")
+
+    catom3 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople, ~ZeqF]))
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom3)
+    assert(catom1.does_not_subsume(catom3, mgu) != "3")
+    assert(catom3.does_not_subsume(catom1, mgu) != "3")
+
+def test_does_not_subsume4():
+    catom1 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinPeople, ~XeqY]))
+    catom2 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinPeople]))
+
+    mgu = catom1.get_constrained_atom_mgu_eq_classes(catom2)
+    # assert(catom1.does_not_subsume(catom2, mgu) == "4")
+    assert(catom1.does_not_subsume(catom2, mgu) ==True)
+    assert(catom2.does_not_subsume(catom1, mgu) != "4")
+
+    catom3 = ConstrainedAtom([pXY], [X, Y], ConstraintSet([XinPeople, YinAnimals, ~XeqY]))
+    catom4 = ConstrainedAtom([pZW], [Z, W], ConstraintSet([ZinPeople, WinAnimals]))
+    mgu = catom3.get_constrained_atom_mgu_eq_classes(catom4)
+    assert(catom3.does_not_subsume(catom4, mgu) != "4")
+
+
+def test_example_4_1():
+    kiwi = Constant('kiwi')
+    penguin = Constant('penguin')
+    dog = Constant('dog')
+    pigeon = Constant('pigeon')
+
+    Animal = RootDomain([kiwi, penguin, pigeon, dog], 'Animal')
+    Bird = DomainVariable('Bird', parent_domain=Animal, included_constants=[kiwi, penguin, pigeon], excluded_constants=[dog])
+
+    X = LogicalVariable('X')
+    X1 = LogicalVariable('X1')
+
+    flies = Predicate('flies', 1)
+    haswings = Predicate('haswings', 1)
+
+    fliesX = Literal(Atom(flies, [X]))
+    haswingsX = Literal(Atom(haswings, [X])) 
+    fliesX1 = Literal(Atom(flies, [X1]))
+    haswingsX1 = Literal(Atom(haswings, [X1]))
+
+    Xeqkiwi = EqualityConstraint(X, kiwi)
+    X1eqpenguin = EqualityConstraint(X1, penguin)
+    XinAnimal = InclusionConstraint(X, Animal)
+    X1inBird = InclusionConstraint(X1, Bird)
+
+    cs_gamma = ConstraintSet([~Xeqkiwi, XinAnimal])
+    cs_a = ConstraintSet([~X1eqpenguin, X1inBird])
+
+    a_gamma = ConstrainedAtom([fliesX], [X], cs_gamma)
+    aa = ConstrainedAtom([fliesX1], [X1], cs_a)
+
+    mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
+
+    print(aa.does_not_subsume(a_gamma, mgu))
+    print(a_gamma.does_not_subsume(aa, mgu))
+    # assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    # assert(a_gamma.does_not_subsume(aa, mgu) in ["1", "2", "3", "4"])
+    assert(aa.does_not_subsume(a_gamma, mgu) == True)
+    assert(a_gamma.does_not_subsume(aa, mgu) == True)
+
+
+def test_example_4_2():
+    """This is Example 4.2 from the PhD, and it poses a problem, because
+    it is not handled by the does_not_subsume function"""
+    # the relevant c_atom from gamma
+    X, Y, Z = LogicalVariable('X'), LogicalVariable('Y'), LogicalVariable('Z')
+    X1 = LogicalVariable('X1')
+    a, b, c = Constant('a'), Constant('b'), Constant('c')
+    D = RootDomain([a, b, c], 'D')
+    p = Predicate('p', 1)
+    pX = Literal(Atom(p, [X]))
+    pX1 = Literal(Atom(p, [X1]))
+
+    XinD = InclusionConstraint(X, D)
+    X1inD = InclusionConstraint(X1, D)
+    YeqZ = EqualityConstraint(Y, Z)
+    a_gamma = ConstrainedAtom([pX], [X], ConstraintSet([XinD]))
+    aa = ConstrainedAtom([pX1], [X1], ConstraintSet([X1inD, ~YeqZ]))
+
+    mgu = aa.get_constrained_atom_mgu_eq_classes(a_gamma)
+    # assert(aa.does_not_subsume(a_gamma, mgu) in ["1", "2", "3", "4"])
+    assert(aa.does_not_subsume(a_gamma, mgu) == True)
+    assert(a_gamma.does_not_subsume(aa, mgu) == False)
+

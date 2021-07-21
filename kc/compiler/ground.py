@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 class Ground(KCRule):
     
     @classmethod
-    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional['ConstraintSet']]:
+    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional['ConstrainedClause']]:
         """Ground is applicable if the theory is contains a constraint set with no free variables.
-        Returns True and the constraint set if applicable, and False, None otherwise.
+        Returns True and the clause with that constraint set if applicable, and False, None otherwise.
         NOTE: for now, this only considers LogicalVariables, not DomainVariables"""
         for clause in cnf.clauses:
             cs_variables = clause.cs.get_logical_variables()
@@ -24,7 +24,7 @@ class Ground(KCRule):
         return False, None
 
     @classmethod
-    def apply(cls, cnf: 'CNF', stored_data: 'ConstraintSet', compiler: 'Compiler') -> 'NNFNode':
+    def apply(cls, cnf: 'CNF', clause_to_ground: 'ConstrainedClause', compiler: 'Compiler') -> 'NNFNode':
         """Apply Ground and return an NNFNode"""
         raise NotImplementedError('Ground.apply not implemented')
 

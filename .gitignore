@@ -4,3 +4,6 @@
 # ignoring random testing files
 kc/test.py
 kc/temp.py
+
+# ignoring pycharm settings
+*.idea
