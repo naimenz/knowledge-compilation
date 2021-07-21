@@ -275,10 +275,7 @@ class ConstrainedClause(Clause):
 
     def get_free_variables(self) -> Set['LogicalVariable']:
         """Extract just the free variables from this clause"""
-        free_variables: Set['LogicalVariable'] = set()
-        for variable in self.constraint_variables.union(self.literal_variables):
-            if variable not in self.bound_vars:
-                free_variables.add(variable)
+        free_variables: Set['LogicalVariable'] = self.all_variables.difference(self.bound_vars)
         return free_variables
 
     # TODO: THINK ABOUT FREE VARIABLE CASE
