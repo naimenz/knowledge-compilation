@@ -20,8 +20,7 @@ class Independence(KCRule):
         NOTE: This will work with domain variables when clauses_independent does"""
         if len(cnf.clauses) == 1:
             return False, None # need at least 2 clauses to make non-empty independent sets
-        # TODO: can partition be rewritten to take sets?
-        clauses = list(cnf.clauses)
+        clauses = sorted(cnf.clauses)
         subtheory, other_subtheory = cls._partition([clauses[0]], clauses[1:])
         # if all clauses have been moved into subtheory, then we are back where we started!
         if len(other_subtheory) == 0:
@@ -31,7 +30,6 @@ class Independence(KCRule):
             return True, (CNF(subtheory, shattered=cnf.shattered), CNF(other_subtheory, shattered=cnf.shattered))
 
     @classmethod
-    # NOTE: We annotate compiler as 'Any' to avoid circularly importing the Compiler
     def apply(cls, cnf: 'CNF', sub_cnfs: StoredCNFs, compiler: 'Compiler') -> 'NNFNode':
         """Apply Independence and return an NNFNode (in this case an AndNode)"""
         return AndNode(compiler.compile(sub_cnfs[0]), compiler.compile(sub_cnfs[1]))
@@ -50,7 +48,6 @@ class Independence(KCRule):
         # this is done with a pattern match in scala
         else:
             if len(potential_subtheory) > 0:
-                # TODO:  check this line with Forclift
                 clause, rest = potential_subtheory[0], potential_subtheory[1:]
                 new_potential_subtheory = []
                 new_other_clauses = []

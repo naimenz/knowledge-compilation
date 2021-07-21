@@ -22,7 +22,7 @@ class IndependentPairedGroundings(KCRule):
         # writing a little function to check if root in this particular cnf
         is_root_in_cnf = lambda eq_class: eq_class.is_root_in_cnf(cnf)
         root_unifying_classes = filter(is_root_in_cnf, unifying_classes)
-        for root_unifying_class in root_unifying_classes:
+        for root_unifying_class in sorted(root_unifying_classes):
             if cnf.eq_class_has_two_variables(root_unifying_class):
                 return True, root_unifying_class
         return False, None
@@ -40,9 +40,9 @@ class IndependentPairedGroundings(KCRule):
         root_class_a: Set['LogicalVariable'] = set()
         root_class_b: Set['LogicalVariable'] = set()
         # TODO: compare speed with list comps
-        for clause in cnf.c_clauses: 
+        for clause in sorted(cnf.c_clauses):
             clause_vars: FrozenSet['LogicalVariable'] = clause.bound_vars.intersection(root_unifying_class.members)
-            variable_1, variable_2 = tuple(clause_vars)
+            variable_1, variable_2 = sorted(clause_vars)
             root_class_a.add(variable_1)
             root_class_b.add(variable_2)
         # we want a substitution both ways -- (Y to U_a and Z to U_b, Z to U-a, Y to U_b in the PhD)
@@ -73,7 +73,7 @@ class IndependentPairedGroundings(KCRule):
         """We can't simply use the apply_substitution method because we
         need to remove the new variables from the bound vars after substituting them """
 
-        new_clauses = set()
+        new_clauses: Set['Clause'] = set()
         # NOTE: all clauses are constrained (since must have at least two bound vars)
         for clause in cnf.c_clauses:
             new_literals = [literal.substitute(sub) for literal in clause.literals]
@@ -97,9 +97,9 @@ class IndependentPairedGroundings(KCRule):
                              ) -> 'ConstraintSet':
         """Return a constraint set for the new variables that has the same solutions as the root unifying variables"""
         # we only loop once to get a clause from the cnf
-        for clause in cnf.c_clauses: break
+        for clause in sorted(cnf.c_clauses): break
         # it doesn't matter which root variable we get, shattering means all sols are the same
-        root_variable = get_element_of_set(root_unifying_class.members.intersection(clause.bound_vars))
+        root_variable = sorted(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
         new_cs = ConstraintSet(set_constraints)
         return new_cs.substitute(sub)

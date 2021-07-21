@@ -46,8 +46,10 @@ class Compiler:
             print("EMPTY HERE")
             return EmptyNode()
 
-        if self.cache_contains(theory):
-            return self.get_cache(theory)
+        # DEBUG: disabling caching for nicer graphs
+        # if self.cache_contains(theory):
+        #     print(f"DEBUG: Hit cache")
+        #     return self.get_cache(theory)
 
         nnf: Optional['NNFNode'] = None
 

@@ -7,9 +7,8 @@ from kc.util import powerset, partition_set
 from itertools import product
 from functools import reduce
 
-from typing import Tuple, Set, Iterable, Sequence
+from typing import Tuple, Set, Iterable, Sequence, FrozenSet
 from typing import TYPE_CHECKING
-
 
 if TYPE_CHECKING:
     from kc.compiler import Compiler
@@ -33,7 +32,7 @@ class ShatteredCompilation(KCRule):
         shattered_clauses_list = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
         empty_set: Set['ConstrainedClause'] = set() # hack for type checking
         flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)
-        propagated_shattered_clauses = [c.propagate_equality_constraints() for c in flattened_shattered_clauses]
+        propagated_shattered_clauses = sorted([c.propagate_equality_constraints() for c in flattened_shattered_clauses])
         return compiler.compile(CNF(propagated_shattered_clauses, shattered=True))
 
     @classmethod
@@ -84,7 +83,7 @@ class ShatteredCompilation(KCRule):
         """Build all of the equality and inequality constraints between variables in each literal
         (CS_B from the PhD)."""
         individual_literal_inequality_constraints = []
-        for literal in clause.literals:
+        for literal in sorted(clause.literals):
             bound_literal_variables = set(clause.bound_vars.intersection(literal.variables))
             literal_constraint_sets = cls._build_literal_constraint_sets(bound_literal_variables)
             individual_literal_inequality_constraints.append(literal_constraint_sets)
@@ -99,25 +98,26 @@ class ShatteredCompilation(KCRule):
         """Build the (in)equality between variable constraints for this literal 
         (CS_B^i from the PhD)"""
         literal_constraint_sets: Set['ConstraintSet'] = set()
-        for partition in partition_set(bound_literal_variables):
+        for partition in sorted(partition_set(bound_literal_variables)):
             partition_constraint_set = cls._build_partition_constraint_set(partition)
             literal_constraint_sets.add(partition_constraint_set)
         return literal_constraint_sets
 
     @classmethod
-    def _build_partition_constraint_set(cls, partition: Set[Set['LogicalVariable']]) -> 'ConstraintSet':
+    def _build_partition_constraint_set(cls, partition: Set[FrozenSet['LogicalVariable']]) -> 'ConstraintSet':
         """Build the constraint set for a particular partition of the logical variables"""
         equality_constraints: Set['EqualityConstraint'] = set()
         inequality_constraints: Set['InequalityConstraint'] = set()
-        for subset in partition: 
+        for subset in sorted(partition): 
             # there is some duplicated effort here, but it is still correct because of sets
             # TODO: for performance, reduce looping
-            for var in subset:
-                for other_var in subset - set([var]):
+            for var in sorted(subset):
+                for other_var in sorted(subset - set([var])):
+                    print("HERE",var, other_var)
                     equality_constraints.add(EqualityConstraint(var, other_var))
 
-                for other_subset in partition - set([subset]):
-                    for other_var in other_subset:
+                for other_subset in sorted(partition - set([subset])):
+                    for other_var in sorted(other_subset):
                         inequality_constraints.add(InequalityConstraint(var, other_var))
         # we then combine all of these into a single constraint
         partition_constraint_set = ConstraintSet([*equality_constraints, *inequality_constraints])
@@ -154,11 +154,11 @@ class ShatteredCompilation(KCRule):
         not_equal_constraints: Set['Constraint'] = set()
 
         free_variables, constants = terms[0], terms[1]
-        for free_variable in free_variables:
+        for free_variable in sorted(free_variables):
             var_eq_constraint = EqualityConstraint(variable, free_variable)
             equality_constraint_sets.add(ConstraintSet([var_eq_constraint]))
             not_equal_constraints.add(~var_eq_constraint)
-        for constant in constants:
+        for constant in sorted(constants):
             const_eq_constraint = InclusionConstraint(variable, SetOfConstants([constant]))
             equality_constraint_sets.add(ConstraintSet([const_eq_constraint]))
             not_equal_constraints.add(~const_eq_constraint)
@@ -174,12 +174,12 @@ class ShatteredCompilation(KCRule):
         inclusion_constraint_sets: Set['ConstraintSet'] = set()
 
         all_domain_subsets = powerset(domains)
-        for domain_subset in all_domain_subsets:
+        for domain_subset in sorted(all_domain_subsets):
             current_domain_constraints: Set['SetConstraint'] = set()
-            for domain in domain_subset:
+            for domain in sorted(domain_subset):
                 variable_in_domain_constraint = InclusionConstraint(variable, domain)
                 current_domain_constraints.add(variable_in_domain_constraint)
-            for domain in (domains - set(domain_subset)):
+            for domain in sorted(domains - set(domain_subset)):
                 variable_notin_domain_constraint = NotInclusionConstraint(variable, domain)
                 current_domain_constraints.add(variable_notin_domain_constraint)
             inclusion_constraint_sets.add(ConstraintSet(current_domain_constraints))
