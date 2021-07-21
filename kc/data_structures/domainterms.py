@@ -57,6 +57,11 @@ class DomainTerm(ABC):
     def size(self) -> int:
         """I think domain variables will need sizes too"""
 
+    @abstractmethod
+    def __lt__(self, other: Any) -> bool:
+        """All DomainTerms need to be comparable"""
+        pass
+
 
 class SetOfConstants(DomainTerm):
     """

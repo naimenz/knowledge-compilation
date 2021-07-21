@@ -28,7 +28,6 @@ class ConstraintSet:
     """
 
     def __init__(self, constraints: Iterable['Constraint']) -> None:
-        self._constraints = frozenset(constraints)
         # make it easier to access different types of constraints 
         equality_constraints, inequality_constraints = set(), set()
         inclusion_constraints, notinclusion_constraints = set(), set()
@@ -42,10 +41,33 @@ class ConstraintSet:
                 inclusion_constraints.add(constraint)
             elif isinstance(constraint, NotInclusionConstraint):
                 notinclusion_constraints.add(constraint)
+
+        redundant_inclusion_constraints = self._get_redundant_inclusion_constraints(inclusion_constraints)
+
         self._inequality_constraints = frozenset(inequality_constraints)
         self._equality_constraints = frozenset(equality_constraints)
-        self._inclusion_constraints = frozenset(inclusion_constraints)
+        self._inclusion_constraints = frozenset(inclusion_constraints) - redundant_inclusion_constraints
         self._notinclusion_constraints = frozenset(notinclusion_constraints)
+
+        self._constraints = frozenset(constraints) - redundant_inclusion_constraints
+    
+    def _get_redundant_inclusion_constraints(self,
+                                             inclusion_constraints: Set['InclusionConstraint']
+                                             ) -> Set['InclusionConstraint']:
+        """Get the inclusion constraints that are already implied by some stricter constraint"""
+        redundant_inclusion_constraints = set()
+        for ic in inclusion_constraints:
+            if isinstance(ic.logical_term, LogicalVariable) and isinstance(ic.domain_term, ProperDomain):
+                variable = ic.logical_term
+                domain = ic.domain_term
+                for other_ic in inclusion_constraints:
+                    if other_ic.logical_term == variable \
+                            and isinstance(other_ic.domain_term, ProperDomain) \
+                            and domain.is_strict_superset_of(other_ic.domain_term):
+                        redundant_inclusion_constraints.add(ic)
+                        break
+        return redundant_inclusion_constraints
+    
 
     @property
     def constraints(self) -> FrozenSet['Constraint']:
@@ -264,7 +286,7 @@ class ConstraintSet:
         return hash(self.constraints)
 
     def __str__(self) -> str:
-        constraint_strs = [f'({str(constraint)})' for constraint in self.constraints]
+        constraint_strs = [f'({str(constraint)})' for constraint in sorted(self.constraints)]
         logical_and_string = ' \u2227 '
         return f"({logical_and_string.join(constraint_strs)})"
 
@@ -992,7 +1014,7 @@ class Substitution:
     """
     def __init__(self, variable_term_pairs: Iterable[VarTermPair]) -> None:
         """The substitution dict is private and shouldn't be changed after creation"""
-        self._substitution_dict = {var: term for var, term in variable_term_pairs}
+        self._substitution_dict = {var: term for var, term in sorted(variable_term_pairs)}
 
     def __getitem__(self, query: 'LogicalTerm') -> 'LogicalTerm':
         """Return the term associated with a given (logical) variable
@@ -1124,7 +1146,7 @@ class EquivalenceClass:
     def _get_constant_or_random_variable(self) -> 'LogicalTerm':
         """If there's a constant in this equivalence class, return that.
         Otherwise, return an arbitrary variable"""
-        for element in self.members:
+        for element in sorted(self.members):
             if isinstance(element, Constant):
                 return element
         return element
@@ -1153,6 +1175,13 @@ class EquivalenceClass:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """Equivalence classes can be compared by sorting their members"""
+        if isinstance(other, EquivalenceClass):
+            return sorted(self.members) < sorted(other.members)
+        else:
+            raise NotImplementedError(f'Cannot compare EquivalenceClass and {type(other)}')
 
 
 class VariableEquivalenceClass(EquivalenceClass):
@@ -1201,11 +1230,11 @@ class EquivalenceClasses(Generic[TEC]):
         the same information."""
         var_term_pairs: List[VarTermPair] = []
         # we process each equivalence class in turn, generating var-term pairs
-        for eq_class in self.classes:
+        for eq_class in sorted(self.classes):
             # choose what to map everything to
             mapping_target = eq_class._get_constant_or_random_variable()
             # now we get term-var pairs for all terms that are NOT the target
-            for term in eq_class.members:
+            for term in sorted(eq_class.members):
                 if term != mapping_target:
                     if isinstance(term, Constant):
                         raise ValueError('There should have been at most 1 constant')
@@ -1271,3 +1300,10 @@ class EquivalenceClasses(Generic[TEC]):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """EquivalenceClasses can be compared by sorting their member classes"""
+        if isinstance(other, EquivalenceClasses):
+            return sorted(self.classes) < sorted(other.classes)
+        else:
+            raise NotImplementedError(f'Cannot compare EquivalenceClasses and {type(other)}')

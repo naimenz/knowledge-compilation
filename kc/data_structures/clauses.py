@@ -210,7 +210,7 @@ class UnconstrainedClause(Clause):
         return hash(self.literals)
 
     def __str__(self) -> str:
-        literal_strs = [str(literal) for literal in self.literals]
+        literal_strs = [str(literal) for literal in sorted(self.literals)]
         logical_or_string = ' \u2228 '
         return f"({logical_or_string.join(literal_strs)})"
 
@@ -246,7 +246,7 @@ class ConstrainedClause(Clause):
     def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
-        new_literals = [literal.substitute(substitution) for literal in self.literals]
+        new_literals = [literal.substitute(substitution) for literal in sorted(self.literals)]
         new_cs = self.cs.substitute(substitution)
         _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
         ## allowing substitution of constants to bound vars at the moment
@@ -405,7 +405,7 @@ class ConstrainedClause(Clause):
        return hash((self.literals, self.bound_vars, self.cs))
 
     def __str__(self) -> str:
-        bound_vars_strs = [str(var) for var in self.bound_vars]
+        bound_vars_strs = [str(var) for var in sorted(self.bound_vars)]
         for_all_string = '\u2200'
         return f"{for_all_string}{{{', '.join(bound_vars_strs)}}}, {self.cs} : {UnconstrainedClause(self.literals)}"
 
@@ -789,7 +789,7 @@ class CNF:
         return hash(self.clauses)
 
     def __str__(self) -> str:
-        clause_strs = [f'({str(clause)})' for clause in self.clauses]
+        clause_strs = [f'({str(clause)})' for clause in sorted(self.clauses)]
         return '\nAND\n'.join(clause_strs)
 
     def __repr__(self) -> str:
