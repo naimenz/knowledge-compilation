@@ -271,6 +271,12 @@ class ConstraintSet:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """Order of constraint set must depend on the orders of its constraints"""
+        if not isinstance(other, ConstraintSet):
+            raise NotImplementedError(f'Cannot compare ConstraintSet with {type(other)}')
+        return sorted(self.constraints) < sorted(other.constraints)
+
 class Constraint(ABC):
     """
     Abstract base class for constraints.
@@ -293,6 +299,17 @@ class Constraint(ABC):
     def contains_contradiction(self) -> bool:
         """Does this constraint contain a contradiction?
         TODO: decide if this should be a property"""
+        pass
+
+    @abstractmethod
+    def __invert__(self) -> 'Constraint':
+        """Unfortunately we cannot be more specific about the return type because 
+        each constraint returns its opposite"""
+        pass
+
+    @abstractmethod
+    def __lt__(self, other: Any) -> bool:
+        """All constraints need to be comparable"""
         pass
 
 
@@ -408,6 +425,17 @@ class SubsetConstraint(DomainConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """Subset constraints appear first"""
+        if not isinstance(other, Constraint):
+            raise NotImplementedError(f'Cannot compare SubsetConstraint with {type(other)}')
+        elif isinstance(other, LogicalConstraint) or isinstance(other, SetConstraint):
+            return True
+        elif isinstance(other, NotSubsetConstraint):
+            return True
+        else:
+            return self.terms < other.terms
+
 class NotSubsetConstraint(DomainConstraint):
     """A class for one domain term NOT being a subset of another
     NOTE: For now I will enforce that the left term is a DomainVariable, but I don't know
@@ -456,6 +484,17 @@ class NotSubsetConstraint(DomainConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """Subset constraints appear first"""
+        if not isinstance(other, Constraint):
+            raise NotImplementedError(f'Cannot compare NotSubsetConstraint with {type(other)}')
+        elif isinstance(other, LogicalConstraint) or isinstance(other, SetConstraint):
+            return True
+        elif isinstance(other, SubsetConstraint):
+            return False
+        else:
+            return self.terms < other.terms
+
 class EmptyConstraint(Constraint):
     """This is a special class for a constraint that is trivially satisfied (i.e. always true)"""
     def __init__(self, debug_message: str ='') -> None:
@@ -484,6 +523,13 @@ class EmptyConstraint(Constraint):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __invert__(self) -> 'FalseConstraint':
+        return FalseConstraint('Inverted EmptyConstraint')
+
+    def __lt__(self, other: Any) -> bool:
+        """Shouldn't need < for this class"""
+        raise NotImplementedError("Shouldn't need __lt__ for {self.__class__}")
 
 
 class FalseConstraint(Constraint):
@@ -516,6 +562,12 @@ class FalseConstraint(Constraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __invert__(self) -> 'EmptyConstraint':
+        return EmptyConstraint('Inverted FalseConstraint')
+
+    def __lt__(self, other: Any) -> bool:
+        """Shouldn't need < for this class"""
+        raise NotImplementedError("Shouldn't need __lt__ for {self.__class__}")
 
 class EqualityConstraint(LogicalConstraint):
     """
@@ -594,6 +646,19 @@ class EqualityConstraint(LogicalConstraint):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """Subset constraints appear first"""
+        if isinstance(other, DomainConstraint) or isinstance(other, SetConstraint):
+            return False
+        elif isinstance(other, InequalityConstraint):
+            return True
+        elif isinstance(other, LessThanConstraint):
+            return False
+        elif isinstance(other, EqualityConstraint):
+            return sorted(self.terms) < sorted(other.terms)
+        else:
+            raise NotImplementedError(f'Cannot compare EqualityConstraint with {type(other)}')
 
 class InequalityConstraint(LogicalConstraint):
     """
@@ -677,6 +742,19 @@ class InequalityConstraint(LogicalConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """Subset constraints appear first"""
+        if isinstance(other, DomainConstraint) or isinstance(other, SetConstraint):
+            return False
+        elif isinstance(other, EqualityConstraint):
+            return False
+        elif isinstance(other, LessThanConstraint):
+            return False
+        elif isinstance(other, InequalityConstraint):
+            return sorted(self.terms) < sorted(other.terms)
+        else:
+            raise NotImplementedError(f'Cannot compare InequalityConstraint with {type(other)}')
+
 class LessThanConstraint(LogicalConstraint):
     """This is a constraint on two variables (e.g. Y, Z) enforcing
     that Y < Z. This is interpreted as the natural order on the constants --
@@ -725,6 +803,23 @@ class LessThanConstraint(LogicalConstraint):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __invert__(self) -> 'Constraint':
+        """Shouldn't need to invert LessThanConstraints because they are only
+        really used in NNFnodes."""
+        raise NotImplementedError('Cannot invert LessThanConstraint')
+
+    def __lt__(self, other: Any) -> bool:
+        """Subset constraints appear first"""
+        if isinstance(other, DomainConstraint) or isinstance(other, SetConstraint):
+            return False
+        elif isinstance(other, InequalityConstraint) or isinstance(other, EqualityConstraint):
+            return True
+        elif isinstance(other, LessThanConstraint):
+            return self.terms < other.terms
+        else:
+            raise NotImplementedError(f'Cannot compare LessThanConstraint with {type(other)}')
+
 
 class InclusionConstraint(SetConstraint):
     """
@@ -798,6 +893,18 @@ class InclusionConstraint(SetConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, DomainConstraint):
+            return False
+        elif isinstance(other, LogicalConstraint):
+            return True
+        elif isinstance(other, NotInclusionConstraint):
+            return True
+        elif isinstance(other, InclusionConstraint):
+            return self.terms < other.terms
+        else:
+            raise NotImplementedError(f'Cannot compare InclusionConstraint with {type(other)}')
+
 class NotInclusionConstraint(SetConstraint):
     """
     A FOL-DC negated inclusion constraint (between a logical term and a domain term).
@@ -865,6 +972,17 @@ class NotInclusionConstraint(SetConstraint):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, DomainConstraint):
+            return False
+        elif isinstance(other, LogicalConstraint):
+            return True
+        elif isinstance(other, InclusionConstraint):
+            return False
+        elif isinstance(other, NotInclusionConstraint):
+            return self.terms < other.terms
+        else:
+            raise NotImplementedError(f'Cannot compare NotInclusionConstraint with {type(other)}')
 
 
 class Substitution:

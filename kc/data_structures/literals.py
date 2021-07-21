@@ -57,6 +57,13 @@ class Literal:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent, so we will
+        compare the order of the atom and the polarity"""
+        if not isinstance(other, Literal): 
+            raise NotImplementedError(f'Cannot compare Literal and {type(other)}')
+        return (self.polarity, self.atom) < (other.polarity, other.atom)
+
 class Atom:
     """
     A class for FOL atoms.
@@ -147,6 +154,14 @@ class Atom:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent, so we will
+        compare the order of the predicate and the terms"""
+        if not isinstance(other, Atom): 
+            raise NotImplementedError(f'Cannot compare Atom and {type(other)}')
+        return (self.predicate, self.terms) < (other.predicate, other.terms)
+
+
 
 class GroundAtom(Atom):
     """
@@ -198,4 +213,11 @@ class Predicate:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent, so we will
+        compare the order of the symbol and the arity"""
+        if not isinstance(other, Predicate): 
+            raise NotImplementedError(f'Cannot compare Predicate and {type(other)}')
+        return (self.name, self.arity) < (other.name, other.arity)
 
