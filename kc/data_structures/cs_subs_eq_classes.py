@@ -80,7 +80,7 @@ class ConstraintSet:
         return inc.union(notinc)
 
 
-    def unequal_constants_for(self, variable: 'LogicalVariable') -> Set['Constant']:
+    def unequal_constants_for_variable(self, variable: 'LogicalVariable') -> Set['Constant']:
         """Return all the constants that 'variable' is not equal to"""
         unequal_constants: Set['Constant'] = set()
         for constraint in self.notinclusion_constraints:
@@ -127,7 +127,7 @@ class ConstraintSet:
         relevant_set_constraints = [sc for sc in self.set_constraints if sc.logical_term in relevant_variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
 
-    def get_domain_for(self, variable: 'LogicalVariable') -> 'ProperDomain':
+    def get_domain_for_variable(self, variable: 'LogicalVariable') -> 'ProperDomain':
         """Get the domain for a specific variable in this constraint set"""
         domains = []
         for constraint in self.inclusion_constraints:

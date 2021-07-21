@@ -72,8 +72,8 @@ class AtomCounting(KCRule):
             variable: 'LogicalVariable',
             ) -> Tuple['ConstraintSet', 'DomainVariable']: 
         """Build a constraint set for a new domain variable"""
-        parent_domain = variable_cs.get_domain_for(bound_var)
-        unequal_constants = variable_cs.unequal_constants_for(bound_var)
+        parent_domain = variable_cs.get_domain_for_variable(bound_var)
+        unequal_constants = variable_cs.unequal_constants_for_variable(bound_var)
         # we only exclude constants that could possibly be part of the domain
         excluded_constants = unequal_constants.intersection(parent_domain.possible_constants)
         subdomain_variable = cnf.get_new_domain_variable('D', parent_domain, excluded_constants)

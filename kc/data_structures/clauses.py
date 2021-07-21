@@ -588,8 +588,8 @@ class ConstrainedAtom(UnitClause):
                     for term2 in eq_class:
                         if term2 in other.bound_vars:
                             variable2 = term2
-                            this_domain = self.cs.get_domain_for(variable1)
-                            other_domain = other.cs.get_domain_for(variable2)
+                            this_domain = self.cs.get_domain_for_variable(variable1)
+                            other_domain = other.cs.get_domain_for_variable(variable2)
                             if this_domain.is_strict_subset_of(other_domain):
                                 print("DNS 5")
                                 return True
