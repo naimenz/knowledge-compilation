@@ -101,7 +101,7 @@ class AtomCounting(KCRule):
 
         # the new domain variable must be a subset of the allowed domain for the bound variable
         var_constant_constraints = cls._build_constraints_between_domain_var_and_constants(subdomain_variable, excluded_constants)
-        domain_cs = (ConstraintSet(var_constant_constraints))
+        domain_cs = (ConstraintSet([*var_constant_constraints, SubsetConstraint(subdomain_variable, parent_domain)]))
         return domain_cs, subdomain_variable
 
     @classmethod
