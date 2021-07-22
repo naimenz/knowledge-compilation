@@ -35,15 +35,11 @@ class UnitPropagation(KCRule):
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in sorted(cnf.clauses):
-            # print(f'======================\n{gamma = }')
             split_gammas = cls.split(gamma, u_atom)
-            # print(f'split_gammas with {u_atom = }')
-            # print(*split_gammas, sep='\n')
             for gamma_s in sorted(split_gammas):
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
-                # print(f'\n\n\n        {unit_clause = }\n            {gamma_s = }\n {conditioned_clause = }')
         propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
         # NOTE: a quick check here to see if the unit_clause is really unconstrained, and if so, return
         # it that way
@@ -51,16 +47,6 @@ class UnitPropagation(KCRule):
             unit_cnf = CNF([UnconstrainedClause(unit_clause.literals)], shattered=cnf.shattered)
         else:
             unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
-        # print("============== BEG DEBUG ===================")
-        # print(f"Propagated Theory after UnitProp:\n{propagated_cnf}")
-        # print(f"Unit Clause after UnitProp:\n{unit_cnf}")
-        # print(f"Compiled Unit Clause\n{compiler.compile(unit_cnf)}")
-        # print("============== END DEBUG ===================")
-        # # raise NotImplementedError("end")
-        # global DEBUG_FLAG
-        # if DEBUG_FLAG:
-        #     raise NotImplementedError('STOP AFTER SECOND UNIT PROP')
-        # DEBUG_FLAG = True
         return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
 
     @classmethod

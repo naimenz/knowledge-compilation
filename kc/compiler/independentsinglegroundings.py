@@ -2,6 +2,7 @@
 
 from kc.data_structures import *
 from kc.compiler import KCRule
+from kc.util import get_element_of_set
 
 from typing import Tuple, Optional, cast, List, Set
 from typing import TYPE_CHECKING
@@ -31,7 +32,10 @@ class IndependentSingleGroundings(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', root_unifying_class: 'VariableEquivalenceClass', compiler: 'Compiler') -> 'NNFNode':
         """Apply IndependentSingleGroundings and return an NNFNode"""
-        new_variable = cnf.get_new_logical_variable('X')
+        # try to pick the name that was already used by the clauses
+        root_variable = get_element_of_set(root_unifying_class.members)
+        symbol = root_variable.symbol[0]  # get just the letter, not any numbers
+        new_variable = LogicalVariable(symbol)
         root_substitution_pairs = sorted([(root_var, new_variable) for root_var in root_unifying_class])
         substitution = Substitution(root_substitution_pairs)
         new_cnf = cls._substitute_root_vars(cnf, new_variable, substitution)
@@ -58,7 +62,8 @@ class IndependentSingleGroundings(KCRule):
             else:
                 new_clauses.add(ConstrainedClause(new_literals, new_bound_vars, new_cs))
         # shattering is preserved during this operation
-        return CNF(new_clauses, shattered = cnf.shattered)
+        # DEBUG shouldnt need to rename here
+        return CNF(new_clauses, shattered = cnf.shattered, names=None)
             
     @classmethod
     def _get_new_variable_cs(cls,

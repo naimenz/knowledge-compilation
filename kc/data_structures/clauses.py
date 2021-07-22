@@ -10,7 +10,7 @@ from kc.data_structures import Literal, Atom, LogicalVariable, Constant, Constra
 from functools import reduce
 from abc import ABC, abstractmethod
 
-from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional
+from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional, FrozenSet, Tuple
 from typing import cast 
 from typing import TYPE_CHECKING
 
@@ -267,6 +267,28 @@ class ConstrainedClause(Clause):
                 old_clause = new_clause
             else:
                 return new_clause
+
+    def rename_bound_variables(self, names: Tuple[str, str]=("X", "Y")) -> 'ConstrainedClause':
+        """This is a function that renames the bound variables of this clause (to X and Y by default).
+        We do not touch the free variables, because we are relying on them to already be fixed. 
+        There should only ever be two total variables, so it should always be possible to have them be named X and Y."""
+        names_set = set(names)  # set for fast membership checking
+        variable_names = set(var.symbol for var in self.all_variables)
+        # if they are already called X and Y, we are done
+        if variable_names.issubset(names_set):
+            return self
+        else:
+            fixed_clause = self
+            for var in sorted(self.bound_vars):
+                if var.symbol not in names_set:
+                    # DEBUG switching order
+                    for name in names:
+                        if name not in variable_names:
+                            # update the variable names
+                            variable_names = set(var.symbol for var in fixed_clause.all_variables)
+                            sub = Substitution([(var, LogicalVariable(name))])
+                            fixed_clause = fixed_clause.substitute(sub)
+        return fixed_clause
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -633,7 +655,7 @@ class ConstrainedAtom(UnitClause):
 
         new_c_atom, new_other_c_atom = self, other_c_atom
         for variable in overlapping_variables:
-            temp_cnf = CNF([new_c_atom, new_other_c_atom])  # taking advantage of existing methods in CNF
+            temp_cnf = CNF([new_c_atom, new_other_c_atom], names=None)  # taking advantage of existing methods in CNF
             sub_target = temp_cnf.get_new_logical_variable(variable.symbol[0])  # just taking the character
             sub = Substitution([(variable, sub_target)])
             new_c_atom = new_c_atom.substitute(sub)
@@ -646,10 +668,10 @@ class CNF:
     This consists of a set of (CONSTRAINED OR UNCONSTRAINED) clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: Iterable['Clause'], shattered: bool = False) -> None:
-        """Initialise with a set of clauses and (optionally) the shattering status of the cnf"""
-        self.clauses = frozenset(clauses)
-
+    def __init__(self, clauses: Iterable['Clause'], shattered: bool=False, names: Optional[Tuple[str, str]]=('X', 'Y')) -> None:
+        """Initialise with a set of clauses and (optionally) the shattering status of the cnf
+        By default, a CNF is not shattered.
+        By default, we rename the variables to be X and Y. We only don't do this when we are using the CNF to get new variable names."""
         u_clauses, c_clauses = set(), set()
         for clause in clauses:
             if isinstance(clause, UnconstrainedClause):
@@ -657,9 +679,21 @@ class CNF:
             elif isinstance(clause, ConstrainedClause):
                 c_clauses.add(clause)
         self.u_clauses = frozenset(u_clauses)
-        self.c_clauses = frozenset(c_clauses)
+        if names is not None:
+            self.c_clauses = frozenset(clause.rename_bound_variables(names) for clause in c_clauses)
+        else:
+            self.c_clauses = frozenset(c_clauses)
+        u_clauses_as_clauses = cast(FrozenSet['Clause'], self.u_clauses)  # hack for type-checking
+        self.clauses: FrozenSet['Clause'] = u_clauses_as_clauses.union(self.c_clauses)
 
         self.shattered = shattered # keep track of whether this cnf has undergone shattering
+
+    def rename_bound_variables(self, names: Tuple[str, str]=('X', 'Y')) -> 'CNF':
+        """Rename all the variables in all clauses to 'names'"""
+        c_clauses = set(clause.rename_bound_variables(names) for clause in self.c_clauses)
+        u_clauses: FrozenSet['Clause'] =self.u_clauses  # hack for type checking
+        return CNF(u_clauses.union(c_clauses), names=None)
+        
 
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one."""

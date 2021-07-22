@@ -47,7 +47,9 @@ class ShatteredCompilation(KCRule):
         if not isinstance(clause, ConstrainedClause):
             raise NotImplementedError('shatter_clause only works with ConstrainedClauses')
         # shatter each variable
-        literal_variables = clause.literal_variables
+        # NOTE TODO: I'm assuming here that we only look at bound variables, although this is not quite what the PhD says
+        # literal_variables = clause.literal_variables
+        literal_variables = clause.bound_vars
         # CS_A
         shatter_var_constraints = cls._build_shatter_var_constraints(literal_variables, terms, domains)
         # CS_B
