@@ -4,7 +4,9 @@ from kc.data_structures import *
 from kc.compiler import KCRule, ShatteredCompilation
 from kc.util import get_element_of_set
 
-from typing import Tuple, Optional, List, Set
+from collections import defaultdict
+
+from typing import Tuple, Optional, List, Set, Dict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -18,30 +20,35 @@ class AtomCounting(KCRule):
         (which should have been checked before this rule) and there is an atom in cnf with exactly one bound
         logical variable
         Returns True and the atom if applicable, and False, None otherwise."""
-        # DEBUG: going back to non-heuristic choice to demonstrate bug
+
+        # TODO: Heuristic for deciding which c_atom to use (from Forclift)
+        # Currently using the heuristic of: choose the c_atom with the fewest terms
+        candidate_c_atoms = []
         for clause in sorted(cnf.clauses):
             for c_atom in sorted(clause.get_constrained_atoms()):
                 overlap = set(c_atom.atom.terms).intersection(c_atom.bound_vars) 
                 if len(overlap) == 1:
-                    print(f"Atom counting on {c_atom}")
-                    return True, c_atom
+                    candidate_c_atoms.append(c_atom)
+        if len(candidate_c_atoms) > 0:
+            best_candidate = cls._get_best_candidate(candidate_c_atoms)
+            return True, best_candidate 
         else:
             return False, None
 
-        # # TODO: Heuristic for deciding which c_atom to use (from Forclift)
-        # # Currently using the heuristic of: choose the c_atom with the fewest terms
-        # candidate_c_atoms = []
-        # for clause in sorted(cnf.clauses):
-        #     for c_atom in sorted(clause.get_constrained_atoms()):
-        #         overlap = set(c_atom.atom.terms).intersection(c_atom.bound_vars) 
-        #         if len(overlap) == 1:
-        #             candidate_c_atoms.append(c_atom)
-        # if len(candidate_c_atoms) > 0:
-        #     # sort by length of terms and choose one with fewest
-        #     sorted_candidates = sorted(candidate_c_atoms, key=lambda c_atom: len(c_atom.atom.terms))
-        #     return True, sorted_candidates[0]
-        # else:
-        #     return False, None
+    @classmethod
+    def _get_best_candidate(cls, candidate_c_atoms: List['ConstrainedAtom']) -> 'ConstrainedAtom':
+        """Get the best candidate c_atom from a list of candidates using a heuristic.
+        We use the Forclift heuristic: number of occurrences of the predicate minus size of the domain"""
+        ordering_tuples = []
+        # getting the predicate counts
+        predicate_counts: Dict['Predicate', int] = defaultdict(int)
+        for c_atom in candidate_c_atoms:
+            predicate_counts[c_atom.atom.predicate] += 1
+
+        for c_atom in candidate_c_atoms:
+            domain = c_atom.cs.get_domain_for_variable(get_element_of_set(c_atom.bound_vars))
+            ordering_tuples.append((c_atom, predicate_counts[c_atom.atom.predicate] - domain.size()))
+        return max(ordering_tuples, key=lambda t: t[1])[0]
 
     @classmethod
     def apply(cls, cnf: 'CNF', c_atom: 'ConstrainedAtom', compiler: 'Compiler') -> 'NNFNode':
