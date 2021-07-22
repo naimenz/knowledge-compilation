@@ -22,7 +22,7 @@ class UnitPropagation(KCRule):
         Returns True and the unit clause if applicable, and False, None otherwise"""
         if len(cnf.clauses) == 1:
             return False, None # if there is only one clause, unit propagation does no good
-        unit_clauses = [clause for clause in cnf.clauses if len(clause.literals) == 1]
+        unit_clauses = sorted([clause for clause in cnf.clauses if len(clause.literals) == 1])
         if len(unit_clauses) > 0:
             # we have to make sure the unit_clause actually has type UnitClause
             return True, unit_clauses[0].to_unit_clause()
@@ -34,12 +34,12 @@ class UnitPropagation(KCRule):
         and return an NNFNode"""
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
-        for gamma in cnf.clauses:
+        for gamma in sorted(cnf.clauses):
             # print(f'======================\n{gamma = }')
             split_gammas = cls.split(gamma, u_atom)
             # print(f'split_gammas with {u_atom = }')
             # print(*split_gammas, sep='\n')
-            for gamma_s in split_gammas:
+            for gamma_s in sorted(split_gammas):
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
@@ -68,7 +68,7 @@ class UnitPropagation(KCRule):
         """Split the constrained clause gamma with respect to the constrained atom A.
         Returns a sequence of constrained clauses that are split with respect to a"""
         constrained_atoms = gamma.get_constrained_atoms()
-        viable_atoms = [a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)]
+        viable_atoms = sorted([a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)])
         # print(f'{viable_atoms = }')
         # print(f'{A = }')
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
@@ -112,7 +112,7 @@ class UnitPropagation(KCRule):
                 return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
-        for e in cs_theta.join(cs_A):
+        for e in sorted(cs_theta.join(cs_A)):
             not_e = ~e
             cs_rest = cs_gamma.join(ConstraintSet([not_e]))
             # before going further, check if the constraint set for this clause is even satisfiable
@@ -148,13 +148,10 @@ class UnitPropagation(KCRule):
         all distinct. Also optionally apply this same substitution to another clause"""
 
         # all the variables that need to be substituted
-        overlapping_variables: List['LogicalVariable'] = []
-        for variable in clause.bound_vars:
-            if variable in other_clause.bound_vars:
-                overlapping_variables.append(variable)
+        overlapping_variables: Set['LogicalVariable'] = clause.bound_vars.intersection(other_clause.bound_vars)
 
         new_clause, new_other_clause = clause, other_clause
-        for variable in overlapping_variables:
+        for variable in sorted(overlapping_variables):
             temp_cnf = CNF([new_clause, new_other_clause])  # taking advantage of existing methods in CNF
             sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
             sub = Substitution([(variable, sub_target)])
@@ -212,7 +209,7 @@ class UnitPropagation(KCRule):
         """Return only the literals that are not unsatisfied by 'literal'"""
         lambdas = gamma.get_constrained_literals()
         necessary_literals = []
-        for lam in lambdas:
+        for lam in sorted(lambdas):
             lam_literal = lam.literal
 
             if isinstance(gamma, ConstrainedClause):

@@ -134,6 +134,11 @@ class Clause(ABC):
             all_constants = all_constants.union(literal.constants)
         return all_constants
 
+    @abstractmethod
+    def __lt__(self, other: Any) -> bool:
+        """All clauses must be comparable"""
+        pass
+
 
 class UnconstrainedClause(Clause):
     """An FOL unconstrained clause.
@@ -205,12 +210,23 @@ class UnconstrainedClause(Clause):
         return hash(self.literals)
 
     def __str__(self) -> str:
-        literal_strs = [str(literal) for literal in self.literals]
+        literal_strs = [str(literal) for literal in sorted(self.literals)]
         logical_or_string = ' \u2228 '
         return f"({logical_or_string.join(literal_strs)})"
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """Order doesn't matter as long as it's consistent and we can compare
+        UnconstrainedClauses with ConstrainedClauses"""
+        if isinstance(other, ConstrainedClause):
+            return True
+        elif isinstance(other, UnconstrainedClause):
+            return sorted(self.literals) < sorted(other.literals)
+        else:
+            raise NotImplementedError(f'Cannot compare UnconstrainedClause with {type(other)}')
+
 
 
 class ConstrainedClause(Clause):
@@ -230,7 +246,7 @@ class ConstrainedClause(Clause):
     def substitute(self: 'C', substitution: 'Substitution') -> 'C':
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
-        new_literals = [literal.substitute(substitution) for literal in self.literals]
+        new_literals = [literal.substitute(substitution) for literal in sorted(self.literals)]
         new_cs = self.cs.substitute(substitution)
         _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
         ## allowing substitution of constants to bound vars at the moment
@@ -389,12 +405,24 @@ class ConstrainedClause(Clause):
        return hash((self.literals, self.bound_vars, self.cs))
 
     def __str__(self) -> str:
-        bound_vars_strs = [str(var) for var in self.bound_vars]
+        bound_vars_strs = [str(var) for var in sorted(self.bound_vars)]
         for_all_string = '\u2200'
         return f"{for_all_string}{{{', '.join(bound_vars_strs)}}}, {self.cs} : {UnconstrainedClause(self.literals)}"
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """Order doesn't matter as long as it's consistent and we can compare
+        UnconstrainedClauses with ConstrainedClauses"""
+        if isinstance(other, UnconstrainedClause):
+            return False
+        elif isinstance(other, ConstrainedClause):
+            self_tuple = (sorted(self.literals), sorted(self.bound_vars), sorted(self.cs))
+            other_tuple = (sorted(other.literals), sorted(other.bound_vars), sorted(other.cs))
+            return self_tuple < other_tuple
+        else:
+            raise NotImplementedError(f'Cannot compare ConstrainedClause with {type(other)}')
 
 
 class UnitClause(ConstrainedClause):
@@ -761,9 +789,17 @@ class CNF:
         return hash(self.clauses)
 
     def __str__(self) -> str:
-        clause_strs = [f'({str(clause)})' for clause in self.clauses]
+        clause_strs = [f'({str(clause)})' for clause in sorted(self.clauses)]
         return '\nAND\n'.join(clause_strs)
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """We sort and compare the clauses of the CNF"""
+        if isinstance(other, CNF):
+            return sorted(self.clauses) < sorted(other.clauses)
+        else:
+            raise NotImplementedError(f'Cannot compare CNF and {type(other)}')
+
 

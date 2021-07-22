@@ -8,7 +8,7 @@ from kc.compiler import KCRule
 from kc.compiler import LeafConstruction, UnitPropagation, VacuousConjunction
 from kc.compiler import Independence, ShannonDecomposition, ShatteredCompilation
 from kc.compiler import IndependentSingleGroundings, IndependentPairedGroundings, AtomCounting
-from kc.compiler import Ground
+from kc.compiler import CheckTautology, Ground
 
 # NOTE DEBUG: Limiting the number of recursions for debugging
 import sys
@@ -34,6 +34,7 @@ class Compiler:
                                        ShatteredCompilation,
                                        IndependentSingleGroundings,
                                        IndependentPairedGroundings,
+                                       CheckTautology,
                                        AtomCounting,
                                        Ground)
 
@@ -46,8 +47,10 @@ class Compiler:
             print("EMPTY HERE")
             return EmptyNode()
 
-        if self.cache_contains(theory):
-            return self.get_cache(theory)
+        # DEBUG: disabling caching for nicer graphs
+        # if self.cache_contains(theory):
+        #     print(f"DEBUG: Hit cache")
+        #     return self.get_cache(theory)
 
         nnf: Optional['NNFNode'] = None
 

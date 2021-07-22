@@ -53,30 +53,14 @@ class DomainTerm(ABC):
             shared_constants: FrozenSet['Constant'] = frozenset.intersection(*constant_sets)
         return shared_constants
 
-    # def is_subset_of(self, other: 'DomainTerm') -> bool:
-    #     """Return True if THIS SetOfConstants (self) is a subset of 'other' and False otherwise
-    #     NOTE: For now only works with SetOfConstants"""
-    #     if all(isinstance(term, SetOfConstants) for term in (self, other) ):
-    #         domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
-    #         constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
-    #         return SetOfConstants(constants) == self
-    #     else:
-    #         raise NotImplementedError('is_subset_of only works for SetOfConstants for now')
-
-    # def is_superset_of(self, other: 'DomainTerm') -> bool:
-    #     """Return True if THIS SetOfConstants (self) is a superset of 'other' and False otherwise
-    #     NOTE: For now only works with SetOfConstants"""
-    #     if all(isinstance(term, SetOfConstants) for term in (self, other) ):
-    #         domains = cast(List['SetOfConstants'], (self, other) ) # hack for type checking
-    #         constants: Set['Constant'] = set.intersection(*[set(domain.constants) for domain in domains])
-    #         return SetOfConstants(constants) == other
-    #     else:
-    #         raise NotImplementedError('is_superset_of only works for SetOfConstants for now')
-        
-
     @abstractmethod
     def size(self) -> int:
         """I think domain variables will need sizes too"""
+
+    @abstractmethod
+    def __lt__(self, other: Any) -> bool:
+        """All DomainTerms need to be comparable"""
+        pass
 
 
 class SetOfConstants(DomainTerm):
@@ -127,6 +111,16 @@ class SetOfConstants(DomainTerm):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent.
+        NOTE: We need to be able to compare with other DomainTerms"""
+        if isinstance(other, SetOfConstants):
+            return sorted(self.constants) < sorted(other.constants)
+        elif isinstance(other, ProperDomain):
+            return str(sorted(self.constants)) < other.symbol
+        else:
+            raise NotImplementedError(f'Cannot compare SetOfConstants and {type(other)}')
 
 class ProperDomain(DomainTerm):
     """This is supposed to be an abstract class representing domain terms
@@ -205,6 +199,17 @@ class ProperDomain(DomainTerm):
         are disjoint, this amounts to, is this a parent of the other?"""
         return self in other.ancestors
 
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent.
+        NOTE: We need to be able to compare with other DomainTerms"""
+        if isinstance(other, SetOfConstants):
+            return self.symbol < str(sorted(other.constants))
+        elif isinstance(other, ProperDomain):
+            return self.symbol < other.symbol
+        else:
+            raise NotImplementedError(f'Cannot compare SetOfConstants and {type(other)}')
+
+
 class EmptyDomain(ProperDomain):
     """A domain with NO constants. 
     If this is a variable's domain, then it must be unsatisfiable."""
@@ -236,7 +241,7 @@ class EmptyDomain(ProperDomain):
         return self.__str__()
 
 
-class RootDomain(SetOfConstants, ProperDomain):
+class RootDomain(ProperDomain, SetOfConstants):
     """This is a class to represent a RootDomain, i.e. a specific set of constants
     given as part of the user-defined input. New RootDomains will not be created
     during compilation.

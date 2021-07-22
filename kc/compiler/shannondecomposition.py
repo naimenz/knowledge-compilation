@@ -16,8 +16,8 @@ class ShannonDecomposition(KCRule):
         """ShannonDecomposition is applicable if the theory contains
         an atom without bound logical variables.
         Returns True plus the atom if applicable, and False, None otherwise"""
-        for clause in cnf.clauses:
-            for c_atom in clause.get_constrained_atoms():
+        for clause in sorted(cnf.clauses):
+            for c_atom in sorted(clause.get_constrained_atoms()):
                 overlap = c_atom.bound_vars.intersection(set(c_atom.atom.terms)) 
                 if len(overlap) == 0:
                     return True, c_atom

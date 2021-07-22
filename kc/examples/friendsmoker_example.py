@@ -16,6 +16,7 @@ charlie = Constant('charlie')
 friends = Predicate('friends', 2)
 smokes = Predicate('smokes', 1)
 
+friendsXX = Literal(Atom(friends, [X, X]))
 friendsXY = Literal(Atom(friends, [X, Y]))
 smokesX = Literal(Atom(smokes, [X]))
 smokesY = Literal(Atom(smokes, [Y]))
@@ -28,10 +29,14 @@ People = RootDomain([alice, bob, charlie], 'People')
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
+XeqY = EqualityConstraint(X, Y)
 
 cs = ConstraintSet([XinPeople, YinPeople])
+# cs = ConstraintSet([XinPeople, YinPeople, ~XeqY])
+csX = ConstraintSet([XinPeople])
 
 clause = ConstrainedClause([~smokesX, ~friendsXY, smokesY], [X, Y], cs)
+clauseXX = ConstrainedClause([~smokesX, ~friendsXX, smokesX], [X], csX)
 
 D = DomainVariable('D', People)
 Dcomp = D.complement

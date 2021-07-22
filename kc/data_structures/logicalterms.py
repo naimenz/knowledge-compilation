@@ -10,6 +10,9 @@ class LogicalTerm(ABC):
     An abstract base class for logical terms.
     Terms are either constants or variables, so can never be instantiated directly.
     """
+    @abstractmethod
+    def __lt__(self, other: Any) -> bool:
+        """All logical terms need to be comparable"""
 
 
 class Constant(LogicalTerm):
@@ -38,6 +41,15 @@ class Constant(LogicalTerm):
     def __hash__(self) -> int:
         return hash(self.__repr__())
 
+    def __lt__(self, other: Any) -> bool:
+        """Ordering is arbitrary - just use ordering on values"""
+        if isinstance(other, Constant):
+            return self.value < other.value
+        elif isinstance(other, LogicalVariable):
+            return self.value < other.symbol
+        else:
+            raise NotImplementedError(f'Cannot compare Constant and {type(other)}')
+
 
 class LogicalVariable(LogicalTerm):
     """
@@ -51,15 +63,22 @@ class LogicalVariable(LogicalTerm):
         return isinstance(other, LogicalVariable) and self.symbol == other.symbol
 
     def __str__(self) -> str:
-        return f'{self.symbol}'
+        return self.symbol
 
     def __repr__(self) -> str:
         return self.__str__()
 
     def __hash__(self) -> int:
-        """Hashing LogicalVariables so I can use them as dict keys.
+        """Hashing LogicalVariables so I can use them as dict keys and in sets."""
+        return hash(("LogicalVariable", self.symbol))
 
-        NOTE: this may cause collisions for variables with the same symbol, but that's kind of what we want?"""
-        return hash(self.__repr__())
+    def __lt__(self, other: Any) -> bool:
+        """Ordering is arbitrary - just use ordering on symbols"""
+        if isinstance(other, LogicalVariable):
+            return self.symbol < other.symbol
+        elif isinstance(other, Constant):
+            return self.symbol < other.value
+        else:
+            raise NotImplementedError(f'Cannot compare LogicalVariable and {type(other)}')
 
 
