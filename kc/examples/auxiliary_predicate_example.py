@@ -1,6 +1,6 @@
 """Testing the new functions for auxiliary predicate generation"""
 from kc.data_structures import *
-from kc.parsing import make_auxiliary_predicate_for_clause
+from kc.parsing import make_auxiliary_predicate_for_clause, make_auxiliary_predicate_for_clauses
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -26,6 +26,7 @@ YinPeople = InclusionConstraint(Y, People)
 cs = ConstraintSet([XinPeople, YinPeople])
 
 clause = ConstrainedClause([smokesY, ~smokesX, ~friendsXY], [X, Y], cs)
+clause0 = ConstrainedClause([smokesY, ~friendsXY], [X, Y], cs)
 
 clause1 = ConstrainedClause([~f1XY, smokesY, ~smokesX, ~friendsXY], [X, Y], cs)
 clause2 = ConstrainedClause([f1XY, ~smokesY], [X, Y], cs)
@@ -36,4 +37,6 @@ cnf = CNF([clause1, clause2, clause3, clause4])
 
 print(f'Hand-made CNF:\n{cnf}')
 print(f'Generated CNF:\n{CNF(make_auxiliary_predicate_for_clause(clause))}')
+
+print(f'Multiple aux:\n{CNF(make_auxiliary_predicate_for_clauses([clause, clause0]))}')
 

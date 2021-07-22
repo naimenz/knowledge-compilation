@@ -4,10 +4,20 @@ This is a file for parsing input to knowledge compilation.
 
 from kc.data_structures import *
 
-from typing import List
+from typing import List, Iterable
+
+def make_auxiliary_predicate_for_clauses(clauses: Iterable['ConstrainedClause'], auxiliary_symbol: str='a') -> List['ConstrainedClause']:
+    """Given a group of normal form clauses, make auxilairy predicates for each"""
+    all_clauses = []
+    for index, clause in enumerate(clauses):
+        auxiliary_name = auxiliary_symbol + str(index + 1)
+        all_clauses += make_auxiliary_predicate_for_clause(clause, auxiliary_name)
+    return all_clauses
+
+
 
 def make_auxiliary_predicate_for_clause(clause: 'ConstrainedClause', auxiliary_name: str='a1') -> List['ConstrainedClause']:
-    """Given a CNF clause, construct an auxiliary predicate for the clause and return a CNF
+    """Given a normal form clause, construct an auxiliary predicate for the clause and return a CNF
     that is equivalent containing that auxiliary predicate
 
     To enforce that the aux pred (aux) is equivalent to the clause (clause), we need (aux => clause) and (clause => aux).
