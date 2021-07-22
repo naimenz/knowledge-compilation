@@ -18,20 +18,30 @@ class AtomCounting(KCRule):
         (which should have been checked before this rule) and there is an atom in cnf with exactly one bound
         logical variable
         Returns True and the atom if applicable, and False, None otherwise."""
-        # TODO: Heuristic for deciding which c_atom to use (from Forclift)
-        # Currently using the heuristic of: choose the c_atom with the fewest terms
-        candidate_c_atoms = []
+        # DEBUG: going back to non-heuristic choice to demonstrate bug
         for clause in sorted(cnf.clauses):
             for c_atom in sorted(clause.get_constrained_atoms()):
                 overlap = set(c_atom.atom.terms).intersection(c_atom.bound_vars) 
                 if len(overlap) == 1:
-                    candidate_c_atoms.append(c_atom)
-        if len(candidate_c_atoms) > 0:
-            # sort by length of terms and choose one with fewest
-            sorted_candidates = sorted(candidate_c_atoms, key=lambda c_atom: len(c_atom.atom.terms))
-            return True, sorted_candidates[0]
+                    print(f"Atom counting on {c_atom}")
+                    return True, c_atom
         else:
             return False, None
+
+        # # TODO: Heuristic for deciding which c_atom to use (from Forclift)
+        # # Currently using the heuristic of: choose the c_atom with the fewest terms
+        # candidate_c_atoms = []
+        # for clause in sorted(cnf.clauses):
+        #     for c_atom in sorted(clause.get_constrained_atoms()):
+        #         overlap = set(c_atom.atom.terms).intersection(c_atom.bound_vars) 
+        #         if len(overlap) == 1:
+        #             candidate_c_atoms.append(c_atom)
+        # if len(candidate_c_atoms) > 0:
+        #     # sort by length of terms and choose one with fewest
+        #     sorted_candidates = sorted(candidate_c_atoms, key=lambda c_atom: len(c_atom.atom.terms))
+        #     return True, sorted_candidates[0]
+        # else:
+        #     return False, None
 
     @classmethod
     def apply(cls, cnf: 'CNF', c_atom: 'ConstrainedAtom', compiler: 'Compiler') -> 'NNFNode':

@@ -8,7 +8,7 @@ from kc.compiler import KCRule
 from kc.compiler import LeafConstruction, UnitPropagation, VacuousConjunction
 from kc.compiler import Independence, ShannonDecomposition, ShatteredCompilation
 from kc.compiler import IndependentSingleGroundings, IndependentPairedGroundings, AtomCounting
-from kc.compiler import Ground
+from kc.compiler import CheckTautology, Ground
 
 # NOTE DEBUG: Limiting the number of recursions for debugging
 import sys
@@ -34,6 +34,7 @@ class Compiler:
                                        ShatteredCompilation,
                                        IndependentSingleGroundings,
                                        IndependentPairedGroundings,
+                                       CheckTautology,
                                        AtomCounting,
                                        Ground)
 
