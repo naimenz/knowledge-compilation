@@ -119,8 +119,9 @@ class ConstraintSet:
     def is_non_empty(self) -> bool:
         return len(self.constraints) > 0
 
-    def substitute(self, substitution: 'Substitution') -> 'ConstraintSet':
+    def substitute(self, substitution: 'Substitution') -> Optional['ConstraintSet']:
         """Create a ConstraintSet by applying a Substitution to the constraints
+        NOTE: If after substituting the cs is unsatisfiable, return None
         NOTE: this may be counter-intuitive because applying a substitution
         to an EqualityConstraint may produce an InclusionConstraint"""
         new_constraints: List['Constraint'] = []
@@ -129,7 +130,9 @@ class ConstraintSet:
             new_constraints.append(new_constraint)
 
         if FalseConstraint() in new_constraints:
-            raise ValueError(f'Substitution {substitution} made cs unsatisfiable!')
+            print(f'Substitution {substitution} made cs unsatisfiable!')
+            return None
+            # raise ValueError(f'Substitution {substitution} made cs unsatisfiable!')
 
         # remove trivial constraints (always true)
         filtered_constraints = [c for c in new_constraints if c != EmptyConstraint()]
@@ -1035,7 +1038,10 @@ class Substitution:
         This involves simply defining a constraint for each mapping."""
         constraints: List['Constraint'] = []
         for mapping in self:
-            constraint = EqualityConstraint(mapping[0], mapping[1])
+            if isinstance(mapping[1], LogicalVariable):
+                constraint = EqualityConstraint(mapping[0], mapping[1])
+            elif isinstance(mapping[1], Constant):
+                constraint = InclusionConstraint(mapping[0], SetOfConstants([mapping[1]]))
             constraints.append(constraint)
         return ConstraintSet(constraints)
 
