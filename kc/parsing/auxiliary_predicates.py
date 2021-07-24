@@ -6,7 +6,7 @@ from kc.data_structures import *
 
 from typing import List, Iterable
 
-def make_auxiliary_predicate_for_clauses(clauses: Iterable['ConstrainedClause'], auxiliary_symbol: str='a') -> List['ConstrainedClause']:
+def make_auxiliary_predicates_for_clauses(clauses: Iterable['ConstrainedClause'], auxiliary_symbol: str='a') -> List['ConstrainedClause']:
     """Given a group of normal form clauses, make auxilairy predicates for each"""
     all_clauses = []
     for index, clause in enumerate(clauses):
