@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import Atom, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain
+    from kc.data_structures import Atom, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain, Predicate
 
 # Type variable for arbitrary clauses so I can reuse substitute
 C = TypeVar('C', bound='Clause') 
@@ -820,10 +820,17 @@ class CNF:
                 if isinstance(constraint.domain_term, DomainVariable):
                     domain_variables.add(constraint.domain_term)
         return domain_variables
+
+    def get_predicates(self) -> Set['Predicate']:
+        predicates: Set['Predicate'] = set()
+        for clause in self.clauses:
+            for literal in clause.literals:
+                predicates.add(literal.atom.predicate)
+        return predicates
         
     def get_new_logical_variable(self, symbol: str) -> 'LogicalVariable':
         """Return a logical variable that does not appear in the theory.
-        To make it unique, take the symbol and keep adding underscores"""
+        To make it unique, take the symbol and keep adding numbers"""
         count = 1
         new_variable_string = symbol
         new_variable = LogicalVariable(new_variable_string)
