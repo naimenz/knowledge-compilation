@@ -55,18 +55,18 @@ class UnitPropagation(KCRule):
         Returns a sequence of constrained clauses that are split with respect to a"""
         constrained_atoms = gamma.get_constrained_atoms()
         viable_atoms = sorted([a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)])
-        # print(f'{viable_atoms = }')
-        # print(f'{A = }')
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]
 
+        print(f'{gamma = } , {A = }')
         # if we have a viable atom, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
         a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
         cs_gamma = a_gamma.cs
         cs_A = A.cs
+        print(f'{gamma = },\n{a_gamma = },\n{A = }')
 
         mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
         # we apply a preprocessing step to the variables in the expressions
@@ -138,7 +138,7 @@ class UnitPropagation(KCRule):
 
         new_clause, new_other_clause = clause, other_clause
         for variable in sorted(overlapping_variables):
-            temp_cnf = CNF([new_clause, new_other_clause])  # taking advantage of existing methods in CNF
+            temp_cnf = CNF([new_clause, new_other_clause], names=None)  # taking advantage of existing methods in CNF
             sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
             sub = Substitution([(variable, sub_target)])
             new_other_clause = new_other_clause.substitute(sub)
