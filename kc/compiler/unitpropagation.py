@@ -54,12 +54,6 @@ class UnitPropagation(KCRule):
     def split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
         """Split the constrained clause gamma with respect to the constrained atom A.
         Returns a sequence of constrained clauses that are split with respect to a"""
-        global DEBUG_FLAG
-        if DEBUG_FLAG: 
-            print(f"{gamma = }, {A = }")
-            # raise ValueError('stop')
-        else:
-            DEBUG_FLAG = True
         constrained_atoms = gamma.get_constrained_atoms()
         viable_atoms = sorted([a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)])
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
@@ -73,7 +67,6 @@ class UnitPropagation(KCRule):
             a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
         cs_gamma = a_gamma.cs
         cs_A = A.cs
-        print(f'ALIGNED: {gamma = },\n{a_gamma = },\n{A = }')
 
         mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
         if mgu_eq_classes is None:
@@ -89,18 +82,11 @@ class UnitPropagation(KCRule):
         # print(f'{cs_mgu = }, {cs_mgu.is_satisfiable() = }')
         if cs_mgu.is_satisfiable():
             if joint_variables or cs_mgu.is_non_empty(): 
-                # NOTE DEBUG: before splitting, try propagating equality constraints
                 gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu).propagate_equality_constraints()
-                print(f'DEBUG {gamma_mgu = }')
                 if gamma_mgu.cs.is_satisfiable():
-                    # DEBUG
-                    # return_clauses += [gamma_mgu]
                     return_clauses += cls.split(gamma_mgu, A)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
-                print(f'DEBUG {gamma_mgu = }')
-                # DEBUG
-                # return_clauses += [gamma_mgu]
                 return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
@@ -114,20 +100,11 @@ class UnitPropagation(KCRule):
             gamma_rest: 'Clause'
             if cs_rest.is_satisfiable():
                 if joint_variables or cs_rest.is_non_empty():
-                    # NOTE DEBUG: before splitting, try propagating equality constraints
                     gamma_rest = ConstrainedClause(gamma.literals, joint_variables, cs_rest).propagate_equality_constraints()
-                    print(f'DEBUG {gamma_rest = }')
-                    # NOTE: splitting the gamma_rests recursively as we build them
                     if gamma_rest.cs.is_satisfiable():
-                        # DEBUG
-                        # return_clauses += [gamma_rest]
                         return_clauses += cls.split(gamma_rest, A)
                 else:
                     gamma_rest = UnconstrainedClause(gamma.literals)
-                    print(f'DEBUG {gamma_rest = }')
-                    # NOTE: splitting the gamma_rests recursively as we build them
-                    # DEBUG
-                    # return_clauses += [gamma_rest]
                     return_clauses += cls.split(gamma_rest, A)
         return return_clauses
 
