@@ -14,6 +14,7 @@ X2 = LogicalVariable('X2')
 alice = Constant('alice')
 bob = Constant('bob')
 charlie = Constant('charlie')
+diana = Constant('diana')
 
 friends = Predicate('friends', 2)
 fun = Predicate('fun', 1)
@@ -21,6 +22,9 @@ fun = Predicate('fun', 1)
 friendsXY = Literal(Atom(friends, [X, Y]))
 friendsYX = Literal(Atom(friends, [Y, X]))
 funX = Literal(Atom(fun, [X]))
+
+funalice = Literal(Atom(fun, [alice]))
+friendsaliceY = Literal(Atom(friends, [alice, Y]))
 
 friendsY1X1 = Literal(Atom(friends, [Y1, X1]))
 funX1 = Literal(Atom(fun, [X1]))
@@ -33,6 +37,8 @@ YinPeople = InclusionConstraint(Y, People)
 X1inPeople = InclusionConstraint(X1, People)
 Y1inPeople = InclusionConstraint(Y1, People)
 
+Xeqalice = InclusionConstraint(X, SetOfConstants([alice]))
+
 D = DomainVariable('D', People)
 # print(D.complement)
 XinD = InclusionConstraint(X, D)
@@ -41,9 +47,16 @@ X1inD = InclusionConstraint(X1, D)
 X1inDcomp = InclusionConstraint(X1, D.complement)
 
 cs1 = ConstraintSet([XinPeople, YinPeople])
+# cs1 = ConstraintSet([XinPeople, YinPeople, Xeqalice])
 cs2 = ConstraintSet([X1inPeople, Y1inPeople])
 
+# clause1 = ConstrainedClause([funalice, ~friendsaliceY], [X, Y], cs1)
 clause1 = ConstrainedClause([funX, ~friendsXY], [X, Y], cs1)
+# print(clause1)
+# sub = Substitution([(X, alice)])
+# print(sub)
+# print(clause1.substitute(sub))
+# print(clause1.propagate_equality_constraints())
 clause2 = ConstrainedClause([funX1, ~friendsY1X1], [X1, Y1], cs2)
 # clause2 = ConstrainedClause([funX, ~friendsYX], [X, Y], cs1)
 c_atom = ConstrainedAtom([friendsXY], [X, Y], cs1)
@@ -70,7 +83,7 @@ bigger_uclause = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople]))
 #     print(ca.needs_splitting(u1))
 # print(*UnitPropagation.split(clause2, u1), sep='\n')
 cnf = CNF([clause1, clause2])
-cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
+# cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
 import time
 tic = time.perf_counter()
 for i in range(10):

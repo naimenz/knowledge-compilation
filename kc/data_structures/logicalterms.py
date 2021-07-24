@@ -82,3 +82,15 @@ class LogicalVariable(LogicalTerm):
             raise NotImplementedError(f'Cannot compare LogicalVariable and {type(other)}')
 
 
+class FreeVariable(LogicalVariable):
+    """NOTE: Experimental subclass of variables specifically for FreeVariables.
+    For now, doesn't have much functionality, just so we can check if something is Free
+    """
+
+    def __eq__(self, other: Any) -> bool:
+        """Two free variables are equal if they have the same symbol."""
+        return isinstance(other, FreeVariable) and self.symbol == other.symbol
+
+    def __hash__(self) -> int:
+        """Hashing FreeVariables so I can use them as dict keys and in sets."""
+        return hash(("FreeVariable", self.symbol))

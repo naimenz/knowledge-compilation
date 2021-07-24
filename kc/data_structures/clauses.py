@@ -5,7 +5,8 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, \
+         NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution, FreeVariable
 from kc.util import get_element_of_set
 
 from functools import reduce
@@ -179,7 +180,7 @@ class UnconstrainedClause(Clause):
         they still need to produce constrained atoms (with empty bound_vars and
         constraints)"""
         constrained_atoms = []
-        for literal in self.literals:
+        for literal in sorted(self.literals):
             empty_bound_vars: Set['LogicalVariable'] = set()
             empty_cs = ConstraintSet([])
             positive_literal = Literal(literal.atom, True)
@@ -275,12 +276,12 @@ class ConstrainedClause(Clause):
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
         new_literals = [literal.substitute(substitution) for literal in sorted(self.literals)]
-        print(new_literals)
         new_cs = self.cs.substitute(substitution)
         # if new cs is unsatisfiable, we just return None 
         if new_cs is None:
             return None
-        _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
+        # NOTE TODO: Trying out FreeVariable here
+        _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable) and not isinstance(substitution[var], FreeVariable)]
         ## allowing substitution of constants to bound vars at the moment
         # assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) 
         new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars)  # hack for type checking
@@ -307,9 +308,7 @@ class ConstrainedClause(Clause):
             domain = ic.domain_term
             if isinstance(domain, SetOfConstants) and domain.size() == 1:
                 constant_sub = Substitution([(ic.logical_term, get_element_of_set(domain.constants))])
-                print("before",new_clause)
                 new_clause = new_clause.substitute(constant_sub)
-                print("after",new_clause)
                 if new_clause is None:
                     raise ValueError('Constant equalities were inconsistent?')
         return new_clause
@@ -554,7 +553,6 @@ class ConstrainedAtom(UnitClause):
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
         combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
-        print(f"DEBUG {combined_constraint_set=}")
         if combined_constraint_set.is_satisfiable():
             return unconstrained_mgu
         else:
@@ -724,7 +722,6 @@ class CNF:
         u_clauses: FrozenSet['Clause'] =self.u_clauses  # hack for type checking
         return CNF(u_clauses.union(c_clauses), names=None)
         
-
     def join(self, other: 'CNF') -> 'CNF':
         """Combine two CNFs into one."""
         shattered = self.shattered == other.shattered == True  # only shattered if both components are
@@ -747,7 +744,11 @@ class CNF:
             for other_clause in self.clauses:
                 for c_atom in clause.get_constrained_atoms():
                     for other_c_atom in other_clause.get_constrained_atoms():
-                        eq_classes = c_atom.get_constrained_atom_mgu_eq_classes(other_c_atom)
+                        # NOTE DEBUG: Using unconstrained mgu instead because bound inequalities
+                        # shouldn't go across clauses.
+                        # (e.g. X != Y in one clause doesn't mean bound X from 
+                        # that clause is not equal to bound Y from other clause)
+                        eq_classes = c_atom.atom.get_unconstrained_atom_mgu_eq_classes(other_c_atom.atom)
                         if not eq_classes is None:
                             initial_eq_class_pairs += eq_classes
         initial_eq_classes = EquivalenceClasses(initial_eq_class_pairs)

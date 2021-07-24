@@ -32,7 +32,7 @@ class ShatteredCompilation(KCRule):
         shattered_clauses_list = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
         empty_set: Set['ConstrainedClause'] = set() # hack for type checking
         flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)
-        propagated_shattered_clauses = sorted([c.propagate_equality_constraints() for c in flattened_shattered_clauses])
+        propagated_shattered_clauses = [c.propagate_equality_constraints() for c in flattened_shattered_clauses]
         return compiler.compile(CNF(propagated_shattered_clauses, shattered=True))
 
     @classmethod
@@ -100,7 +100,7 @@ class ShatteredCompilation(KCRule):
         """Build the (in)equality between variable constraints for this literal 
         (CS_B^i from the PhD)"""
         literal_constraint_sets: Set['ConstraintSet'] = set()
-        for partition in sorted(partition_set(bound_literal_variables)):
+        for partition in partition_set(bound_literal_variables):
             partition_constraint_set = cls._build_partition_constraint_set(partition)
             literal_constraint_sets.add(partition_constraint_set)
         return literal_constraint_sets
@@ -115,7 +115,6 @@ class ShatteredCompilation(KCRule):
             # TODO: for performance, reduce looping
             for var in sorted(subset):
                 for other_var in sorted(subset - set([var])):
-                    print("HERE",var, other_var)
                     equality_constraints.add(EqualityConstraint(var, other_var))
 
                 for other_subset in sorted(partition - set([subset])):

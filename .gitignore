@@ -7,3 +7,6 @@ kc/temp.py
 
 # ignoring pycharm settings
 *.idea
+
+# ignoring rubbish files for checking small things and looking at output
+*mess/

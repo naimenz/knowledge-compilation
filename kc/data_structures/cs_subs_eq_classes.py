@@ -733,7 +733,6 @@ class InequalityConstraint(LogicalConstraint):
         right_term_class = EquivalenceClass([self.right_term])
         left_domain = left_term_class.get_shared_domain_from_cs(c_atom.cs)
         right_domain = right_term_class.get_shared_domain_from_cs(c_atom.cs)
-        print(left_domain, right_domain)
         domain_terms_intersect = left_domain.intersect_with(right_domain).size() > 0
         return domain_terms_intersect
 
@@ -1193,8 +1192,7 @@ class EquivalenceClass:
 class VariableEquivalenceClass(EquivalenceClass):
     """A subclass of EquivalenceClass that can contain only logical variables"""
     def __init__(self, members: Iterable['LogicalVariable']) -> None:
-        super().__init__(members)
-
+        self._members = frozenset(members)
 
 class EquivalenceClasses(Generic[TEC]):
     """This is wrapper class around a set of 'EquivalenceClass' objects.

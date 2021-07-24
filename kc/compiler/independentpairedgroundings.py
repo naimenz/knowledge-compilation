@@ -32,8 +32,10 @@ class IndependentPairedGroundings(KCRule):
     def apply(cls, cnf: 'CNF', root_unifying_class: 'VariableEquivalenceClass', compiler: 'Compiler') -> 'NNFNode':
         """Apply IndependentPairedGroundings and return an NNFNode"""
         # we substitute in two new variables for Paired
-        new_Y_variable = cnf.get_new_logical_variable('Y')
-        new_Z_variable = cnf.get_new_logical_variable('Z')
+        # NOTE: The variable names contain Y and Z in analogy with the PhD,
+        # but we actually want our variables to be named X and Y
+        new_Y_variable = FreeVariable('X')  
+        new_Z_variable = FreeVariable('Y')
         new_variables = (new_Y_variable, new_Z_variable)
         # we want to split the root unifying class into two,
         # each set having one variable in each clause
@@ -77,7 +79,10 @@ class IndependentPairedGroundings(KCRule):
         # NOTE: all clauses are constrained (since must have at least two bound vars)
         for clause in cnf.c_clauses:
             new_literals = [literal.substitute(sub) for literal in clause.literals]
-            new_cs = clause.cs.substitute(sub).drop_constraints_involving_only_specific_variables(new_variables)
+            subbed_cs = clause.cs.substitute(sub)
+            if subbed_cs is None:
+                raise ValueError(f"subbed_cs {subbed_cs} shouldn't be unsatisfiable")
+            new_cs: 'ConstraintSet' = subbed_cs.drop_constraints_involving_only_specific_variables(new_variables)
             _new_bound_vars = [sub[var] for var in clause.bound_vars if not sub[var] in new_variables]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
@@ -101,8 +106,10 @@ class IndependentPairedGroundings(KCRule):
         # it doesn't matter which root variable we get, shattering means all sols are the same
         root_variable = sorted(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
-        new_cs = ConstraintSet(set_constraints)
-        return new_cs.substitute(sub)
+        new_cs = ConstraintSet(set_constraints).substitute(sub)
+        if new_cs is None:
+            raise ValueError(f"{new_cs = } is unsatisfiable!")
+        return new_cs
 
 
         

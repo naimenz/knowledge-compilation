@@ -4,14 +4,15 @@ from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, 
 from kc.compiler import KCRule
 DEBUG_FLAG = False
 
-from typing import Optional, Tuple, List, Any, Set
+from typing import Optional, Tuple, List, Any, Set, FrozenSet
 from typing import TypeVar
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kc.compiler import Compiler
     from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable
 
-C = TypeVar('C', bound='ConstrainedClause')
+CC = TypeVar('CC', bound='ConstrainedClause')
+CC2 = TypeVar('CC2', bound='ConstrainedClause')  # I need a second typevar for some functions
 
 class UnitPropagation(KCRule):
     
@@ -53,29 +54,30 @@ class UnitPropagation(KCRule):
     def split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
         """Split the constrained clause gamma with respect to the constrained atom A.
         Returns a sequence of constrained clauses that are split with respect to a"""
+        global DEBUG_FLAG
+        if DEBUG_FLAG: 
+            print(f"{gamma = }, {A = }")
+            # raise ValueError('stop')
+        else:
+            DEBUG_FLAG = True
         constrained_atoms = gamma.get_constrained_atoms()
         viable_atoms = sorted([a_gamma for a_gamma in constrained_atoms if a_gamma.needs_splitting(A)])
         if len(viable_atoms) == 0: # we are done if all are independent or subsumed
             return [gamma]
         a_gamma = viable_atoms[0]
 
-        print(f'{gamma = } , {A = }')
         # if we have a viable atom, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
-        a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
+        if isinstance(gamma, ConstrainedClause):
+            a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
         cs_gamma = a_gamma.cs
         cs_A = A.cs
-        print(f'{gamma = },\n{a_gamma = },\n{A = }')
+        print(f'ALIGNED: {gamma = },\n{a_gamma = },\n{A = }')
 
         mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
-        # we apply a preprocessing step to the variables in the expressions
-        # to avoid messiness
         if mgu_eq_classes is None:
             raise ValueError(f"a_gamma = {a_gamma} and A = {A} are independent but shouldn't be")
-        # print(f'before {a_gamma = }, {A = }')
-        # a_gamma, A  = cls._preprocess_expressions(a_gamma, A, mgu_eq_classes) 
-        # print(f' after {a_gamma = }, {A = }')
 
         theta = mgu_eq_classes.to_substitution()
         cs_theta = theta.to_constraint_set()
@@ -89,16 +91,23 @@ class UnitPropagation(KCRule):
             if joint_variables or cs_mgu.is_non_empty(): 
                 # NOTE DEBUG: before splitting, try propagating equality constraints
                 gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu).propagate_equality_constraints()
-                # print(f'DEBUG {gamma_mgu = }')
-                # NOTE DEBUG: checking satisfiability first
+                print(f'DEBUG {gamma_mgu = }')
                 if gamma_mgu.cs.is_satisfiable():
+                    # DEBUG
+                    # return_clauses += [gamma_mgu]
                     return_clauses += cls.split(gamma_mgu, A)
             else:
                 gamma_mgu = UnconstrainedClause(gamma.literals)
+                print(f'DEBUG {gamma_mgu = }')
+                # DEBUG
+                # return_clauses += [gamma_mgu]
                 return_clauses += cls.split(gamma_mgu, A)
 
         # loop over all constraints to negate for gamma_rest
         for e in sorted(cs_theta.join(cs_A)):
+            # NOTE DEBUG: Trying - only include constraint if it is relevant to the clause
+            if not e.terms[0] in gamma.all_variables or e.terms[1] in gamma.all_variables:
+                continue
             not_e = ~e
             cs_rest = cs_gamma.join(ConstraintSet([not_e]))
             # before going further, check if the constraint set for this clause is even satisfiable
@@ -107,44 +116,46 @@ class UnitPropagation(KCRule):
                 if joint_variables or cs_rest.is_non_empty():
                     # NOTE DEBUG: before splitting, try propagating equality constraints
                     gamma_rest = ConstrainedClause(gamma.literals, joint_variables, cs_rest).propagate_equality_constraints()
-                    # print(f'DEBUG {gamma_rest = }')
-                    # NOTE DEBUG: checking satisfiability first
+                    print(f'DEBUG {gamma_rest = }')
                     # NOTE: splitting the gamma_rests recursively as we build them
                     if gamma_rest.cs.is_satisfiable():
+                        # DEBUG
+                        # return_clauses += [gamma_rest]
                         return_clauses += cls.split(gamma_rest, A)
                 else:
                     gamma_rest = UnconstrainedClause(gamma.literals)
-                    # print(f'DEBUG {gamma_rest = }')
+                    print(f'DEBUG {gamma_rest = }')
                     # NOTE: splitting the gamma_rests recursively as we build them
+                    # DEBUG
+                    # return_clauses += [gamma_rest]
                     return_clauses += cls.split(gamma_rest, A)
-
-        # print(f'\n                {A = }')
-        # print(f'{constrained_atoms = }')
-        # print(f'     {viable_atoms = } {len(viable_atoms) = }')
-        # print(f'   {return_clauses = }')
         return return_clauses
 
     @classmethod
     def _make_variables_different(cls,
-                                clause: C,
-                                other_clause: C,
-                                target_clause: Optional[C]=None
-                                ) -> Tuple[C, Optional[C]]:
+                                clause: CC,
+                                other_clause: CC,
+                                target_clause: Optional[CC2]=None
+                                ) -> Tuple[CC, Optional[CC2]]:
         """Apply preprocessing to the BOUND variables of two clauses to make them 
         all distinct. Also optionally apply this same substitution to another clause"""
 
         # all the variables that need to be substituted
-        overlapping_variables: Set['LogicalVariable'] = clause.bound_vars.intersection(other_clause.bound_vars)
+        overlapping_variables: FrozenSet['LogicalVariable'] = clause.bound_vars.intersection(other_clause.bound_vars)
 
-        new_clause, new_other_clause = clause, other_clause
+        old_other_clause = other_clause
         for variable in sorted(overlapping_variables):
-            temp_cnf = CNF([new_clause, new_other_clause], names=None)  # taking advantage of existing methods in CNF
+            temp_cnf = CNF([clause, old_other_clause], names=None)  # taking advantage of existing methods in CNF
             sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
             sub = Substitution([(variable, sub_target)])
-            new_other_clause = new_other_clause.substitute(sub)
+            new_other_clause = old_other_clause.substitute(sub)
+            if new_other_clause is None:
+                raise ValueError('Substitution made unsatisfiable')
+            else:
+                old_other_clause = new_other_clause
             if target_clause is not None:
                 target_clause = target_clause.substitute(sub)
-        return new_other_clause, target_clause
+        return old_other_clause, target_clause
 
     @classmethod
     def _align_variables(cls,
@@ -158,14 +169,21 @@ class UnitPropagation(KCRule):
         First, separate out all the bound variables.
         Then for each bound variable in the terms of this c_atom, we rename the other to match, as long as it 
         also is a bound variable."""
-        other_c_atom, clause = cls._make_variables_different(c_atom, other_c_atom, clause)
+        other_c_atom, returned_clause = cls._make_variables_different(c_atom, other_c_atom, clause)
+        assert(returned_clause is not None)  # hack for type checking
+        old_clause = returned_clause
+        old_other_c_atom = other_c_atom
         for term, other_term in zip(c_atom.atom.terms, other_c_atom.atom.terms):
             if term in c_atom.bound_vars and other_term in other_c_atom.bound_vars:
                 assert(isinstance(other_term, LogicalVariable))  # hack for type checking
                 sub = Substitution([(other_term, term)])
-                other_c_atom = other_c_atom.substitute(sub)
-                clause = clause.substitute(sub)
-        return other_c_atom, clause
+                new_clause = old_clause.substitute(sub)
+                new_other_c_atom = old_other_c_atom.substitute(sub)
+                if new_other_c_atom is None or new_clause is None:
+                    raise ValueError("Shouldn't be unsatisfiable here")
+                old_clause = new_clause
+                old_other_c_atom = new_other_c_atom
+        return old_other_c_atom, old_clause
 
     @classmethod
     def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:
