@@ -6,6 +6,7 @@ TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom
 """
 
 from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution
+from kc.util import get_element_of_set
 
 from functools import reduce
 from abc import ABC, abstractmethod
@@ -19,7 +20,8 @@ if TYPE_CHECKING:
     from kc.data_structures import Atom, ConstraintSet, EquivalenceClass, Constraint, DomainTerm, ProperDomain
 
 # Type variable for arbitrary clauses so I can reuse substitute
-C = TypeVar('C', bound='ConstrainedClause') 
+C = TypeVar('C', bound='Clause') 
+CC = TypeVar('CC', bound='ConstrainedClause') 
 
 class Clause(ABC):
     """Abstract base class for constrained and unconstrained clauses"""
@@ -34,7 +36,7 @@ class Clause(ABC):
         pass
 
     @abstractmethod
-    def substitute(self: 'Clause', substitution: 'Substitution') -> 'Clause':
+    def substitute(self: 'C', substitution: 'Substitution') -> Optional['C']:
         pass
 
     @abstractmethod
@@ -59,11 +61,38 @@ class Clause(ABC):
         if self.has_no_literals() or other_clause.has_no_literals():
             return True
 
+        # NOTE: Before checking independence, we have to rename the variables to avoid overlap
+        other_clause = other_clause.make_variables_different(self)
         for c_atom in self.get_constrained_atoms():
             for other_c_atom in other_clause.get_constrained_atoms():
                 if c_atom.constrained_atoms_unify(other_c_atom):
                     return False
         return True
+
+    def make_variables_different(self: 'C', other_clause: 'Clause') -> 'C':
+        """Make the bound variables of this clause (self) different to those in other_clause.
+        If either clause is unconstrained, we don't rename anything, since UnconstrainedClauses only have
+        free variables.
+        NOTE: This is very similar to the method in UnitPropagation but serves a slightly different purpose"""
+        if not isinstance(self, ConstrainedClause) or not isinstance(other_clause, ConstrainedClause):
+            return self
+        
+        overlapping_variables: List['LogicalVariable'] = []
+        for variable in self.bound_vars:
+            if variable in other_clause.bound_vars:
+                overlapping_variables.append(variable)
+
+        old_clause: 'ConstrainedClause' = self
+        for variable in overlapping_variables:
+            temp_cnf = CNF([old_clause, other_clause], names=None)  # taking advantage of existing methods in CNF
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol[0])  # just taking the character
+            sub = Substitution([(variable, sub_target)])
+            new_clause = old_clause.substitute(sub)
+            if new_clause is None:
+                raise ValueError(f'{sub} made {self} unsatisfiable')
+            old_clause = new_clause
+        # we ignore the type error here (that new_clause is ConstrainedClause, not C) because we know it is C
+        return old_clause  # type: ignore 
 
     def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
         """Returns true if this Clause is subsumed by the constrained literal.
@@ -232,8 +261,7 @@ class UnconstrainedClause(Clause):
 class ConstrainedClause(Clause):
     """An FOL-DC constrained clause.
     This consists of an unconstrained clause with a set of bound variables and a constraint set.
-
-    NOTE: For now we only work with bound *logical* variables."""
+    """
 
     def __init__(self,
             literals: Iterable['Literal'],
@@ -243,18 +271,22 @@ class ConstrainedClause(Clause):
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
 
-    def substitute(self: 'C', substitution: 'Substitution') -> 'C':
+    def substitute(self: 'CC', substitution: 'Substitution') -> Optional['CC']:
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
         NOTE: For now we allow substitution of constants to bound vars by just having one fewer bound var"""
         new_literals = [literal.substitute(substitution) for literal in sorted(self.literals)]
+        print(new_literals)
         new_cs = self.cs.substitute(substitution)
+        # if new cs is unsatisfiable, we just return None 
+        if new_cs is None:
+            return None
         _new_bound_vars = [substitution[var] for var in self.bound_vars if isinstance(substitution[var], LogicalVariable)]
         ## allowing substitution of constants to bound vars at the moment
         # assert(all(isinstance(term, LogicalVariable) for term in _new_bound_vars)) 
-        new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
+        new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars)  # hack for type checking
         return self.__class__(new_literals, new_bound_vars, new_cs)
 
-    def propagate_equality_constraints(self: 'C') -> 'C':
+    def propagate_equality_constraints(self: 'CC') -> 'CC':
         """Propagate the equality constraints through the clause by building a substitution
         from them and applying it until convergence."""
         var_eq_classes = self.cs.get_var_eq_classes()
@@ -263,12 +295,26 @@ class ConstrainedClause(Clause):
         old_clause = self
         while True:
             new_clause = old_clause.substitute(sub)
+            if new_clause is None:
+                raise ValueError('Variable equalities were inconsistent?')
             if new_clause != old_clause:
                 old_clause = new_clause
             else:
-                return new_clause
+                break
+        # DEBUG TODO: This may not work
+        # now propagate equalities with constants
+        for ic in new_clause.cs.inclusion_constraints:
+            domain = ic.domain_term
+            if isinstance(domain, SetOfConstants) and domain.size() == 1:
+                constant_sub = Substitution([(ic.logical_term, get_element_of_set(domain.constants))])
+                print("before",new_clause)
+                new_clause = new_clause.substitute(constant_sub)
+                print("after",new_clause)
+                if new_clause is None:
+                    raise ValueError('Constant equalities were inconsistent?')
+        return new_clause
 
-    def rename_bound_variables(self, names: Tuple[str, str]=("X", "Y")) -> 'ConstrainedClause':
+    def rename_bound_variables(self: 'CC', names: Tuple[str, str]=("X", "Y")) -> 'CC':
         """This is a function that renames the bound variables of this clause (to X and Y by default).
         We do not touch the free variables, because we are relying on them to already be fixed. 
         There should only ever be two total variables, so it should always be possible to have them be named X and Y."""
@@ -278,17 +324,20 @@ class ConstrainedClause(Clause):
         if variable_names.issubset(names_set):
             return self
         else:
-            fixed_clause = self
+            old_clause: 'CC' = self
             for var in sorted(self.bound_vars):
                 if var.symbol not in names_set:
-                    # DEBUG switching order
                     for name in names:
                         if name not in variable_names:
                             # update the variable names
-                            variable_names = set(var.symbol for var in fixed_clause.all_variables)
+                            variable_names = set(var.symbol for var in old_clause.all_variables)
                             sub = Substitution([(var, LogicalVariable(name))])
-                            fixed_clause = fixed_clause.substitute(sub)
-        return fixed_clause
+                            fixed_clause: Optional['CC'] = old_clause.substitute(sub)
+                            if fixed_clause is None:
+                                raise ValueError('Renaming made cs inconsistent!')
+                            old_clause = fixed_clause
+        return old_clause
+
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -505,7 +554,7 @@ class ConstrainedAtom(UnitClause):
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
         combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
-        # print(f"DEBUG {combined_constraint_set=}")
+        print(f"DEBUG {combined_constraint_set=}")
         if combined_constraint_set.is_satisfiable():
             return unconstrained_mgu
         else:
@@ -559,19 +608,14 @@ class ConstrainedAtom(UnitClause):
          Returns True if it does, and False otherwise."""
 
         # first, we make the variables different
-        # TODO: move this
         other = other.make_variables_different(self)
 
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
         # check for independence
         if mgu_eq_classes is None:
-            # print(f'independent')
             return False
         # check for subsumption
         else:
-            # DEBUG
-            # if not other.does_not_subsume(self, mgu_eq_classes):
-            #     print(f'subsumes')
             return other.does_not_subsume(self, mgu_eq_classes)
 
     def does_not_subsume(self, other: 'ConstrainedAtom', mgu_eq_classes: 'EquivalenceClasses') -> bool:
@@ -601,6 +645,8 @@ class ConstrainedAtom(UnitClause):
         mgu_substitution = mgu_eq_classes.to_substitution()
         this_atom = self.substitute(mgu_substitution)
         other_atom = other.substitute(mgu_substitution)
+        if this_atom is None or other_atom is None:
+            raise ValueError('Substitution made this_atom or other_atom unsatisfiable in DNS!')
         # DEBUG TODO: switch this back to returning True instead of numbers
         if any(( 
                 len(eq_class.constants) > 0 
@@ -644,22 +690,6 @@ class ConstrainedAtom(UnitClause):
         else:
             return False
 
-    def make_variables_different(self, other_c_atom: 'ConstrainedAtom') -> 'ConstrainedAtom':
-        """Make the bound variables of this c_atom (self) different to those in other_c_atom.
-        NOTE: This is very similar to the method in UnitPropagation but serves a slightly different purpose"""
-
-        overlapping_variables: List['LogicalVariable'] = []
-        for variable in self.bound_vars:
-            if variable in other_c_atom.bound_vars:
-                overlapping_variables.append(variable)
-
-        new_c_atom, new_other_c_atom = self, other_c_atom
-        for variable in overlapping_variables:
-            temp_cnf = CNF([new_c_atom, new_other_c_atom], names=None)  # taking advantage of existing methods in CNF
-            sub_target = temp_cnf.get_new_logical_variable(variable.symbol[0])  # just taking the character
-            sub = Substitution([(variable, sub_target)])
-            new_c_atom = new_c_atom.substitute(sub)
-        return new_c_atom
 
 
 class CNF:
@@ -702,8 +732,10 @@ class CNF:
 
     def substitute(self, substitution: 'Substitution') -> 'CNF':
         """Return a new CNF, the result of applying substitution to this CNF"""
-        new_clauses = set(clause.substitute(substitution) for clause in self.clauses)
-        return CNF(new_clauses)
+        new_clauses = set(clause.substitute(substitution) for clause in self.clauses if clause)
+        # filter out Nones from unsatisfiable clauses (which are always true)
+        valid_clauses = set(clause for clause in new_clauses if clause is not None)
+        return CNF(valid_clauses)
 
     def get_unifying_classes(self) -> 'EquivalenceClasses':
         """Construct all unifying classes from this CNF
