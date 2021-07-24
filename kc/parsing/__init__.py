@@ -1,1 +1,1 @@
-from kc.parsing.auxiliary_predicates import make_auxiliary_predicate_for_clause, make_auxiliary_predicate_for_clauses
+from kc.parsing.auxiliary_predicates import make_auxiliary_predicate_for_clause, make_auxiliary_predicates_for_clauses
