@@ -10,17 +10,22 @@ Y = LogicalVariable('Y')
 alice = Constant('alice')
 bob = Constant('bob')
 charlie = Constant('charlie')
+guy = Constant('guy')
 
 friends = Predicate('friends', 2)
 smokes = Predicate('smokes', 1)
 f1 = Predicate('f1', 2)
+f2 = Predicate('f2', 0)
 
 friendsXY = Literal(Atom(friends, [X, Y]))
 smokesX = Literal(Atom(smokes, [X]))
 smokesY = Literal(Atom(smokes, [Y]))
-f1XY = Literal(Atom(f1, [X, Y]))
+smokesGuy = Literal(Atom(smokes, [guy]))
 
-People = RootDomain([alice, bob, charlie], 'People')
+f1XY = Literal(Atom(f1, [X, Y]))
+f2literal = Literal(Atom(f2, []))
+
+People = RootDomain([alice, bob, charlie, guy], 'People')
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
@@ -31,9 +36,11 @@ clause1 = ConstrainedClause([~f1XY, smokesY, ~smokesX, ~friendsXY], [X, Y], cs)
 clause2 = ConstrainedClause([f1XY, ~smokesY], [X, Y], cs)
 clause3 = ConstrainedClause([f1XY, friendsXY], [X, Y], cs)
 clause4 = ConstrainedClause([f1XY, smokesX], [X, Y], cs)
+clause5 = UnconstrainedClause([f2literal, ~smokesGuy])
+clause6 = UnconstrainedClause([~f2literal, smokesGuy])
 
-cnf = CNF([clause1, clause2, clause3, clause4])
-cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
+cnf = CNF([clause1, clause2, clause3, clause4, clause5, clause6])
+# cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
 compiler = Compiler()
 nnf = compiler.compile(cnf)
 
