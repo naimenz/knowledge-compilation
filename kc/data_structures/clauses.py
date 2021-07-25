@@ -271,6 +271,12 @@ class ConstrainedClause(Clause):
         self.literals = frozenset(literals)
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
+        # TODO: Trying out propagating equalities straight away, is there a cleaner way?
+        if len(self.cs.equality_constraints) > 0:
+            propagated_clause = self.propagate_equality_constraints()
+            self.literals = propagated_clause.literals
+            self.bound_vars = propagated_clause.bound_vars
+            self.cs = propagated_clause.cs
 
     def substitute(self: 'CC', substitution: 'Substitution') -> Optional['CC']:
         """Return a new ConstrainedClause, the result of applying substitution to this ConstrainedClause
