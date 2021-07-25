@@ -92,7 +92,7 @@ class UnitPropagation(KCRule):
         # loop over all constraints to negate for gamma_rest
         for e in sorted(cs_theta.join(cs_A)):
             # NOTE DEBUG: Trying - only include constraint if it is relevant to the clause
-            if not e.terms[0] in gamma.all_variables or e.terms[1] in gamma.all_variables:
+            if not (e.terms[0] in gamma.all_variables or e.terms[1] in gamma.all_variables):
                 continue
             not_e = ~e
             cs_rest = cs_gamma.join(ConstraintSet([not_e]))
