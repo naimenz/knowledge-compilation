@@ -13,13 +13,14 @@ if TYPE_CHECKING:
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
-    def __init__(self, children: Iterable['NNFNode']) -> None:
+    def __init__(self, children: Iterable['NNFNode'], from_smoothing=False) -> None:
         """TODO: work out the exact shape of this function"""
         self.children = tuple(children)
         self.parents: List['NNFNode'] = [] # only leaf nodes should have multiple parents
         # set parents of children?
         for child in self.children:
             child.parents.append(self)
+        self.from_smoothing = from_smoothing  # a flag to keep track of whether this node is the result of smoothing
 
     @abstractmethod
     def node_info(self) -> Dict[str, str]:
@@ -28,6 +29,18 @@ class NNFNode(ABC):
         attributes['type'] = 'NNFNode'
         attributes['label'] = ''
         return attributes
+
+    @abstractmethod
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """Get the circuit atoms (as defined in my version of smoothing -- similar to atom_c in the PhD)
+        for a given node, based on its children's circuit atoms"""
+        pass
+
+    @abstractmethod
+    def get_smoothed_node(self) -> 'NNFNode':
+        """Get a smoothed version of this node. 
+        This recursively gets smoothed versions of this node's children."""
+        pass
 
     def _make_independent(self, c_atoms: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']: 
         """Takes in a bunch of constrained atoms and returns an equivalent set that are all independent
@@ -70,9 +83,9 @@ class NNFNode(ABC):
                 return_clauses.add( ConstrainedAtom(c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
         return self._make_independent(c_atoms.union(return_clauses) - set([c_atom]))
 
-
     def _find_viable_atom_pair(self, c_atoms: Iterable['ConstrainedAtom']
                               ) -> Optional[Tuple['ConstrainedAtom', 'ConstrainedAtom']]:
+        """Find a pair of constrained atoms that are not independent"""
         for c_atom in sorted(c_atoms):
             for other_c_atom in sorted(c_atoms):
                 if c_atom != other_c_atom and not c_atom.is_independent_from_other_clause(other_c_atom):
@@ -83,6 +96,41 @@ class NNFNode(ABC):
                         viable_atom_pair = (other_c_atom, c_atom)
                     return viable_atom_pair
         return None
+
+    # TODO: Rename this function
+    def A_without_B(self, A: Set['ConstrainedAtom'], B: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']:
+        """Return a set of ConstrainedAtoms representing those in A not covered by B.
+        The approach taken is to make everything from A independent or subsumed by B, then remove the subsumed parts"""
+        new_A: Set['ConstrainedAtom'] = set()
+        for c_atomA in sorted(A):
+            independent_of_all = True
+            if c_atomA in B:
+                continue  # trivially covered if it is already in B
+            else:
+                for c_atomB in sorted(B):
+                    if not c_atomA.is_independent_from_other_clause(c_atomB):
+                        independent_of_all = False
+                        if not c_atomB.subsumes(c_atomA):
+                            # make c_atomA independent of c_atomB
+                            independent_c_atomsA = self._make_independent(set([c_atomA, c_atomB])) - set([c_atomB])
+                            new_A = new_A.union(independent_c_atomsA)
+            if independent_of_all:
+                new_A.add(c_atomA)
+        return new_A
+
+
+    def _find_ordered_viable_atom_pair(self, A: Iterable['ConstrainedAtom'], B: Iterable['ConstrainedAtom']
+                              ) -> Optional[Tuple['ConstrainedAtom', 'ConstrainedAtom']]:
+        """Find a pair of constrained atoms, with the first from A and the second from B,
+        such that they are not not independent and the atom from B does not subsume the atom from A"""
+        for c_atomA in sorted(A):
+            for c_atomB in sorted(B):
+                if c_atomA != c_atomB and not c_atomA.is_independent_from_other_clause(c_atomB):
+                    if not c_atomB.subsumes(c_atomA):
+                        viable_atom_pair = (c_atomA, c_atomB)
+                        return viable_atom_pair
+        return None
+
 
     def _make_variables_different(self,
                                 c_atom: 'ConstrainedAtom',
@@ -107,6 +155,7 @@ class NNFNode(ABC):
                 old_other_c_atom = new_other_c_atom
         return old_other_c_atom
 
+
     def _align_variables(self,
                          c_atom: 'ConstrainedAtom',
                          other_c_atom: 'ConstrainedAtom'
@@ -130,13 +179,20 @@ class NNFNode(ABC):
                 old_other_c_atom = new_other_c_atom
         return old_other_c_atom
 
-    # def smooth(self, 
 
 class TrueNode(NNFNode):
     """A class to represent True in the circuit. Needs no data"""
     def __init__(self) -> None:
         # don't need any children but still want to have parents
         super(TrueNode, self).__init__([])
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """TrueNodes have no children and cover no constrained atoms."""
+        return set()
+
+    def get_smoothed_node(self) -> 'TrueNode':
+        """TrueNodes do not change with smoothing"""
+        return self
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
@@ -151,6 +207,14 @@ class FalseNode(NNFNode):
         # don't need any children but still want to have parents
         super(FalseNode, self).__init__([])
 
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """FalseNodes have no children and cover no constrained atoms."""
+        return set()
+
+    def get_smoothed_node(self) -> 'FalseNode':
+        """FalseNodes do not change with smoothing"""
+        return self
+
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
         attributes = dict()
@@ -164,6 +228,15 @@ class LiteralNode(NNFNode):
     def __init__(self, literal: 'Literal') -> None:
         super(LiteralNode, self).__init__([])
         self.literal = literal
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """LiteralNodes have no children and cover only their own literal.
+        NOTE: we return it as a ConstrainedAtom despite it having no constraints"""
+        return set([ConstrainedAtom([self.literal], [], ConstraintSet([]))])
+
+    def get_smoothed_node(self) -> 'LiteralNode':
+        """LiteralNodes do not change with smoothing"""
+        return self
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
@@ -196,6 +269,20 @@ class IntensionalNode(NNFNode):
 class AndNode(ExtensionalNode):
     """A node representing an extensional AND operation."""
 
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """Since Ands should be decomposable, the circuit atoms of the two branches are independent.
+        Thus we can just get the circuit atoms of each branch and combine the sets"""
+        left_circuit_atoms = self.left.get_circuit_atoms()
+        right_circuit_atoms = self.right.get_circuit_atoms()
+        all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
+        # DEBUG TODO: checking that they really are independent
+        assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
+        return all_circuit_atoms
+
+    def get_smoothed_node(self) -> 'AndNode':
+        """Smoothing AndNodes just makes a new AndNode with smoothed children"""
+        return AndNode(self.left.get_smoothed_node(), self.right.get_smoothed_node())
+
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
         attributes = dict()
@@ -206,6 +293,28 @@ class AndNode(ExtensionalNode):
 
 class OrNode(ExtensionalNode):
     """A node representing an extensional OR operation."""
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """Since Ands should be decomposable, the circuit atoms of the two branches are independent.
+        Thus we can just get the circuit atoms of each branch and combine the sets"""
+        left_circuit_atoms = self.left.get_circuit_atoms()
+        right_circuit_atoms = self.right.get_circuit_atoms()
+        missing_from_left = self.A_without_B(right_circuit_atoms, left_circuit_atoms)
+        missing_from_right = self.A_without_B(left_circuit_atoms, right_circuit_atoms)
+        all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
+        assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
+        return all_circuit_atoms
+
+    def get_smoothed_node(self) -> 'OrNode':
+        """Smoothing OrNodes requires potentially adding AndNodes below ecah branch 
+        with the missing circuit atoms"""
+        left_circuit_atoms = self.left.get_circuit_atoms()
+        right_circuit_atoms = self.right.get_circuit_atoms()
+        missing_from_left = self.A_without_B(right_circuit_atoms, left_circuit_atoms)
+        missing_from_right = self.A_without_B(left_circuit_atoms, right_circuit_atoms)
+        smoothed_left = self.left.get_smoothed_node().add_circuit_nodes(missing_from_left)
+        smoothed_right = self.right.get_smoothed_node().add_circuit_nodes(missing_from_right)
+        return OrNode(smoothed_left, smoothed_right)
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
