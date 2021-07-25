@@ -1,6 +1,6 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF
+from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom
 
 from abc import ABC, abstractmethod
 
@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import ConstraintSet, LogicalVariable, Literal, DomainVariable, ConstrainedAtom
+    from kc.data_structures import Literal, DomainVariable 
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
@@ -29,22 +29,25 @@ class NNFNode(ABC):
         attributes['label'] = ''
         return attributes
 
-    def _make_independent(self, c_atoms: List['ConstrainedAtom']) -> List['ConstrainedAtom']: 
+    def _make_independent(self, c_atoms: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']: 
         """Takes in a bunch of constrained atoms and returns an equivalent set that are all independent
         of each other.
         This is based on the Split algorithm, and is alluded to as a 'Modified Split' algorithm in the Smoothing
         section of the PhD"""
+        # we are done if there is just one atom
+        if len(c_atoms) == 1:
+            return c_atoms
         viable_atom_pair = self._find_viable_atom_pair(c_atoms)
-        if viable_atom_pair is None: # we are done if all are independent
+        if viable_atom_pair is None:  # we are done if all are independent 
             return c_atoms
         c_atom, other_c_atom = viable_atom_pair
 
         # if we have a viable atom pair, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
-        c_atom = self._align_variables(c_atom, other_c_atom)
-        cs1 = c_atom.cs
-        cs2 = other_c_atom.cs
+        other_c_atom = self._align_variables(c_atom, other_c_atom)
+        cs = c_atom.cs
+        other_cs = other_c_atom.cs
 
         mgu_eq_classes = c_atom.get_constrained_atom_mgu_eq_classes(other_c_atom)
         if mgu_eq_classes is None:
@@ -54,25 +57,30 @@ class NNFNode(ABC):
         cs_theta = theta.to_constraint_set()
         joint_variables = c_atom.bound_vars.union(other_c_atom.bound_vars)
 
-        return_clauses: List['ConstrainedAtom'] = []
+        return_clauses: Set['ConstrainedAtom'] = set()
         # loop over all constraints to negate
-        for e in sorted(cs_theta.join(cs2)):
+        for e in sorted(cs_theta.join(other_cs)):
             # NOTE DEBUG: Trying - only include constraint if it is relevant to the clause
-            if not e.terms[0] in c_atom.all_variables or e.terms[1] in c_atom.all_variables:
+            if not (e.terms[0] in c_atom.all_variables or e.terms[1] in c_atom.all_variables):
                 continue
             not_e = ~e
-            cs_rest = cs1.join(ConstraintSet([not_e]))
+            cs_rest = cs.join(ConstraintSet([not_e]))
             # before going further, check if the constraint set for this clause is even satisfiable
             if cs_rest.is_satisfiable():
-                return_clauses.append( ConstrainedAtom(c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
-        return self._make_independent(return_clauses)
+                return_clauses.add( ConstrainedAtom(c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
+        return self._make_independent(c_atoms.union(return_clauses) - set([c_atom]))
+
 
     def _find_viable_atom_pair(self, c_atoms: Iterable['ConstrainedAtom']
                               ) -> Optional[Tuple['ConstrainedAtom', 'ConstrainedAtom']]:
-        for c_atom in c_atoms:
-            for other_c_atom in c_atoms:
+        for c_atom in sorted(c_atoms):
+            for other_c_atom in sorted(c_atoms):
                 if c_atom != other_c_atom and not c_atom.is_independent_from_other_clause(other_c_atom):
-                    viable_atom_pair = (c_atom, other_c_atom)
+                    # find out if one subsumes another, so we know which atom to change
+                    if c_atom.subsumes(other_c_atom):
+                        viable_atom_pair = (c_atom, other_c_atom)
+                    else:
+                        viable_atom_pair = (other_c_atom, c_atom)
                     return viable_atom_pair
         return None
 
