@@ -1277,6 +1277,10 @@ class EquivalenceClasses(Generic[TEC]):
                 return False  # can't be equal to more than one constant
             if len(equal_constants.intersection(unequal_constants)) >= 1:
                 return False  # can't be equal to constants we have an inequality with
+
+            shared_domain = eq_class.get_shared_domain_from_cs(cs)
+            if len(equal_constants) == 1 and get_element_of_set(equal_constants) not in shared_domain.possible_constants:
+                return False  # can't be a constant that does not appear in the domain
         return True
 
     def consistent_with_set_constraints(self, cs: 'ConstraintSet') -> bool:
