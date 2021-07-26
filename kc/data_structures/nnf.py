@@ -1,15 +1,16 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom
+from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal
+from kc.util import get_element_of_set
 
 from abc import ABC, abstractmethod
 
-from typing import Iterable, List, Set, Union, Dict, Tuple, Optional, FrozenSet
+from typing import Iterable, List, Set, Union, Dict, Tuple, Optional, FrozenSet, TypeVar
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import Literal, DomainVariable 
+    from kc.data_structures import DomainVariable 
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
@@ -41,6 +42,22 @@ class NNFNode(ABC):
         """Get a smoothed version of this node. 
         This recursively gets smoothed versions of this node's children."""
         pass
+
+    def add_circuit_nodes(self, circuit_nodes: Iterable['ConstrainedAtom']) -> 'NNFNode':
+        """Add ForAll and Literal nodes for each ConstrainedAtom in the circuit_nodes.
+        This is done to smooth OrNodes and ExistsNodes"""
+        current_tail: 'NNFNode' = self
+        for c_atom in sorted(circuit_nodes):
+            true_literal_node = LiteralNode(get_element_of_set(c_atom.literals), from_smoothing=True)
+            false_literal_node = LiteralNode(~get_element_of_set(c_atom.literals), from_smoothing=True)
+            or_node = OrNode(true_literal_node, false_literal_node)
+            if len(c_atom.bound_vars) > 0 and c_atom.cs != ConstraintSet([]):
+                smoothing_branch = ForAllNode(or_node, c_atom.bound_vars, c_atom.cs, from_smoothing=True)
+                current_tail = AndNode(smoothing_branch, current_tail)
+            else: 
+                current_tail = AndNode(or_node, current_tail)
+        return current_tail
+
 
     def _make_independent(self, c_atoms: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']: 
         """Takes in a bunch of constrained atoms and returns an equivalent set that are all independent
@@ -225,14 +242,14 @@ class FalseNode(NNFNode):
 class LiteralNode(NNFNode):
     """A class to represent a single literal in the circuit. 
     Takes as input the literal it represents"""
-    def __init__(self, literal: 'Literal') -> None:
-        super(LiteralNode, self).__init__([])
+    def __init__(self, literal: 'Literal', from_smoothing=False) -> None:
+        super(LiteralNode, self).__init__([], from_smoothing=from_smoothing)
         self.literal = literal
 
     def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
         """LiteralNodes have no children and cover only their own literal.
         NOTE: we return it as a ConstrainedAtom despite it having no constraints"""
-        return set([ConstrainedAtom([self.literal], [], ConstraintSet([]))])
+        return set([ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))])
 
     def get_smoothed_node(self) -> 'LiteralNode':
         """LiteralNodes do not change with smoothing"""
@@ -260,11 +277,6 @@ class IntensionalNode(NNFNode):
     """Abstract subclass for FORALL and EXISTS nodes
     In this implementation, Intensional nodes always have exactly one child,
     and (possibly empty) bound variables and constraint sets"""
-    def __init__(self, child: 'NNFNode', bound_vars: Iterable[Union['DomainVariable','LogicalVariable']], cs: 'ConstraintSet') -> None:
-        super(IntensionalNode, self).__init__((child,))
-        self.child = child
-        self.bound_vars = frozenset(bound_vars)
-        self.cs = cs
 
 class AndNode(ExtensionalNode):
     """A node representing an extensional AND operation."""
@@ -327,6 +339,24 @@ class OrNode(ExtensionalNode):
 
 class ForAllNode(IntensionalNode):
     """A node representing an intensional FORALL operation."""
+    def __init__(self, child: 'NNFNode', bound_vars: Iterable['LogicalVariable'], cs: 'ConstraintSet', from_smoothing: bool=False) -> None:
+        super(ForAllNode, self).__init__((child,))
+        self.child = child
+        self.bound_vars = frozenset(bound_vars)
+        self.cs = cs
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """For ForAll nodes, we just get the circuit atoms of the child and add on the constraint set and
+        bound variables of this node"""
+        child_circuit_atoms = self.child.get_circuit_atoms()
+        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(self.bound_vars), c.cs.join(self.cs)) for c in child_circuit_atoms)
+        # DEBUG TODO: checking that they really are independent
+        assert(self._make_independent(circuit_atoms) == circuit_atoms)
+        return circuit_atoms
+
+    def get_smoothed_node(self) -> 'ForAllNode':
+        """Smoothing AndNodes just makes a new AndNode with smoothed children"""
+        return ForAllNode(self.child.get_smoothed_node(), self.bound_vars, self.cs)
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
@@ -337,9 +367,27 @@ class ForAllNode(IntensionalNode):
         attributes['label'] = f'{for_all_string}{var_string}, {self.cs}'
         return attributes
 
-
 class ExistsNode(IntensionalNode):
     """A node representing an intensional EXISTS operation."""
+    def __init__(self, child: 'NNFNode', bound_vars: Iterable['DomainVariable'], cs: 'ConstraintSet', from_smoothing: bool=False) -> None:
+        super(ExistsNode, self).__init__((child,))
+        self.child = child
+        self.bound_vars = frozenset(bound_vars)
+        self.cs = cs
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """For Exists nodes, we have to consider all the possible domains that could be quantified over. 
+        TODO: For now I'm just substituting the parent domain back in for each c_atom, but I don't know if that's correct.
+        """
+        child_circuit_atoms = self.child.get_circuit_atoms()
+        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(self.bound_vars), c.cs.join(self.cs)) for c in child_circuit_atoms)
+        # DEBUG TODO: checking that they really are independent
+        assert(self._make_independent(circuit_atoms) == circuit_atoms)
+        return circuit_atoms
+
+    def get_smoothed_node(self) -> 'ForAllNode':
+        """Smoothing AndNodes just makes a new AndNode with smoothed children"""
+        return ForAllNode(self.child.get_smoothed_node(), self.bound_vars, self.cs)
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
@@ -358,6 +406,16 @@ class EmptyNode(NNFNode):
     def __init__(self) -> None:
         # don't need any children but still want to have parents
         super().__init__([])
+
+    def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
+        """EmptyNode is just a placeholder so this shouldn't even really be called."""
+        return set()
+        # raise NotImplementedError('Get rid of EmptyNodes')
+
+    def get_smoothed_node(self) -> 'EmptyNode':
+        """EmptyNode doesn't change"""
+        return self
+        # raise NotImplementedError('Get rid of EmptyNodes')
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""

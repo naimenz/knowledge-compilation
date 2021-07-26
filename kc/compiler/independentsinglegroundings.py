@@ -42,6 +42,7 @@ class IndependentSingleGroundings(KCRule):
         substitution = Substitution(root_substitution_pairs)
         new_cnf = cls._substitute_root_vars(cnf, new_variable, substitution)
         new_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, substitution)
+        print("\n\nISG NEW VARIABLE: ",new_variable)
         return ForAllNode(compiler.compile(new_cnf), [new_variable], new_variable_cs)
 
 

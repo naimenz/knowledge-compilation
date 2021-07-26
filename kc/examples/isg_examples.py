@@ -53,7 +53,7 @@ cs2 = ConstraintSet([X1inPeople, Y1inPeople, ~X1eqY1])
 clause1 = ConstrainedClause([dislikesXY, friendsXY], [X, Y], cs1)
 # clause2 = ConstrainedClause([funY, ~friendsYX], [X, Y], cs2)
 # clause2 = ConstrainedClause([funX1, ~friendsX1Y1], [X1, Y1], cs2)
-clause2 = ConstrainedClause([funY1, ~friendsY1X1], [X1, Y1], cs2)
+clause2 = ConstrainedClause([funY1, ~friendsX1Y1], [X1, Y1], cs2)
 cnf = CNF([clause1, clause2])
 # cnf.shattered = True # hack for now
 
@@ -72,7 +72,29 @@ cnf = CNF([clause1, clause2])
 compiler = Compiler()
 nnf = compiler.compile(cnf)
 
+smoothed_nnf = nnf.get_smoothed_node()
+
 current_node = nnf
+graph = build_nx_graph_from_nnf(current_node)
+print(graph)
+
+import matplotlib.pyplot as plt
+import pydot
+import networkx as nx
+from networkx.drawing.nx_pydot import graphviz_layout
+pos = graphviz_layout(graph, prog="dot")
+nx.draw(graph, pos)
+
+label_pos = {}
+y_off = 10  # offset on the y axis
+
+for k, v in pos.items():
+    label_pos[k] = (v[0], v[1]+y_off)
+node_labels = nx.get_node_attributes(graph, 'label')
+nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
+plt.show()
+
+current_node = smoothed_nnf
 graph = build_nx_graph_from_nnf(current_node)
 print(graph)
 
