@@ -9,7 +9,7 @@ from typing import TypeVar
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kc.compiler import Compiler
-    from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable
+    from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable, NNFNode
 
 CC = TypeVar('CC', bound='ConstrainedClause')
 CC2 = TypeVar('CC2', bound='ConstrainedClause')  # I need a second typevar for some functions
@@ -30,7 +30,7 @@ class UnitPropagation(KCRule):
         return False, None
 
     @classmethod
-    def apply(cls, cnf: 'CNF', unit_clause: 'UnitClause', compiler: 'Compiler') -> 'AndNode':
+    def apply(cls, cnf: 'CNF', unit_clause: 'UnitClause', compiler: 'Compiler') -> 'NNFNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
         unitpropagated_clauses: List['Clause'] = []
@@ -48,7 +48,11 @@ class UnitPropagation(KCRule):
             unit_cnf = CNF([UnconstrainedClause(unit_clause.literals)], shattered=cnf.shattered)
         else:
             unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
-        return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
+        # avoiding creating empty nodes
+        if len(propagated_cnf.clauses) > 0:
+            return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
+        else:
+            return compiler.compile(unit_cnf)
 
     @classmethod
     def split(cls, gamma: 'Clause', A: 'ConstrainedAtom') -> List['Clause']:
