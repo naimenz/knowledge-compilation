@@ -26,7 +26,6 @@ class IndependentSingleGroundings(KCRule):
         root_unifying_classes = filter(is_root_in_cnf, unifying_classes)
         for root_unifying_class in sorted(root_unifying_classes):
             if cnf.eq_class_has_one_variable(root_unifying_class):
-                print(f'{root_unifying_class = }')
                 return True, root_unifying_class
         return False, None
 

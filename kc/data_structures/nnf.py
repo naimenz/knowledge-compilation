@@ -335,7 +335,7 @@ class OrNode(ExtensionalNode):
         return all_circuit_atoms
 
     def get_smoothed_node(self) -> 'OrNode':
-        """Smoothing OrNodes requires potentially adding AndNodes below ecah branch 
+        """Smoothing OrNodes requires potentially adding AndNodes below each branch 
         with the missing circuit atoms"""
         left_circuit_atoms = self.left.get_circuit_atoms()
         right_circuit_atoms = self.right.get_circuit_atoms()
