@@ -64,9 +64,6 @@ class NNFNode(ABC):
         This is based on the Split algorithm, and is alluded to as a 'Modified Split' algorithm in the Smoothing
         section of the PhD"""
         # we are done if there is just one atom
-        if any(len(a.bound_vars) == 0 for a in c_atoms):
-            print("First 0:",c_atoms)
-            raise ValueError('What happened?')
         if len(c_atoms) == 1:
             return c_atoms
         viable_atom_pair = self._find_viable_atom_pair(c_atoms)
@@ -77,7 +74,6 @@ class NNFNode(ABC):
         # if we have a viable atom pair, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
-        print(f"Before sub, {c_atom.bound_vars = }, {other_c_atom.bound_vars = }")
         other_c_atom = self._align_variables(c_atom, other_c_atom)
         cs = c_atom.cs
         other_cs = other_c_atom.cs
@@ -89,8 +85,6 @@ class NNFNode(ABC):
         theta = mgu_eq_classes.to_substitution()
         cs_theta = theta.to_constraint_set()
         joint_variables = c_atom.bound_vars.union(other_c_atom.bound_vars)
-        print(f"After sub, {c_atom.bound_vars = }, {other_c_atom.bound_vars = }")
-        print(f"{joint_variables = } ")
 
         return_clauses: Set['ConstrainedAtom'] = set()
         # loop over all constraints to negate
@@ -103,8 +97,6 @@ class NNFNode(ABC):
             # before going further, check if the constraint set for this clause is even satisfiable
             if cs_rest.is_satisfiable():
                 temp = ConstrainedAtom(c_atom.literals, joint_variables, cs_rest)
-                print(f'{temp = }')
-                print(f'{temp.propagate_equality_constraints() = }')
                 return_clauses.add( ConstrainedAtom(c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
         return self._make_independent(c_atoms.union(return_clauses) - set([c_atom]))
 
@@ -126,7 +118,7 @@ class NNFNode(ABC):
     def A_without_B(self, A: Set['ConstrainedAtom'], B: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']:
         """Return a set of ConstrainedAtoms representing those in A not covered by B.
         The approach taken is to make everything from A independent or subsumed by B, then remove the subsumed parts"""
-        new_A: Set['ConstrainedAtom'] = set()
+        split_A: Set['ConstrainedAtom'] = set()
         for c_atomA in sorted(A):
             independent_of_all = True
             if c_atomA in B:
@@ -134,16 +126,23 @@ class NNFNode(ABC):
             else:
                 for c_atomB in sorted(B):
                     if not c_atomA.is_independent_from_other_clause(c_atomB):
-                        print(f'{c_atomA = }')
-                        print(f'{c_atomB = }')
-                        print(f'{c_atomA.subsumes(c_atomB) = }')
                         independent_of_all = False
                         if not c_atomB.subsumes(c_atomA):
-                            print("hi")
                             # make c_atomA independent of c_atomB
                             independent_c_atomsA = self._make_independent(set([c_atomA, c_atomB])) - set([c_atomB])
-                            new_A = new_A.union(independent_c_atomsA)
+                            split_A = split_A.union(independent_c_atomsA)
             if independent_of_all:
+                split_A.add(c_atomA)
+        # we do a second round of subsumes checks to avoid redundant newly created c_atoms
+        # TODO: integrate this into first loop to make it more efficient
+        new_A: Set['ConstrainedAtom'] = set()
+        for c_atomA in sorted(split_A):
+            subsumed = False
+            for c_atomB in B:
+                if c_atomB.subsumes(c_atomA):
+                    subsumed = True
+                    break
+            if subsumed == False:
                 new_A.add(c_atomA)
         return new_A
 
@@ -264,6 +263,7 @@ class LiteralNode(NNFNode):
         NOTE IMPORTANT: We have to convert FreeVariables into non-free variables here
         so that they appear in bound_vars correctly when substituting"""
         c_atom = ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))
+        print(f'DEBUG: Literal node circuit_atoms:\n{c_atom}')
         return set([c_atom.replace_free_variables()])
 
     def get_smoothed_node(self) -> 'LiteralNode':
@@ -304,6 +304,7 @@ class AndNode(ExtensionalNode):
         all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
         # DEBUG TODO: checking that they really are independent
         assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
+        print(f'DEBUG:AndNode circuit_atoms:\n{all_circuit_atoms}')
         return all_circuit_atoms
 
     def get_smoothed_node(self) -> 'AndNode':
@@ -330,6 +331,7 @@ class OrNode(ExtensionalNode):
         missing_from_right = self.A_without_B(left_circuit_atoms, right_circuit_atoms)
         all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
         assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
+        print(f'DEBUG:OrNode circuit_atoms:\n{all_circuit_atoms}')
         return all_circuit_atoms
 
     def get_smoothed_node(self) -> 'OrNode':
@@ -369,6 +371,7 @@ class ForAllNode(IntensionalNode):
         circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(non_free_bound_vars), c.cs.join(self.cs)).replace_free_variables() for c in child_circuit_atoms)
         # DEBUG TODO: checking that they really are independent
         assert(self._make_independent(circuit_atoms) == circuit_atoms)
+        print(f'DEBUG:ForAllNode circuit_atoms:\n{circuit_atoms}')
         return circuit_atoms
 
     def get_smoothed_node(self) -> 'ForAllNode':
@@ -398,6 +401,7 @@ class ExistsNode(IntensionalNode):
         """
         child_circuit_atoms = self.child.get_circuit_atoms()
         circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
+        print(f'DEBUG:ExistsNode circuit_atoms:\n{circuit_atoms}')
         return circuit_atoms
 
     def get_smoothed_node(self) -> 'ExistsNode':
@@ -406,9 +410,9 @@ class ExistsNode(IntensionalNode):
         child_circuit_atoms = self.child.get_circuit_atoms()
         all_circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
 
+        missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
         print(f'{all_circuit_atoms = }')
         print(f'{child_circuit_atoms = }')
-        missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
         print(f'{missed_circuit_atoms = }')
         smoothed_child = self.child.get_smoothed_node().add_circuit_nodes(missed_circuit_atoms)
 
