@@ -29,9 +29,26 @@ def build_nx_graph_from_nnf(root: 'NNFNode') -> 'DiGraph':
         # add text for drawing
         node_data = current_node.node_info()
         node_string = f"{node_data['type']}\n{node_data['label']}"
-        graph.add_node(current_node, label=node_string)
+        graph.add_node(current_node, label=node_string, smoothing=node_data['smoothing'])
 
         for child in current_node.children:
             unvisited_queue.append(child)
             graph.add_edge(current_node, child)
     return graph
+
+def draw_nx_graph_from_nnf(root: 'NNFNode') -> None:
+    graph = build_nx_graph_from_nnf(root)
+    print(graph)
+
+    pos = graphviz_layout(graph, prog="dot")
+
+    label_pos = {}
+    y_off = 10  # offset on the y axis
+
+    for k, v in pos.items():
+        label_pos[k] = (v[0], v[1]+y_off)
+    node_labels = nx.get_node_attributes(graph, 'label')
+    node_colours = ['blue' if n[1] == 'True' else 'green' for n in graph.nodes(data='smoothing')]
+    nx.draw(graph, pos, node_color=node_colours)
+    nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
+    plt.show()
