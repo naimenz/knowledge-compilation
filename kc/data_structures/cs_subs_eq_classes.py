@@ -31,6 +31,7 @@ class ConstraintSet:
         # make it easier to access different types of constraints 
         equality_constraints, inequality_constraints = set(), set()
         inclusion_constraints, notinclusion_constraints = set(), set()
+        subset_constraints = set()
 
         for constraint in constraints:
             if isinstance(constraint, EqualityConstraint):
@@ -41,6 +42,8 @@ class ConstraintSet:
                 inclusion_constraints.add(constraint)
             elif isinstance(constraint, NotInclusionConstraint):
                 notinclusion_constraints.add(constraint)
+            elif isinstance(constraint, SubsetConstraint):
+                subset_constraints.add(constraint)
 
         redundant_inclusion_constraints = self._get_redundant_inclusion_constraints(inclusion_constraints)
 
@@ -48,6 +51,7 @@ class ConstraintSet:
         self._equality_constraints = frozenset(equality_constraints)
         self._inclusion_constraints = frozenset(inclusion_constraints) - redundant_inclusion_constraints
         self._notinclusion_constraints = frozenset(notinclusion_constraints)
+        self._subset_constraints = frozenset(subset_constraints)
 
         self._constraints = frozenset(constraints) - redundant_inclusion_constraints
     
@@ -88,6 +92,10 @@ class ConstraintSet:
     @property
     def notinclusion_constraints(self) -> FrozenSet['NotInclusionConstraint']:
         return self._notinclusion_constraints
+
+    @property
+    def subset_constraints(self) -> FrozenSet['SubsetConstraint']:
+        return self._subset_constraints
 
     @property
     def logical_constraints(self) -> FrozenSet['LogicalConstraint']:
@@ -138,6 +146,19 @@ class ConstraintSet:
         filtered_constraints = [c for c in new_constraints if c != EmptyConstraint()]
 
         return ConstraintSet(filtered_constraints)
+
+    def substitute_domain_in_set_constraints(self, old_domain: 'DomainVariable', new_domain: 'DomainTerm') -> 'ConstraintSet':
+        """In all the SetConstraints, substitute the old_domain for the new_domain.
+        NOTE: This is a bit of a hack -- really I should make Substitutions work with domains,
+        but it only comes up once or twice
+        NOTE: There shouldn't be SubsetConstraints in an active constraint set"""
+        if len(self.subset_constraints) > 0:
+            raise NotImplementedError("Shouldn't have SubsetConstraints in a non-ExistsNode constraint set")
+        new_set_constraints: Set['Constraint'] = set()
+        for sc in self.set_constraints:
+            new_set_constraints.add(sc.substitute_domain(old_domain, new_domain))
+        return ConstraintSet(new_set_constraints.union(self.logical_constraints))
+
 
     def drop_constraints_involving_only_specific_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
         """Return a constraint set where all constraints that only involve variables from 'variables' are removed"""
@@ -375,6 +396,11 @@ class SetConstraint(Constraint):
     @property
     @abstractmethod
     def domain_term(self) -> 'DomainTerm':
+        pass
+
+    @abstractmethod
+    def substitute_domain(self, old_domain: 'DomainVariable', new_domain: 'DomainTerm') -> 'SetConstraint':
+        """Need to be able to substitute domain in SetConstraints for smoothing"""
         pass
 
     def __hash__(self) -> int:
@@ -879,6 +905,15 @@ class InclusionConstraint(SetConstraint):
             logical_var = cast('LogicalVariable', new_logical_term)
             return InclusionConstraint(logical_var, self.domain_term)
 
+    def substitute_domain(self, old_domain: 'DomainVariable', new_domain: 'DomainTerm') -> 'InclusionConstraint':
+        """In this constraint, substitute out the old domain variable for the new domain term.
+        NOTE: This is a bit of a hack -- really I should make Substitutions work with domains,
+        but it only really appears here"""
+        if self.domain_term == old_domain:
+            return InclusionConstraint(self.logical_term, new_domain)
+        else:
+            return self
+
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
         For InclusionConstraint, this means checking if the logical term is a constant and
@@ -963,6 +998,15 @@ class NotInclusionConstraint(SetConstraint):
             logical_var = cast('LogicalVariable', new_logical_term)
             return NotInclusionConstraint(logical_var, self.domain_term)
 
+    def substitute_domain(self, old_domain: 'DomainVariable', new_domain: 'DomainTerm') -> 'NotInclusionConstraint':
+        """In this constraint, substitute out the old domain variable for the new domain term.
+        NOTE: This is a bit of a hack -- really I should make Substitutions work with domains,
+        but it only really appears here"""
+        if self.domain_term == old_domain:
+            return NotInclusionConstraint(self.logical_term, new_domain)
+        else:
+            return self
+
     def contains_contradiction(self) -> bool:
         """Does this constraint contain an obvious contradiction?
         For NotInclusionConstraint, this means checking if the logical term is a constant and the domain term a set of constants containing the constant"""
@@ -1036,6 +1080,7 @@ class Substitution:
         """Convert a substitution to an equivalent constraint set.
         This involves simply defining a constraint for each mapping."""
         constraints: List['Constraint'] = []
+        constraint: 'Constraint'
         for mapping in self:
             if isinstance(mapping[1], LogicalVariable):
                 constraint = EqualityConstraint(mapping[0], mapping[1])

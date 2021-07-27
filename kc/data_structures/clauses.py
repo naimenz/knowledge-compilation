@@ -293,6 +293,17 @@ class ConstrainedClause(Clause):
         new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars)  # hack for type checking
         return self.__class__(new_literals, new_bound_vars, new_cs)
 
+    def replace_free_variables(self: CC) -> CC:
+        """Replace the free variables in this clause with equivalent non-free ones.
+        This is important for smoothing."""
+        free_variables = set(var for var in self.all_variables if isinstance(var, FreeVariable))
+        sub_pairs = [(free_var, LogicalVariable(free_var.symbol)) for free_var in free_variables]
+        substitution = Substitution(sub_pairs)
+        new_clause = self.substitute(substitution)
+        if new_clause is None:
+            raise ValueError(f'Somehow replacing free vars made {self} unsatisfiable')
+        return new_clause
+
     def propagate_equality_constraints(self: 'CC') -> 'CC':
         """Propagate the equality constraints through the clause by building a substitution
         from them and applying it until convergence."""
@@ -368,9 +379,11 @@ class ConstrainedClause(Clause):
     def get_free_variables(self) -> Set['LogicalVariable']:
         """Extract just the free variables from this clause"""
         free_variables: Set['LogicalVariable'] = self.all_variables.difference(self.bound_vars)
+        # NOTE DEBUG: Checking that the free variables really are the free variables
+        assert(all(isinstance(fv, FreeVariable) for fv in free_variables))
+        assert(all(not isinstance(bv, FreeVariable) for bv in self.bound_vars))
         return free_variables
 
-    # TODO: THINK ABOUT FREE VARIABLE CASE
     def get_constant_or_free_inequalities(self) -> Set['Constraint']:
         """Get inequalities that are between a bound variable and a constant OR FREE VARIABLE in this clause.
         NOTE: these will be NotInclusionConstraints because of how I've implemented those

@@ -27,8 +27,7 @@ class NNFNode(ABC):
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
         attributes = dict()
-        attributes['type'] = 'NNFNode'
-        attributes['label'] = ''
+        attributes['smoothing'] = str(self.from_smoothing)
         return attributes
 
     @abstractmethod
@@ -50,7 +49,7 @@ class NNFNode(ABC):
         for c_atom in sorted(circuit_nodes):
             true_literal_node = LiteralNode(get_element_of_set(c_atom.literals), from_smoothing=True)
             false_literal_node = LiteralNode(~get_element_of_set(c_atom.literals), from_smoothing=True)
-            or_node = OrNode(true_literal_node, false_literal_node)
+            or_node = OrNode(true_literal_node, false_literal_node, from_smoothing=True)
             if len(c_atom.bound_vars) > 0 and c_atom.cs != ConstraintSet([]):
                 smoothing_branch = ForAllNode(or_node, c_atom.bound_vars, c_atom.cs, from_smoothing=True)
                 current_tail = AndNode(smoothing_branch, current_tail)
@@ -65,6 +64,9 @@ class NNFNode(ABC):
         This is based on the Split algorithm, and is alluded to as a 'Modified Split' algorithm in the Smoothing
         section of the PhD"""
         # we are done if there is just one atom
+        if any(len(a.bound_vars) == 0 for a in c_atoms):
+            print("First 0:",c_atoms)
+            raise ValueError('What happened?')
         if len(c_atoms) == 1:
             return c_atoms
         viable_atom_pair = self._find_viable_atom_pair(c_atoms)
@@ -75,6 +77,7 @@ class NNFNode(ABC):
         # if we have a viable atom pair, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
+        print(f"Before sub, {c_atom.bound_vars = }, {other_c_atom.bound_vars = }")
         other_c_atom = self._align_variables(c_atom, other_c_atom)
         cs = c_atom.cs
         other_cs = other_c_atom.cs
@@ -86,6 +89,8 @@ class NNFNode(ABC):
         theta = mgu_eq_classes.to_substitution()
         cs_theta = theta.to_constraint_set()
         joint_variables = c_atom.bound_vars.union(other_c_atom.bound_vars)
+        print(f"After sub, {c_atom.bound_vars = }, {other_c_atom.bound_vars = }")
+        print(f"{joint_variables = } ")
 
         return_clauses: Set['ConstrainedAtom'] = set()
         # loop over all constraints to negate
@@ -97,6 +102,9 @@ class NNFNode(ABC):
             cs_rest = cs.join(ConstraintSet([not_e]))
             # before going further, check if the constraint set for this clause is even satisfiable
             if cs_rest.is_satisfiable():
+                temp = ConstrainedAtom(c_atom.literals, joint_variables, cs_rest)
+                print(f'{temp = }')
+                print(f'{temp.propagate_equality_constraints() = }')
                 return_clauses.add( ConstrainedAtom(c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
         return self._make_independent(c_atoms.union(return_clauses) - set([c_atom]))
 
@@ -126,8 +134,12 @@ class NNFNode(ABC):
             else:
                 for c_atomB in sorted(B):
                     if not c_atomA.is_independent_from_other_clause(c_atomB):
+                        print(f'{c_atomA = }')
+                        print(f'{c_atomB = }')
+                        print(f'{c_atomA.subsumes(c_atomB) = }')
                         independent_of_all = False
                         if not c_atomB.subsumes(c_atomA):
+                            print("hi")
                             # make c_atomA independent of c_atomB
                             independent_c_atomsA = self._make_independent(set([c_atomA, c_atomB])) - set([c_atomB])
                             new_A = new_A.union(independent_c_atomsA)
@@ -213,7 +225,7 @@ class TrueNode(NNFNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(TrueNode, self).node_info()
         attributes['type'] = 'TrueNode'
         attributes['label'] = 'T'
         return attributes
@@ -234,7 +246,7 @@ class FalseNode(NNFNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(FalseNode, self).node_info()
         attributes['type'] = 'FalseNode'
         attributes['label'] = 'F'
         return attributes
@@ -248,8 +260,11 @@ class LiteralNode(NNFNode):
 
     def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
         """LiteralNodes have no children and cover only their own literal.
-        NOTE: we return it as a ConstrainedAtom despite it having no constraints"""
-        return set([ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))])
+        NOTE: we return it as a ConstrainedAtom despite it having no constraints
+        NOTE IMPORTANT: We have to convert FreeVariables into non-free variables here
+        so that they appear in bound_vars correctly when substituting"""
+        c_atom = ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))
+        return set([c_atom.replace_free_variables()])
 
     def get_smoothed_node(self) -> 'LiteralNode':
         """LiteralNodes do not change with smoothing"""
@@ -257,7 +272,7 @@ class LiteralNode(NNFNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(LiteralNode, self).node_info()
         attributes['type'] = 'LiteralNode'
         attributes['label'] = str(self.literal)
         return attributes
@@ -267,8 +282,8 @@ class ExtensionalNode(NNFNode):
     """Abstract subclass for AND and OR nodes
     In this implementation, ExtensionalNodes always have exactly two children,
     a left and a right."""
-    def __init__(self, left: 'NNFNode', right: 'NNFNode') -> None:
-        super(ExtensionalNode, self).__init__((left, right))
+    def __init__(self, left: 'NNFNode', right: 'NNFNode', from_smoothing=False) -> None:
+        super(ExtensionalNode, self).__init__((left, right), from_smoothing=from_smoothing)
         self.left = left
         self.right = right
 
@@ -297,7 +312,7 @@ class AndNode(ExtensionalNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(AndNode, self).node_info()
         attributes['type'] = 'AndNode'
         and_string = '\u2227'
         attributes['label'] = and_string
@@ -330,7 +345,7 @@ class OrNode(ExtensionalNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(OrNode, self).node_info()
         attributes['type'] = 'OrNode'
         or_string = '\u2228'
         attributes['label'] = or_string
@@ -340,7 +355,7 @@ class OrNode(ExtensionalNode):
 class ForAllNode(IntensionalNode):
     """A node representing an intensional FORALL operation."""
     def __init__(self, child: 'NNFNode', bound_vars: Iterable['LogicalVariable'], cs: 'ConstraintSet', from_smoothing: bool=False) -> None:
-        super(ForAllNode, self).__init__((child,))
+        super(ForAllNode, self).__init__((child,), from_smoothing=from_smoothing)
         self.child = child
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
@@ -349,7 +364,9 @@ class ForAllNode(IntensionalNode):
         """For ForAll nodes, we just get the circuit atoms of the child and add on the constraint set and
         bound variables of this node"""
         child_circuit_atoms = self.child.get_circuit_atoms()
-        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(self.bound_vars), c.cs.join(self.cs)) for c in child_circuit_atoms)
+        # due to how ISG/IPG build ForAllNodes, we have to replace the FreeVariables with LogicalVariables
+        non_free_bound_vars = set(LogicalVariable(v.symbol) for v in self.bound_vars)
+        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(non_free_bound_vars), c.cs.join(self.cs)).replace_free_variables() for c in child_circuit_atoms)
         # DEBUG TODO: checking that they really are independent
         assert(self._make_independent(circuit_atoms) == circuit_atoms)
         return circuit_atoms
@@ -360,7 +377,7 @@ class ForAllNode(IntensionalNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(ForAllNode, self).node_info()
         attributes['type'] = 'ForAllNode'
         for_all_string = '\u2200'
         var_string = '{' + ', '.join(str(var) for var in self.bound_vars) + '}'
@@ -370,7 +387,7 @@ class ForAllNode(IntensionalNode):
 class ExistsNode(IntensionalNode):
     """A node representing an intensional EXISTS operation."""
     def __init__(self, child: 'NNFNode', bound_vars: Iterable['DomainVariable'], cs: 'ConstraintSet', from_smoothing: bool=False) -> None:
-        super(ExistsNode, self).__init__((child,))
+        super(ExistsNode, self).__init__((child,), from_smoothing=from_smoothing)
         self.child = child
         self.bound_vars = frozenset(bound_vars)
         self.cs = cs
@@ -380,18 +397,40 @@ class ExistsNode(IntensionalNode):
         TODO: For now I'm just substituting the parent domain back in for each c_atom, but I don't know if that's correct.
         """
         child_circuit_atoms = self.child.get_circuit_atoms()
-        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(self.bound_vars), c.cs.join(self.cs)) for c in child_circuit_atoms)
-        # DEBUG TODO: checking that they really are independent
-        assert(self._make_independent(circuit_atoms) == circuit_atoms)
+        circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
         return circuit_atoms
 
-    def get_smoothed_node(self) -> 'ForAllNode':
+    def get_smoothed_node(self) -> 'ExistsNode':
         """Smoothing AndNodes just makes a new AndNode with smoothed children"""
-        return ForAllNode(self.child.get_smoothed_node(), self.bound_vars, self.cs)
+        # it's more efficient to redo this here than call self.get_circuit_atoms
+        child_circuit_atoms = self.child.get_circuit_atoms()
+        all_circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
+
+        print(f'{all_circuit_atoms = }')
+        print(f'{child_circuit_atoms = }')
+        missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
+        print(f'{missed_circuit_atoms = }')
+        smoothed_child = self.child.get_smoothed_node().add_circuit_nodes(missed_circuit_atoms)
+
+        return ExistsNode(smoothed_child, self.bound_vars, self.cs)
+
+    def substitute_parent_domain(self, c_atoms: Iterable['ConstrainedAtom']) -> Set['ConstrainedAtom']:
+        """Take a bunch of constrained atoms and, where applicable, substitute the quantified domain with its parent.
+        NOTE TODO: For now, I also substitute the quantified domain's complement with the parent, but I'm not sure if this is appropriate"""
+        subdomain = get_element_of_set(self.bound_vars)  # There should be a single bound domain variable
+        parent_domain = get_element_of_set(self.cs.subset_constraints).right_term  # There should be only one here too
+        new_c_atoms: Set['ConstrainedAtom'] = set()
+        for c_atom in c_atoms:
+            new_cs = c_atom.cs.substitute_domain_in_set_constraints(subdomain, parent_domain)
+            new_cs = new_cs.substitute_domain_in_set_constraints(subdomain.complement, parent_domain)
+            new_c_atom = ConstrainedAtom(c_atom.literals, c_atom.bound_vars, new_cs)
+            new_c_atoms.add(new_c_atom)
+        return new_c_atoms
+
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(ExistsNode, self).node_info()
         attributes['type'] = 'ExistsNode'
         exists_string = '\u2203'
         var_string = '{' + ', '.join(str(var) for var in self.bound_vars) + '}'
@@ -419,7 +458,7 @@ class EmptyNode(NNFNode):
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
-        attributes = dict()
+        attributes = super(EmptyNode, self).node_info()
         attributes['type'] = 'EmptyNode'
         exists_string = '\u2203'
         attributes['label'] = ''
