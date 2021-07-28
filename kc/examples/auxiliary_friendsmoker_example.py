@@ -1,5 +1,5 @@
 """This is the friendsmoker example from Ex 3.17
-In non-CNF form, this is smokes(X) ^ friends(X, Y) => smokes(Y)"""
+In non-CNF form, this is f1(X, Y) <=> ( smokes(X) ^ friends(X, Y) => smokes(Y) )"""
 from kc.data_structures import *
 from kc.compiler import *
 from kc.util import build_nx_graph_from_nnf, draw_nx_graph_from_nnf
@@ -33,11 +33,21 @@ clause3 = ConstrainedClause([f1XY, friendsXY], [X, Y], cs)
 clause4 = ConstrainedClause([f1XY, smokesX], [X, Y], cs)
 
 cnf = CNF([clause1, clause2, clause3, clause4])
-cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
+# cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
 compiler = Compiler()
+
+X1, Y1 = LogicalVariable('X1'), LogicalVariable('Y1')
+friendsX1X = Literal(Atom(friends, [X1, X]))
+X1inPeople = InclusionConstraint(X1, People)
+
+# nc = ConstrainedClause([friendsX1X], [X1, X], ConstraintSet([X1inPeople, XinPeople]))
+# nc1 = nc.rename_bound_variables(("X1", "Y1"))
+# print(f'{nc = }')
+# print(f'{nc1 = }')
+
 
 nnf = compiler.compile(cnf)
 draw_nx_graph_from_nnf(nnf)
 
-smoothed_nnf = nnf.get_smoothed_node()
+smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)

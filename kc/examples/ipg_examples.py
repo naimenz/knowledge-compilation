@@ -39,5 +39,6 @@ compiler = Compiler()
 nnf = compiler.compile(cnf)
 draw_nx_graph_from_nnf(nnf)
 
-smoothed_nnf = nnf.get_smoothed_node()
+smoothed_nnf = nnf.get_smoothed_node(cnf)
+# smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)

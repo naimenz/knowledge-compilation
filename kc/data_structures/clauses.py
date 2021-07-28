@@ -64,8 +64,8 @@ class Clause(ABC):
 
         # NOTE: Before checking independence, we have to rename the variables to avoid overlap
         other_clause = other_clause.make_variables_different(self)
-        for c_atom in self.get_constrained_atoms():
-            for other_c_atom in other_clause.get_constrained_atoms():
+        for c_atom in sorted(self.get_constrained_atoms()):
+            for other_c_atom in sorted(other_clause.get_constrained_atoms()):
                 if c_atom.constrained_atoms_unify(other_c_atom):
                     return False
         return True
@@ -333,27 +333,43 @@ class ConstrainedClause(Clause):
     def rename_bound_variables(self: 'CC', names: Tuple[str, str]=("X", "Y")) -> 'CC':
         """This is a function that renames the bound variables of this clause (to X and Y by default).
         We do not touch the free variables, because we are relying on them to already be fixed. 
-        There should only ever be two total variables, so it should always be possible to have them be named X and Y."""
+        There should only ever be two total variables (since we work with the two variable fragment),
+        so it should always be possible to have them be named X and Y."""
+
         names_set = set(names)  # set for fast membership checking
         variable_names = set(var.symbol for var in self.all_variables)
+
         # if they are already called X and Y, we are done
         if variable_names.issubset(names_set):
             return self
+
+        # quick check to see if we can just drop the numbers
+        shortened_variable_names = tuple(var.symbol[0] for var in self.all_variables)
+        shortened_variable_names_set = set(shortened_variable_names)
+        if names_set == set(("X", "Y")) and \
+        shortened_variable_names_set.issubset(names_set) and \
+        len(shortened_variable_names) == len(shortened_variable_names_set):
+            sub = Substitution([(var, var.__class__(var.symbol[0])) for var in self.all_variables])
+            new_clause = self.substitute(sub)
+            if new_clause is None:
+                raise ValueError("Shouldn't be unsatisfiable in renaming!")
+            return new_clause
+        
         else:
             old_clause: 'CC' = self
             for var in sorted(self.bound_vars):
                 if var.symbol not in names_set:
                     for name in names:
                         if name not in variable_names:
-                            # update the variable names
-                            variable_names = set(var.symbol for var in old_clause.all_variables)
-                            sub = Substitution([(var, LogicalVariable(name))])
+                            sub = Substitution([(var, var.__class__(name))])
                             fixed_clause: Optional['CC'] = old_clause.substitute(sub)
                             if fixed_clause is None:
                                 raise ValueError('Renaming made cs inconsistent!')
                             old_clause = fixed_clause
+                            # update the variable names
+                            variable_names = set(var.symbol for var in old_clause.all_variables)
+            new_variable_names = set(var.symbol for var in old_clause.all_variables)
         return old_clause
-
 
     @property
     def all_variables(self) -> Set['LogicalVariable']:
@@ -377,11 +393,10 @@ class ConstrainedClause(Clause):
         return logical_variables
 
     def get_free_variables(self) -> Set['LogicalVariable']:
-        """Extract just the free variables from this clause"""
+        """Extract just the free variables from this clause.
+        NOTE: This is (confusingly) NOT the same as variables of class FreeVariable. 
+        When smoothing, we can end up with "free variables" that are not FreeVariables"""
         free_variables: Set['LogicalVariable'] = self.all_variables.difference(self.bound_vars)
-        # NOTE DEBUG: Checking that the free variables really are the free variables
-        assert(all(isinstance(fv, FreeVariable) for fv in free_variables))
-        assert(all(not isinstance(bv, FreeVariable) for bv in self.bound_vars))
         return free_variables
 
     def get_constant_or_free_inequalities(self) -> Set['Constraint']:
@@ -571,7 +586,8 @@ class ConstrainedAtom(UnitClause):
         if unconstrained_mgu is None:
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
-        combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
+        # NOTE TODO: We are now propagating equalities in the constraint set before checking satisfiability
+        combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu).propagate_equality_constraints()
         if combined_constraint_set.is_satisfiable():
             return unconstrained_mgu
         else:
@@ -703,7 +719,6 @@ class ConstrainedAtom(UnitClause):
                             if this_domain.is_strict_subset_of(other_domain):
                                 print("DNS 5")
                                 return True
-
         else:
             return False
 
@@ -734,6 +749,19 @@ class CNF:
         self.clauses: FrozenSet['Clause'] = u_clauses_as_clauses.union(self.c_clauses)
 
         self.shattered = shattered # keep track of whether this cnf has undergone shattering
+
+    def make_variables_different(self) -> 'CNF': 
+        """Make the variable names in each clause different.
+        This is used so that rules like ISG and IPG don't find spurious unifying classes due to the same name being used
+        in two different clauses.
+        """
+        new_c_clauses: Set['Clause'] = set()
+        for i, clause in enumerate(sorted(self.c_clauses)):
+            names = ('X' + str(i), 'Y' + str(i))
+            new_clause = clause.rename_bound_variables(names)
+            new_c_clauses.add(new_clause)
+        return CNF(new_c_clauses.union(self.u_clauses), shattered=self.shattered, names=None)
+
 
     def rename_bound_variables(self, names: Tuple[str, str]=('X', 'Y')) -> 'CNF':
         """Rename all the variables in all clauses to 'names'"""

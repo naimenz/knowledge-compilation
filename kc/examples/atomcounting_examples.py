@@ -1,6 +1,6 @@
 from kc.data_structures import *
 from kc.compiler import *
-from kc.util import build_nx_graph_from_nnf
+from kc.util import build_nx_graph_from_nnf, draw_nx_graph_from_nnf
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -84,30 +84,11 @@ bigger_uclause = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople]))
 # print(*UnitPropagation.split(clause2, u1), sep='\n')
 cnf = CNF([clause1, clause2])
 # cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
-import time
-tic = time.perf_counter()
-for i in range(10):
-    compiler = Compiler()
-    nnf = compiler.compile(cnf)
-toc = time.perf_counter()
-print(f'10 comps took {toc - tic:0.4f} seconds')
 
-current_node = nnf
-graph = build_nx_graph_from_nnf(current_node)
-print(graph)
+compiler = Compiler()
+nnf = compiler.compile(cnf)
+draw_nx_graph_from_nnf(nnf)
 
-import matplotlib.pyplot as plt
-import pydot
-import networkx as nx
-from networkx.drawing.nx_pydot import graphviz_layout
-pos = graphviz_layout(graph, prog="dot")
-nx.draw(graph, pos)
-
-label_pos = {}
-y_off = 10  # offset on the y axis
-
-for k, v in pos.items():
-    label_pos[k] = (v[0], v[1]+y_off)
-node_labels = nx.get_node_attributes(graph, 'label')
-nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
-plt.show()
+smoothed_nnf = nnf.get_smoothed_node()
+# smoothed_nnf = nnf.do_smoothing(cnf)
+draw_nx_graph_from_nnf(smoothed_nnf)

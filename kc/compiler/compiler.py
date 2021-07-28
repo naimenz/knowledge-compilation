@@ -54,11 +54,16 @@ class Compiler:
 
         nnf: Optional['NNFNode'] = None
 
+        # NOTE TODO: Check if this is breaking things
+        # first we rename the variables in all the clauses to be different
+        theory = theory.make_variables_different()
+
         applicable_rule: Optional[Type['KCRule']]
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(theory)
-        print(f"DEBUG: Theory = {theory}")
-        print(f"DEBUG: Applicable rule = {applicable_rule}")
+
+        # print(f"DEBUG: Theory = {theory}")
+        # print(f"DEBUG: Applicable rule = {applicable_rule}")
 
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {theory}")

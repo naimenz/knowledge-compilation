@@ -36,11 +36,25 @@ class NNFNode(ABC):
         for a given node, based on its children's circuit atoms"""
         pass
 
+
     @abstractmethod
     def get_smoothed_node(self) -> 'NNFNode':
         """Get a smoothed version of this node. 
         This recursively gets smoothed versions of this node's children."""
         pass
+
+    def do_smoothing(self, cnf: 'CNF') -> 'NNFNode':
+        """Initiate smoothing, which recursively calls get_smoothed_node.
+        We pass in a cnf so we know which circuit atoms to aim for"""
+
+        all_possible_atoms: Set['ConstrainedAtom'] = set.union(*(set(clause.get_constrained_atoms()) for clause in cnf.clauses))
+        all_circuit_atoms = self.get_circuit_atoms()
+
+        partially_smoothed_node = self.get_smoothed_node()
+        # now add all atoms that were missed by the whole circuit
+        missed_circuit_atoms = self.A_without_B(all_possible_atoms, all_circuit_atoms)
+        smoothed_node = partially_smoothed_node.add_circuit_nodes(missed_circuit_atoms)
+        return smoothed_node
 
     def add_circuit_nodes(self, circuit_nodes: Iterable['ConstrainedAtom']) -> 'NNFNode':
         """Add ForAll and Literal nodes for each ConstrainedAtom in the circuit_nodes.
@@ -303,7 +317,9 @@ class AndNode(ExtensionalNode):
         right_circuit_atoms = self.right.get_circuit_atoms()
         all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
         # DEBUG TODO: checking that they really are independent
-        assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
+        # print(f"HERE:\n{self._make_independent(all_circuit_atoms) = }\n{                        all_circuit_atoms = }")
+        all_circuit_atoms = self._make_independent(all_circuit_atoms)
+        # assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
         print(f'DEBUG:AndNode circuit_atoms:\n{all_circuit_atoms}')
         return all_circuit_atoms
 
@@ -411,9 +427,6 @@ class ExistsNode(IntensionalNode):
         all_circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
 
         missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
-        print(f'{all_circuit_atoms = }')
-        print(f'{child_circuit_atoms = }')
-        print(f'{missed_circuit_atoms = }')
         smoothed_child = self.child.get_smoothed_node().add_circuit_nodes(missed_circuit_atoms)
 
         return ExistsNode(smoothed_child, self.bound_vars, self.cs)

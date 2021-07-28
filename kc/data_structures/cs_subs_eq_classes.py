@@ -127,6 +127,32 @@ class ConstraintSet:
     def is_non_empty(self) -> bool:
         return len(self.constraints) > 0
 
+    def propagate_equality_constraints(self: 'ConstraintSet') -> 'ConstraintSet':
+        """Propagate the equality constraints through the constraint set by building a substitution
+        from them and applying it until convergence."""
+        var_eq_classes = self.get_var_eq_classes()
+        sub = var_eq_classes.to_substitution()
+        # repeatedly apply the substitution until convergence
+        old_cs = self
+        while True:
+            new_cs = old_cs.substitute(sub)
+            if new_cs is None:
+                raise ValueError('Variable equalities were inconsistent?')
+            if new_cs != old_cs:
+                old_cs = new_cs
+            else:
+                break
+        # DEBUG TODO: This may not work
+        # now propagate equalities with constants
+        for ic in new_cs.inclusion_constraints:
+            domain = ic.domain_term
+            if isinstance(domain, SetOfConstants) and domain.size() == 1:
+                constant_sub = Substitution([(ic.logical_term, get_element_of_set(domain.constants))])
+                new_cs = new_cs.substitute(constant_sub)
+                if new_cs is None:
+                    raise ValueError('Constant equalities were inconsistent?')
+        return new_cs
+
     def substitute(self, substitution: 'Substitution') -> Optional['ConstraintSet']:
         """Create a ConstraintSet by applying a Substitution to the constraints
         NOTE: If after substituting the cs is unsatisfiable, return None

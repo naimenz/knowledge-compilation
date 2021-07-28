@@ -36,17 +36,24 @@ class IndependentSingleGroundings(KCRule):
         root_term = sorted(var for var in root_unifying_class.members if not isinstance(var, FreeVariable))[0]
         root_variable: 'LogicalVariable' = cast('LogicalVariable', root_term)  # hack for type checking
         symbol = root_variable.symbol[0]  # get just the letter, not any numbers
-        new_variable = FreeVariable(symbol)  # NOTE TODO: Using a new FreeVariable here so it can be checked later
+        new_variable = FreeVariable(symbol)  
+        # NOTE TODO: choosing smart name for the new variable
+        if new_variable in cnf.get_free_logical_variables():
+            if symbol == 'X':
+                new_variable = FreeVariable('Y')
+            elif symbol == 'Y':
+                new_variable = FreeVariable('X')
+            else:
+                raise ValueError(f"Symbol {symbol} is invalid")
         root_substitution_pairs = sorted([(root_var, new_variable) for root_var in root_unifying_class])
         substitution = Substitution(root_substitution_pairs)
-        new_cnf = cls._substitute_root_vars(cnf, new_variable, substitution)
         new_variable_cs = cls._get_new_variable_cs(cnf, root_unifying_class, substitution)
-        print("\n\nISG NEW VARIABLE: ",new_variable)
+        new_cnf = cls._substitute_root_vars(cnf, new_variable, substitution, new_variable_cs)
         return ForAllNode(compiler.compile(new_cnf), [new_variable], new_variable_cs)
 
 
     @classmethod
-    def _substitute_root_vars(cls, cnf: 'CNF', new_variable: 'LogicalVariable', sub: 'Substitution') -> 'CNF':
+    def _substitute_root_vars(cls, cnf: 'CNF', new_variable: 'LogicalVariable', sub: 'Substitution', new_variable_cs: 'ConstraintSet') -> 'CNF':
         """We can't simply use the substitute method because we
         need to remove the new variable from the bound vars after substituting it """
 
@@ -57,7 +64,9 @@ class IndependentSingleGroundings(KCRule):
             subbed_cs = clause.cs.substitute(sub)
             if subbed_cs is None:
                 raise ValueError(f"subbed_cs {subbed_cs} shouldn't be unsatisfiable")
-            new_cs: 'ConstraintSet' = subbed_cs.drop_constraints_involving_only_specific_variables([new_variable])
+            # NOTE TODO: Trying out removing the specific constraints used rather than all with the variable
+            new_cs: 'ConstraintSet' = ConstraintSet(subbed_cs.constraints - new_variable_cs.constraints)
+            # new_cs: 'ConstraintSet' = subbed_cs.drop_constraints_involving_only_specific_variables([new_variable])
             _new_bound_vars = [sub[var] for var in clause.bound_vars if sub[var] != new_variable]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
@@ -82,7 +91,11 @@ class IndependentSingleGroundings(KCRule):
         # must only be one root variable in the intersection
         root_variable = sorted(root_unifying_class.members.intersection(clause.bound_vars))[0]
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
-        logical_constraints = [lc for lc in clause.cs.logical_constraints if lc.left_term == root_variable or lc.right_term == root_variable]
+        # NOTE DEBUG TODO: Trying a small function to check whether we should include this constraint yet
+        is_valid_lc = lambda lc: (lc.left_term == root_variable and isinstance(lc.right_term, FreeVariable)) \
+                or (lc.right_term == root_variable and isinstance(lc.left_term, FreeVariable))
+        logical_constraints = [lc for lc in clause.cs.logical_constraints if is_valid_lc(lc)]
+        # logical_constraints = [lc for lc in clause.cs.logical_constraints if lc.left_term == root_variable or lc.right_term == root_variable]
         new_cs = ConstraintSet([*set_constraints, *logical_constraints]).substitute(sub)
         if new_cs is None:
             raise ValueError(f"{new_cs = } is unsatisfiable!")
