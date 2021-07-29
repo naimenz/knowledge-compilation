@@ -15,7 +15,6 @@ class DomainTerm(ABC):
     """
     An abstract base class for domain terms.
     Terms are either sets of constants or domain variables, so can never be instantiated directly.
-    TODO: Improve DomainVariable
     """
 
     @abstractmethod
@@ -126,7 +125,7 @@ class ProperDomain(DomainTerm):
     """This is supposed to be an abstract class representing domain terms
     that can be the proper domain of a logical variable rather than just some constants.
     Each bound variable should have at least one ProperDomain that it belongs to.
-    TODO: Work out if this approach makes sense"""
+    """
 
     def __init__(self, symbol: str, parent_domain: Optional['ProperDomain'], complement: 'ProperDomain'=None):
         self.symbol = symbol
@@ -202,10 +201,11 @@ class ProperDomain(DomainTerm):
     def __lt__(self, other: Any) -> bool:
         """The order is not important as long as it is consistent.
         NOTE: We need to be able to compare with other DomainTerms"""
-        if isinstance(other, SetOfConstants):
-            return self.symbol < str(sorted(other.constants))
-        elif isinstance(other, ProperDomain):
+        # TODO: change multiple inheritance of RootDomain away from SetOfConstants to avoid ordering problems
+        if isinstance(other, ProperDomain):
             return self.symbol < other.symbol
+        elif isinstance(other, SetOfConstants):
+            return self.symbol < str(sorted(other.constants))
         else:
             raise NotImplementedError(f'Cannot compare SetOfConstants and {type(other)}')
 
@@ -320,8 +320,7 @@ class DomainVariable(ProperDomain):
 
     def __eq__(self, other: Any) -> bool:
         """For now, two DomainVariables are equal when they have the same parent domain
-        and excluded constants
-        TODO: Work this out in more detail"""
+        and excluded constants"""
         if not isinstance(other, DomainVariable):
             return False
         return self.parent_domain == other.parent_domain  \
