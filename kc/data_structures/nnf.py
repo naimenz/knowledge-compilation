@@ -1,6 +1,6 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal
+from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint
 from kc.util import get_element_of_set
 
 from abc import ABC, abstractmethod
@@ -382,9 +382,12 @@ class ForAllNode(IntensionalNode):
         """For ForAll nodes, we just get the circuit atoms of the child and add on the constraint set and
         bound variables of this node"""
         child_circuit_atoms = self.child.get_circuit_atoms()
+        # DEBUG TODO: This is a dirty hack where we replace '<' constraints with '!=' constraints because this should give us the same missing circuit atoms,
+        # and the code is not set up to handle '<' constraints
+        fixed_cs = ConstraintSet([c if not isinstance(c, LessThanConstraint) else InequalityConstraint(c.left_term, c.right_term) for c in self.cs.constraints])
         # due to how ISG/IPG build ForAllNodes, we have to replace the FreeVariables with LogicalVariables
         non_free_bound_vars = set(LogicalVariable(v.symbol) for v in self.bound_vars)
-        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(non_free_bound_vars), c.cs.join(self.cs)).replace_free_variables() for c in child_circuit_atoms)
+        circuit_atoms: Set['ConstrainedAtom'] = set(ConstrainedAtom(c.literals, c.bound_vars.union(non_free_bound_vars), c.cs.join(fixed_cs)).replace_free_variables() for c in child_circuit_atoms)
         # DEBUG TODO: checking that they really are independent
         assert(self._make_independent(circuit_atoms) == circuit_atoms)
         # print(f'DEBUG:ForAllNode circuit_atoms:\n{circuit_atoms}')
