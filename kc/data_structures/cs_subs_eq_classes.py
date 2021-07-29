@@ -653,7 +653,8 @@ class EqualityConstraint(LogicalConstraint):
     """
 
     def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
-        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
+        # DEBUG TODO: Testing out sorting the terms when assigning them
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))
 
     @property
     def left_term(self) -> 'LogicalVariable':
@@ -744,7 +745,8 @@ class InequalityConstraint(LogicalConstraint):
     """
 
     def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
-        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = (left_term, right_term)
+        # DEBUG TODO: Testing out sorting the terms when assigning them
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))
 
     @property
     def left_term(self) -> 'LogicalVariable':
@@ -1235,7 +1237,7 @@ class EquivalenceClass:
         overlapping: Set['TEC']
         disjoint: Set['TEC']
         overlapping, disjoint = set(), set()
-        for eq_class in other_eq_classes:
+        for eq_class in sorted(other_eq_classes):
             if eq_class.overlaps(self):
                 overlapping.add(eq_class)
             else:

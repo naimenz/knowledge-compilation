@@ -43,8 +43,21 @@ D = DomainVariable('D', People)
 # print(D.complement)
 XinD = InclusionConstraint(X, D)
 XinDcomp = InclusionConstraint(X, D.complement)
+YinD = InclusionConstraint(Y, D)
+YinDcomp = InclusionConstraint(Y, D.complement)
 X1inD = InclusionConstraint(X1, D)
 X1inDcomp = InclusionConstraint(X1, D.complement)
+
+XeqY = EqualityConstraint(X, Y)
+
+# c_atom1 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinD, YinDcomp, ~XeqY]))
+# c_atom2 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinDcomp, YinPeople, ~XeqY]))
+# c_atom1 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinPeople, YinD, ~XeqY]))
+# c_atom2 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinD, YinPeople, ~XeqY]))
+# c_atom1 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinPeople, YinD, ~XeqY]))
+# c_atom2 = ConstrainedAtom([friendsXY], [X, Y], ConstraintSet([XinD, YinD, ~XeqY]))
+
+
 
 cs1 = ConstraintSet([XinPeople, YinPeople])
 # cs1 = ConstraintSet([XinPeople, YinPeople, Xeqalice])
@@ -82,13 +95,14 @@ bigger_uclause = ConstrainedAtom([funX], [X], ConstraintSet([XinPeople]))
 #     print(f"================= {ca} =============")
 #     print(ca.needs_splitting(u1))
 # print(*UnitPropagation.split(clause2, u1), sep='\n')
+
 cnf = CNF([clause1, clause2])
 # cnf.shattered = True  # hack so I can test AC directly like in the PhD, when really should shatter first
 
 compiler = Compiler()
 nnf = compiler.compile(cnf)
-draw_nx_graph_from_nnf(nnf)
+# draw_nx_graph_from_nnf(nnf)
 
-smoothed_nnf = nnf.get_smoothed_node()
-# smoothed_nnf = nnf.do_smoothing(cnf)
+# smoothed_nnf = nnf.get_smoothed_node()
+smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)
