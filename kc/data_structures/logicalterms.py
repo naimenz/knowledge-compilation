@@ -95,5 +95,3 @@ class FreeVariable(LogicalVariable):
         """Hashing FreeVariables so I can use them as dict keys and in sets."""
         return hash(("FreeVariable", self.symbol))
 
-    def __str__(self) -> str:
-        return super().__str__() + '_f'
