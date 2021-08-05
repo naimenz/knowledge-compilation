@@ -20,23 +20,24 @@ def nnf_to_wfomi_string(root: 'NNFNode') -> str:
     nodes_string = ""
     edges_string = ""
     # doing a depth-first search to produce the node and edge strings
-    root_index = 0
+    global_index = 0  # keep track of which indices have already been used
     # get rid of things WFOMI can't handle
     root = prepare_nnf_for_wfomi(root)
     draw_nx_graph_from_nnf(root)
-    unvisited_queue = deque([(root, root_index)])
+    unvisited_queue = deque([(root, global_index)])
+    global_index += 1
     while len(unvisited_queue) > 0:
         current_node, parent_index = unvisited_queue.pop()
         current_node_string = current_node.get_node_string()
         nodes_string += f"n{parent_index} {current_node_string}\n"
 
-        child_index = parent_index
         for child in current_node.children:
-            child_index += 1
+            child_index = global_index
             # add an edge string for this connection
             edge_string = f"n{parent_index} -> n{child_index};\n"
             edges_string += edge_string
             unvisited_queue.append((child, child_index))
+            global_index += 1
 
     string = nodes_string + edges_string
     return string

@@ -26,7 +26,7 @@ friendsXX1 = Literal(Atom(friends, [X, X1]))
 smokesX = Literal(Atom(smokes, [X]))
 smokesX1 = Literal(Atom(smokes, [X1]))
 
-People = RootDomain([alice, bob, charlie], 'People')
+People = RootDomain([alice, bob, charlie], 'person')
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
