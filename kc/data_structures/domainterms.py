@@ -294,8 +294,9 @@ class DomainVariable(ProperDomain):
         if complement is not None:
             self.complement = complement
         else:
+            # TODO: trying out different naming scheme to match WFOMI
+            complement_symbol = self.parent_domain.symbol + '-bot'
             # note that we swap included and excluded constants
-            complement_symbol = self.parent_domain.symbol + '\\' + self.symbol
             self.complement = DomainVariable(complement_symbol, self.parent_domain, excluded_constants, included_constants, self)
 
 

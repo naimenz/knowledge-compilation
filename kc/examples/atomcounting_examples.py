@@ -1,6 +1,7 @@
 from kc.data_structures import *
 from kc.compiler import *
 from kc.util import build_nx_graph_from_nnf, draw_nx_graph_from_nnf
+from kc.parsing import write_nnf_to_txt
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -106,3 +107,5 @@ nnf = compiler.compile(cnf)
 # smoothed_nnf = nnf.get_smoothed_node()
 smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)
+
+write_nnf_to_txt(smoothed_nnf, 'TEST')

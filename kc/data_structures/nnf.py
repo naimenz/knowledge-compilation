@@ -31,6 +31,12 @@ class NNFNode(ABC):
         return attributes
 
     @abstractmethod
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        pass
+
+
+    @abstractmethod
     def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
         """Get the circuit atoms (as defined in my version of smoothing -- similar to atom_c in the PhD)
         for a given node, based on its children's circuit atoms"""
@@ -243,6 +249,10 @@ class TrueNode(NNFNode):
         attributes['label'] = 'T'
         return attributes
 
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        raise NotImplementedError('WFOMI solver has no TrueNode')
+
 class FalseNode(NNFNode):
     """A class to represent False in the circuit. Needs no data"""
     def __init__(self) -> None:
@@ -263,6 +273,10 @@ class FalseNode(NNFNode):
         attributes['type'] = 'FalseNode'
         attributes['label'] = 'F'
         return attributes
+
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        raise NotImplementedError('WFOMI solver has no FalseNode')
 
 class LiteralNode(NNFNode):
     """A class to represent a single literal in the circuit. 
@@ -291,6 +305,16 @@ class LiteralNode(NNFNode):
         attributes['label'] = str(self.literal)
         return attributes
 
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        atom_string = str(self.literal.atom)
+        # instead of ¬, WFOMI uses neg
+        if self.literal.polarity == True:
+            string = atom_string
+        else:
+            string = 'neg ' + atom_string
+        return string
+
 
 class ExtensionalNode(NNFNode):
     """Abstract subclass for AND and OR nodes
@@ -306,6 +330,7 @@ class IntensionalNode(NNFNode):
     """Abstract subclass for FORALL and EXISTS nodes
     In this implementation, Intensional nodes always have exactly one child,
     and (possibly empty) bound variables and constraint sets"""
+    child: 'NNFNode'
 
 class AndNode(ExtensionalNode):
     """A node representing an extensional AND operation."""
@@ -334,6 +359,11 @@ class AndNode(ExtensionalNode):
         and_string = '\u2227'
         attributes['label'] = and_string
         return attributes
+
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        string = 'and'  # all the hard work is done by the edges
+        return string
 
 class OrNode(ExtensionalNode):
     """A node representing an extensional OR operation."""
@@ -369,6 +399,10 @@ class OrNode(ExtensionalNode):
         attributes['label'] = or_string
         return attributes
 
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        string = 'or'  # all the hard work is done by the edges
+        return string
 
 class ForAllNode(IntensionalNode):
     """A node representing an intensional FORALL operation."""
@@ -394,7 +428,7 @@ class ForAllNode(IntensionalNode):
         return circuit_atoms
 
     def get_smoothed_node(self) -> 'ForAllNode':
-        """Smoothing AndNodes just makes a new AndNode with smoothed children"""
+        """Smoothing ForAllNodes just makes a new ForAllNode with smoothed child"""
         return ForAllNode(self.child.get_smoothed_node(), self.bound_vars, self.cs)
 
     def node_info(self) -> Dict[str, str]:
@@ -405,6 +439,18 @@ class ForAllNode(IntensionalNode):
         var_string = '{' + ', '.join(str(var) for var in self.bound_vars) + '}'
         attributes['label'] = f'{for_all_string}{var_string}, {self.cs}'
         return attributes
+
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        # TODO: Split double quantifiers into two for WFOMI
+        if len(self.bound_vars) > 1:
+            raise ValueError("WFOMI can't handle quantifying over two variables")
+        else:
+            bound_var = get_element_of_set(self.bound_vars)
+            domain = self.cs.get_domain_for_variable(bound_var)
+
+            string = f"A{{{bound_var}}}{{{domain}}}"
+            return string
 
 class ExistsNode(IntensionalNode):
     """A node representing an intensional EXISTS operation."""
@@ -462,6 +508,14 @@ class ExistsNode(IntensionalNode):
         attributes['label'] = f'{exists_string}{var_string}, {self.cs}'
         return attributes
 
+    def get_node_string(self) -> str:
+        """Get the string that will be used to pass to the WFOMI computation"""
+        # exists only ever have one bound var
+        bound_var = get_element_of_set(self.bound_vars)
+        parent_domain = get_element_of_set(self.cs.subset_constraints).right_term  # There should be only one here too
+
+        string = f"E{{{bound_var}}}{{{parent_domain}}}"
+        return string
 
 class EmptyNode(NNFNode):
     """A node representing nothing. Realistically these shouldn't be 
