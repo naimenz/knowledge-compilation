@@ -654,7 +654,7 @@ class EqualityConstraint(LogicalConstraint):
 
     def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
         # DEBUG TODO: Testing out sorting the terms when assigning them
-        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))  # type: ignore
 
     @property
     def left_term(self) -> 'LogicalVariable':
@@ -746,7 +746,7 @@ class InequalityConstraint(LogicalConstraint):
 
     def __init__(self, left_term: 'LogicalVariable', right_term: 'LogicalVariable') -> None:
         # DEBUG TODO: Testing out sorting the terms when assigning them
-        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))
+        self.terms: Tuple['LogicalVariable', 'LogicalVariable'] = tuple(sorted((left_term, right_term)))  # type: ignore
 
     @property
     def left_term(self) -> 'LogicalVariable':
@@ -999,8 +999,6 @@ class NotInclusionConstraint(SetConstraint):
     """
 
     def __init__(self, logical_term: 'LogicalVariable', domain_term: 'DomainTerm') -> None:
-        """NOTE: For now, this only works with 'SetOfConstants' rather than general 'DomainTerm'
-        for the domain term"""
         self.terms: Tuple['LogicalVariable', 'DomainTerm'] = (logical_term, domain_term)
 
     @property

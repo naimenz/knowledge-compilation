@@ -1,2 +1,2 @@
 from kc.parsing.auxiliary_predicates import make_auxiliary_predicate_for_clause, make_auxiliary_predicates_for_clauses
-from kc.parsing.to_wfomi_input import write_nnf_to_txt
+from kc.parsing.to_wfomi_input import write_nnf_to_txt, prepare_nnf_for_wfomi

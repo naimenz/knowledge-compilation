@@ -1,6 +1,6 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint
+from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint, SetOfConstants
 from kc.util import get_element_of_set
 
 from abc import ABC, abstractmethod
@@ -448,8 +448,21 @@ class ForAllNode(IntensionalNode):
         else:
             bound_var = get_element_of_set(self.bound_vars)
             domain = self.cs.get_domain_for_variable(bound_var)
-
-            string = f"A{{{bound_var}}}{{{domain}}}"
+            # we need to include things that the variable is not equal to in the domain
+            not_equal_term_strings = []
+            for nc in self.cs.notinclusion_constraints:
+                if nc.logical_term == bound_var and isinstance(nc.domain_term, SetOfConstants):
+                    not_equal_term_strings.append(str(get_element_of_set(nc.domain_term.constants)))
+            for ic in self.cs.inequality_constraints:
+                if ic.left_term == bound_var:
+                    not_equal_term_strings.append(str(ic.right_term))
+                elif ic.right_term == bound_var:
+                    not_equal_term_strings.append(str(ic.left_term))
+            # we only need the slash and so on if there are any excluded terms
+            if len(not_equal_term_strings) > 0:
+                string = f"A{{{bound_var}}}{{{domain}/" + ",".join(not_equal_term_strings) + "}"
+            else:
+                string = f"A{{{bound_var}}}{{{domain}}}"
             return string
 
 class ExistsNode(IntensionalNode):

@@ -23,7 +23,6 @@ def nnf_to_wfomi_string(root: 'NNFNode') -> str:
     global_index = 0  # keep track of which indices have already been used
     # get rid of things WFOMI can't handle
     root = prepare_nnf_for_wfomi(root)
-    draw_nx_graph_from_nnf(root)
     unvisited_queue = deque([(root, global_index)])
     global_index += 1
     while len(unvisited_queue) > 0:
@@ -119,8 +118,8 @@ def replace_double_for_all(for_all_node: 'ForAllNode') -> Tuple[Optional['ForAll
     """Replace IN PLACE a for-all node over two variables with two for-all nodes
     If we have replaced the root, return that (or None). Additioally, return the new current node to search from"""
     bound_var, second_bound_var = sorted(for_all_node.bound_vars)
-    constraints = ConstraintSet([c for c in for_all_node.cs.inclusion_constraints if c.logical_term == bound_var])
-    second_constraints = ConstraintSet([c for c in for_all_node.cs.constraints if not (isinstance(c, InclusionConstraint) and c.logical_term == bound_var)])
+    constraints = ConstraintSet([c for c in for_all_node.cs.set_constraints if c.logical_term == bound_var])
+    second_constraints = ConstraintSet([c for c in for_all_node.cs.constraints if not (isinstance(c, SetConstraint) and c.logical_term == bound_var)])
     # build in reverse order so we can have the right children
     second_for_all = ForAllNode(for_all_node.child, [second_bound_var], second_constraints)
     for_all_node.child.parents = [second_for_all]
@@ -134,19 +133,15 @@ def replace_double_for_all(for_all_node: 'ForAllNode') -> Tuple[Optional['ForAll
         return new_for_all, second_for_all
     else:
         parent = for_all_node.parents[0]
-        print(f"before, {parent.children = }")
         if isinstance(parent, IntensionalNode):
             parent.child, parent.children = new_for_all, (new_for_all,)
         elif isinstance(parent, ExtensionalNode):
             if parent.left == for_all_node:
-                print("left")
                 parent.left = new_for_all
                 parent.children = (parent.left, parent.right)
             if parent.right == for_all_node:
-                print("right")
                 parent.right = new_for_all
                 parent.children = (parent.left, parent.right)
-        print(f" after, {parent.children = }")
     return None, second_for_all
 
 def write_string_to_txt(string: str, file_name: str) -> None:

@@ -1,0 +1,203 @@
+n0 and
+n2 and
+n4 and
+n6 and
+n8 and
+n10 and
+n12 and
+n14 smokes(guy)
+n13 and
+n16 and
+n18 A{X}{person/guy}
+n19 f_1(X, guy)
+n17 f_1(guy, guy)
+n15 E{person-top}{person}
+n20 and
+n22 and
+n24 and
+n26 and
+n28 and
+n30 A{X}{person-bot/guy}
+n31 neg smokes(X)
+n29 and
+n33 A{X}{person-bot/guy}
+n34 A{Y}{person/guy,X}
+n35 f_1(X, Y)
+n32 and
+n37 A{X}{person-bot/guy}
+n38 f_1(X, X)
+n36 and
+n40 A{X}{person-top/guy}
+n41 smokes(X)
+n39 and
+n43 A{X}{person-top/guy}
+n44 f_1(X, X)
+n42 and
+n46 A{X}{person-top/guy}
+n47 A{Y}{person-top/guy,X}
+n48 f_1(X, Y)
+n45 and
+n50 A{X}{person-top/guy}
+n51 f_1(guy, X)
+n49 and
+n53 A{X}{person-bot/guy}
+n54 or
+n56 and
+n58 neg f_1(guy, X)
+n57 friends(guy, X)
+n55 and
+n60 f_1(guy, X)
+n59 neg friends(guy, X)
+n52 A{X}{person-bot/guy}
+n61 A{Y}{person-top/guy,X}
+n62 or
+n64 and
+n66 neg f_1(Y, X)
+n65 friends(Y, X)
+n63 and
+n68 f_1(Y, X)
+n67 neg friends(Y, X)
+n27 A{X}{person/guy}
+n69 A{Y}{person-bot/guy,X}
+n70 or
+n72 neg f_1(X, Y)
+n71 f_1(X, Y)
+n25 A{X}{person/guy}
+n73 A{Y}{person-bot/guy,X}
+n74 or
+n76 neg friends(Y, X)
+n75 friends(Y, X)
+n23 A{X}{person-top/guy}
+n77 A{Y}{person-top/guy,X}
+n78 or
+n80 neg friends(Y, X)
+n79 friends(Y, X)
+n21 A{X}{person-top/guy}
+n81 or
+n83 neg friends(guy, X)
+n82 friends(guy, X)
+n11 A{X}{person/guy}
+n84 A{Y}{person}
+n85 or
+n87 neg f_1(X, Y)
+n86 f_1(X, Y)
+n9 A{Y}{person/guy}
+n88 or
+n90 neg f_1(guy, Y)
+n89 f_1(guy, Y)
+n7 or
+n92 neg f_1(guy, guy)
+n91 f_1(guy, guy)
+n5 A{X}{person/guy}
+n93 A{Y}{person/X}
+n94 or
+n96 neg friends(X, Y)
+n95 friends(X, Y)
+n3 A{Y}{person/guy}
+n97 or
+n99 neg friends(Y, Y)
+n98 friends(Y, Y)
+n1 or
+n101 neg friends(guy, guy)
+n100 friends(guy, guy)
+n0 -> n1;
+n0 -> n2;
+n2 -> n3;
+n2 -> n4;
+n4 -> n5;
+n4 -> n6;
+n6 -> n7;
+n6 -> n8;
+n8 -> n9;
+n8 -> n10;
+n10 -> n11;
+n10 -> n12;
+n12 -> n13;
+n12 -> n14;
+n13 -> n15;
+n13 -> n16;
+n16 -> n17;
+n16 -> n18;
+n18 -> n19;
+n15 -> n20;
+n20 -> n21;
+n20 -> n22;
+n22 -> n23;
+n22 -> n24;
+n24 -> n25;
+n24 -> n26;
+n26 -> n27;
+n26 -> n28;
+n28 -> n29;
+n28 -> n30;
+n30 -> n31;
+n29 -> n32;
+n29 -> n33;
+n33 -> n34;
+n34 -> n35;
+n32 -> n36;
+n32 -> n37;
+n37 -> n38;
+n36 -> n39;
+n36 -> n40;
+n40 -> n41;
+n39 -> n42;
+n39 -> n43;
+n43 -> n44;
+n42 -> n45;
+n42 -> n46;
+n46 -> n47;
+n47 -> n48;
+n45 -> n49;
+n45 -> n50;
+n50 -> n51;
+n49 -> n52;
+n49 -> n53;
+n53 -> n54;
+n54 -> n55;
+n54 -> n56;
+n56 -> n57;
+n56 -> n58;
+n55 -> n59;
+n55 -> n60;
+n52 -> n61;
+n61 -> n62;
+n62 -> n63;
+n62 -> n64;
+n64 -> n65;
+n64 -> n66;
+n63 -> n67;
+n63 -> n68;
+n27 -> n69;
+n69 -> n70;
+n70 -> n71;
+n70 -> n72;
+n25 -> n73;
+n73 -> n74;
+n74 -> n75;
+n74 -> n76;
+n23 -> n77;
+n77 -> n78;
+n78 -> n79;
+n78 -> n80;
+n21 -> n81;
+n81 -> n82;
+n81 -> n83;
+n11 -> n84;
+n84 -> n85;
+n85 -> n86;
+n85 -> n87;
+n9 -> n88;
+n88 -> n89;
+n88 -> n90;
+n7 -> n91;
+n7 -> n92;
+n5 -> n93;
+n93 -> n94;
+n94 -> n95;
+n94 -> n96;
+n3 -> n97;
+n97 -> n98;
+n97 -> n99;
+n1 -> n100;
+n1 -> n101;

@@ -17,7 +17,10 @@ def powerset(iterable: Iterable[T]) -> Iterable[Tuple[T, ...]]:
 def get_element_of_set(s: Iterable[T]) -> T:
         """Simple function to get a (random) element of a set without mutating it.
         Useful for getting the only element of a 1-element set."""
-        return next(iter(s))
+        try:
+            return next(iter(s))
+        except StopIteration:
+            raise ValueError(f"Tried to iterate {s}")
 
 
 def partition_set(s: Set[T]) -> Generator[Set[FrozenSet[T]], None, None]:

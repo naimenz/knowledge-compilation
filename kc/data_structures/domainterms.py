@@ -220,6 +220,7 @@ class EmptyDomain(ProperDomain):
     def difference(self, other):
         raise NotImplementedError('EmptyDomain has no difference')
 
+    @property
     def possible_constants(self) -> FrozenSet['Constant']:
         return frozenset()
 
