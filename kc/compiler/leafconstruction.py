@@ -28,7 +28,8 @@ class LeafConstruction(KCRule):
             elif clause.is_tautology():
                 return True, "Tautology"
 
-            if isinstance(clause, UnconstrainedClause):
+            if isinstance(clause, UnconstrainedClause) or \
+            (isinstance(clause, ConstrainedClause) and len(clause.bound_vars) == len(clause.cs.constraints) == 0):
                 if len(clause.literals) == 1:
                     return True, "Literal"
         return False, None
@@ -41,8 +42,8 @@ class LeafConstruction(KCRule):
         elif node_type == "Contradiction":
             return FalseNode()
         elif node_type == "Literal":
-            # must be a single unconstrained clause with one literal
-            return LiteralNode(get_element_of_set(get_element_of_set(cnf.u_clauses).literals))
+            # must be a single clause with one literal
+            return LiteralNode(get_element_of_set(get_element_of_set(cnf.clauses).literals))
         else:
             raise ValueError(f"node_type should be one of 'Tautology', 'Contradiction' or 'Literal, not {node_type}")
         
