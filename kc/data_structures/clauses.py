@@ -586,10 +586,12 @@ class ConstrainedAtom(UnitClause):
         if unconstrained_mgu is None:
             return None
         cs_mgu = unconstrained_mgu.to_constraint_set()
-        # NOTE TODO: We are now propagating equalities in the constraint set before checking satisfiability
-        combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu).propagate_equality_constraints()
+        combined_constraint_set = self.cs.join(other_c_atom.cs).join(cs_mgu)
+        # TODO: We are now checking satisfiability before AND after propagating equalities
         if combined_constraint_set.is_satisfiable():
-            return unconstrained_mgu
+            propagated_constraint_set = combined_constraint_set.propagate_equality_constraints()
+            if propagated_constraint_set.is_satisfiable():
+                return unconstrained_mgu
         else:
             return None
 
