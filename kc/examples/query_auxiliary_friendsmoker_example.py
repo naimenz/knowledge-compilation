@@ -8,10 +8,10 @@ from kc.parsing import write_nnf_to_txt
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
 
-alice = Constant('alice')
-bob = Constant('bob')
-charlie = Constant('charlie')
-guy = Constant('guy')
+alice = Constant('Alice')
+bob = Constant('Bob')
+charlie = Constant('Charlie')
+guy = Constant('wFsdfjskjfkJ')
 
 friends = Predicate('friends', 2)
 smokes = Predicate('smokes', 1)
@@ -46,4 +46,4 @@ draw_nx_graph_from_nnf(nnf)
 smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)
 
-write_nnf_to_txt(smoothed_nnf, 'auxiliary_query')
+# write_nnf_to_txt(smoothed_nnf, 'auxiliary_query')

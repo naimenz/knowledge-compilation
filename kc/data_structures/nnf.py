@@ -442,9 +442,11 @@ class ForAllNode(IntensionalNode):
 
     def get_node_string(self) -> str:
         """Get the string that will be used to pass to the WFOMI computation"""
-        # TODO: Split double quantifiers into two for WFOMI
+        # TODO sort out what to do about vacuousconj
+        if len(self.bound_vars) == 0 :
+            raise NotImplementedError("WFOMI can't handle quantifying over 0 variables (from VacuousConjunction)")
         if len(self.bound_vars) > 1:
-            raise ValueError("WFOMI can't handle quantifying over two variables")
+            raise NotImplementedError("WFOMI can't handle quantifying over two variables")
         else:
             bound_var = get_element_of_set(self.bound_vars)
             domain = self.cs.get_domain_for_variable(bound_var)

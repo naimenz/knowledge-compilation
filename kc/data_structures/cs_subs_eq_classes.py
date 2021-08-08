@@ -85,25 +85,25 @@ class ConstraintSet:
             if isinstance(lt, FreeVariable) and isinstance(rt, FreeVariable):
                 left_domain = cast(ProperDomain, lt.domain)  # hack for type checking
                 right_domain = cast(ProperDomain, rt.domain)  # hack for type checking
-                print(f"Both free, {lt = }, {rt = }")
-                print(f'{left_domain = }, {right_domain = }')
-                print(f'{left_domain.intersect_with(right_domain) = }')
+                # print(f"Both free, {lt = }, {rt = }")
+                # print(f'{left_domain = }, {right_domain = }')
+                # print(f'{left_domain.intersect_with(right_domain) = }')
                 if left_domain.intersect_with(right_domain) == EmptyDomain():
                     redundant_inequality_constraints.add(ic)
 
             elif isinstance(lt, LogicalVariable) and isinstance(rt, FreeVariable):
                 domain = cast(ProperDomain, rt.domain)  # hack for type checking
-                print(f"Right free {lt = }, {rt = }")
-                print(f'{domain = }, {self.get_domain_for_variable(lt) = }')
-                print(f'{self.get_domain_for_variable(lt).intersect_with(domain) = }')
+                # print(f"Right free {lt = }, {rt = }")
+                # print(f'{domain = }, {self.get_domain_for_variable(lt) = }')
+                # print(f'{self.get_domain_for_variable(lt).intersect_with(domain) = }')
                 if self.get_domain_for_variable(lt).intersect_with(domain) == EmptyDomain():
                     redundant_inequality_constraints.add(ic)
 
             elif isinstance(rt, LogicalVariable) and isinstance(lt, FreeVariable):
                 domain = cast(ProperDomain, lt.domain)  # hack for type checking
-                print(f"Left free {lt = }, {rt = }")
-                print(f'{domain = }, {self.get_domain_for_variable(rt) = }')
-                print(f'{self.get_domain_for_variable(rt).intersect_with(domain) = }')
+                # print(f"Left free {lt = }, {rt = }")
+                # print(f'{domain = }, {self.get_domain_for_variable(rt) = }')
+                # print(f'{self.get_domain_for_variable(rt).intersect_with(domain) = }')
                 if self.get_domain_for_variable(rt).intersect_with(domain) == EmptyDomain():
                     redundant_inequality_constraints.add(ic)
         return redundant_inequality_constraints

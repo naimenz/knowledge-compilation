@@ -4,51 +4,51 @@ n4 and
 n6 and
 n8 and
 n10 and
-n12 smokes(guy)
+n12 smokes(dfsdfjskjfkj)
 n11 and
 n14 and
-n16 A{X}{person/guy}
-n17 f_1(X, guy)
-n15 f_1(guy, guy)
+n16 A{X}{person/dfsdfjskjfkj}
+n17 f_1(X, dfsdfjskjfkj)
+n15 f_1(dfsdfjskjfkj, dfsdfjskjfkj)
 n13 E{person-top}{person}
 n18 and
 n20 and
 n22 and
 n24 and
 n26 and
-n28 A{X}{person-bot/guy}
+n28 A{X}{person-bot/dfsdfjskjfkj}
 n29 neg smokes(X)
 n27 and
-n31 A{X}{person-bot/guy}
-n32 A{Y}{person/guy,X}
+n31 A{X}{person-bot/dfsdfjskjfkj}
+n32 A{Y}{person/dfsdfjskjfkj,X}
 n33 f_1(X, Y)
 n30 and
-n35 A{X}{person-bot/guy}
+n35 A{X}{person-bot/dfsdfjskjfkj}
 n36 f_1(X, X)
 n34 and
-n38 A{X}{person-top/guy}
+n38 A{X}{person-top/dfsdfjskjfkj}
 n39 smokes(X)
 n37 and
-n41 A{X}{person-top/guy}
+n41 A{X}{person-top/dfsdfjskjfkj}
 n42 f_1(X, X)
 n40 and
-n44 A{X}{person-top/guy}
-n45 A{Y}{person-top/guy,X}
+n44 A{X}{person-top/dfsdfjskjfkj}
+n45 A{Y}{person-top/dfsdfjskjfkj,X}
 n46 f_1(X, Y)
 n43 and
-n48 A{X}{person-top/guy}
-n49 f_1(guy, X)
+n48 A{X}{person-top/dfsdfjskjfkj}
+n49 f_1(dfsdfjskjfkj, X)
 n47 and
-n51 A{X}{person-bot/guy}
+n51 A{X}{person-bot/dfsdfjskjfkj}
 n52 or
 n54 and
-n56 neg f_1(guy, X)
-n55 friends(guy, X)
+n56 neg f_1(dfsdfjskjfkj, X)
+n55 friends(dfsdfjskjfkj, X)
 n53 and
-n58 f_1(guy, X)
-n57 neg friends(guy, X)
-n50 A{X}{person-bot/guy}
-n59 A{Y}{person-top/guy}
+n58 f_1(dfsdfjskjfkj, X)
+n57 neg friends(dfsdfjskjfkj, X)
+n50 A{X}{person-bot/dfsdfjskjfkj}
+n59 A{Y}{person-top/dfsdfjskjfkj}
 n60 or
 n62 and
 n64 neg f_1(Y, X)
@@ -56,45 +56,45 @@ n63 friends(Y, X)
 n61 and
 n66 f_1(Y, X)
 n65 neg friends(Y, X)
-n25 A{X}{person/guy}
-n67 A{Y}{person-bot/guy,X}
+n25 A{X}{person/dfsdfjskjfkj}
+n67 A{Y}{person-bot/dfsdfjskjfkj,X}
 n68 or
 n70 neg f_1(X, Y)
 n69 f_1(X, Y)
-n23 A{X}{person/guy}
-n71 A{Y}{person-bot/guy}
+n23 A{X}{person/dfsdfjskjfkj}
+n71 A{Y}{person-bot/dfsdfjskjfkj}
 n72 or
 n74 neg friends(Y, X)
 n73 friends(Y, X)
-n21 A{X}{person-top/guy}
-n75 A{Y}{person-top/guy}
+n21 A{X}{person-top/dfsdfjskjfkj}
+n75 A{Y}{person-top/dfsdfjskjfkj}
 n76 or
 n78 neg friends(Y, X)
 n77 friends(Y, X)
-n19 A{X}{person-top/guy}
+n19 A{X}{person-top/dfsdfjskjfkj}
 n79 or
-n81 neg friends(guy, X)
-n80 friends(guy, X)
-n9 A{X}{person/guy}
+n81 neg friends(dfsdfjskjfkj, X)
+n80 friends(dfsdfjskjfkj, X)
+n9 A{X}{person/dfsdfjskjfkj}
 n82 A{Y}{person}
 n83 or
 n85 neg f_1(X, Y)
 n84 f_1(X, Y)
-n7 A{Y}{person/guy}
+n7 A{Y}{person/dfsdfjskjfkj}
 n86 or
-n88 neg f_1(guy, Y)
-n87 f_1(guy, Y)
+n88 neg f_1(dfsdfjskjfkj, Y)
+n87 f_1(dfsdfjskjfkj, Y)
 n5 or
-n90 neg f_1(guy, guy)
-n89 f_1(guy, guy)
-n3 A{X}{person/guy}
+n90 neg f_1(dfsdfjskjfkj, dfsdfjskjfkj)
+n89 f_1(dfsdfjskjfkj, dfsdfjskjfkj)
+n3 A{X}{person/dfsdfjskjfkj}
 n91 A{Y}{person}
 n92 or
 n94 neg friends(X, Y)
 n93 friends(X, Y)
 n1 or
-n96 neg friends(guy, guy)
-n95 friends(guy, guy)
+n96 neg friends(dfsdfjskjfkj, dfsdfjskjfkj)
+n95 friends(dfsdfjskjfkj, dfsdfjskjfkj)
 n0 -> n1;
 n0 -> n2;
 n2 -> n3;
