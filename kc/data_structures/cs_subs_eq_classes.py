@@ -5,7 +5,7 @@ NOTE: at the moment only the types of constraints used in Chapter 4 of the PhD
 are considered.
 """
 
-from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain, EmptyDomain
+from kc.data_structures import LogicalVariable, SetOfConstants, Constant, DomainTerm, DomainVariable, ProperDomain, EmptyDomain, FreeVariable
 from kc.util import powerset, get_element_of_set
 
 from abc import ABC, abstractmethod
@@ -46,14 +46,16 @@ class ConstraintSet:
                 subset_constraints.add(constraint)
 
         redundant_inclusion_constraints = self._get_redundant_inclusion_constraints(inclusion_constraints)
-
-        self._inequality_constraints = frozenset(inequality_constraints)
-        self._equality_constraints = frozenset(equality_constraints)
         self._inclusion_constraints = frozenset(inclusion_constraints) - redundant_inclusion_constraints
         self._notinclusion_constraints = frozenset(notinclusion_constraints)
+
+        redundant_inequality_constraints = self._get_redundant_inequality_constraints(inequality_constraints)
+        self._inequality_constraints = frozenset(inequality_constraints) - redundant_inequality_constraints
+        self._equality_constraints = frozenset(equality_constraints)
+
         self._subset_constraints = frozenset(subset_constraints)
 
-        self._constraints = frozenset(constraints) - redundant_inclusion_constraints
+        self._constraints = (frozenset(constraints) - redundant_inclusion_constraints) - redundant_inequality_constraints
     
     def _get_redundant_inclusion_constraints(self,
                                              inclusion_constraints: Set['InclusionConstraint']
@@ -71,6 +73,40 @@ class ConstraintSet:
                         redundant_inclusion_constraints.add(ic)
                         break
         return redundant_inclusion_constraints
+
+    def _get_redundant_inequality_constraints(self,
+                                             inequality_constraints: Set['InequalityConstraint']
+                                             ) -> Set['InequalityConstraint']:
+        """Get the inequality constraints that are already implied by the domains"""
+        redundant_inequality_constraints = set()
+        # DEBUG: Does it make a difference?
+        for ic in inequality_constraints:
+            lt, rt = ic.left_term, ic.right_term 
+            if isinstance(lt, FreeVariable) and isinstance(rt, FreeVariable):
+                left_domain = cast(ProperDomain, lt.domain)  # hack for type checking
+                right_domain = cast(ProperDomain, rt.domain)  # hack for type checking
+                print(f"Both free, {lt = }, {rt = }")
+                print(f'{left_domain = }, {right_domain = }')
+                print(f'{left_domain.intersect_with(right_domain) = }')
+                if left_domain.intersect_with(right_domain) == EmptyDomain():
+                    redundant_inequality_constraints.add(ic)
+
+            elif isinstance(lt, LogicalVariable) and isinstance(rt, FreeVariable):
+                domain = cast(ProperDomain, rt.domain)  # hack for type checking
+                print(f"Right free {lt = }, {rt = }")
+                print(f'{domain = }, {self.get_domain_for_variable(lt) = }')
+                print(f'{self.get_domain_for_variable(lt).intersect_with(domain) = }')
+                if self.get_domain_for_variable(lt).intersect_with(domain) == EmptyDomain():
+                    redundant_inequality_constraints.add(ic)
+
+            elif isinstance(rt, LogicalVariable) and isinstance(lt, FreeVariable):
+                domain = cast(ProperDomain, lt.domain)  # hack for type checking
+                print(f"Left free {lt = }, {rt = }")
+                print(f'{domain = }, {self.get_domain_for_variable(rt) = }')
+                print(f'{self.get_domain_for_variable(rt).intersect_with(domain) = }')
+                if self.get_domain_for_variable(rt).intersect_with(domain) == EmptyDomain():
+                    redundant_inequality_constraints.add(ic)
+        return redundant_inequality_constraints
     
 
     @property

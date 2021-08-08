@@ -31,11 +31,21 @@ class IndependentPairedGroundings(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', root_unifying_class: 'VariableEquivalenceClass', compiler: 'Compiler') -> 'NNFNode':
         """Apply IndependentPairedGroundings and return an NNFNode"""
+
+
+        # choose a clause to get the root variable's domain from
+        for clause in sorted(cnf.c_clauses): break
+        # must only be one root variable in the intersection
+        root_term = sorted(root_unifying_class.members.intersection(clause.bound_vars))[0]
+        root_variable = cast(LogicalVariable, root_term)  # hack for type checking
+        symbol = root_variable.symbol[0]  # get just the letter, not any numbers
+        domain = clause.cs.get_domain_for_variable(root_variable)
+
         # we substitute in two new variables for Paired
         # NOTE: The variable names contain Y and Z in analogy with the PhD,
         # but we actually want our variables to be named X and Y
-        new_Y_variable = FreeVariable('X')  
-        new_Z_variable = FreeVariable('Y')
+        new_Y_variable = FreeVariable('X', domain)  
+        new_Z_variable = FreeVariable('Y', domain)
         new_variables = (new_Y_variable, new_Z_variable)
         # we want to split the root unifying class into two,
         # each set having one variable in each clause

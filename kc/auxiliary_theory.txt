@@ -1,59 +1,54 @@
-n0 and
-n2 E{person-top}{person}
+n0 E{person-top}{person}
+n1 and
 n3 and
 n5 and
 n7 and
-n9 and
-n11 A{X}{person-bot}
-n12 neg smokes(X)
-n10 and
-n14 A{X}{person-bot}
-n15 f_1(X, X)
-n13 and
-n17 A{X}{person-bot}
-n18 A{Y}{person/X}
-n19 f_1(X, Y)
-n16 and
-n21 A{X}{person-top}
-n22 smokes(X)
-n20 and
-n24 A{X}{person-top}
-n25 f_1(X, X)
-n23 and
-n27 A{X}{person-top}
-n28 A{Y}{person-top/X}
-n29 f_1(X, Y)
-n26 A{X}{person-bot}
-n30 A{Y}{person-top/X}
-n31 or
-n33 and
-n35 neg f_1(Y, X)
-n34 friends(Y, X)
-n32 and
-n37 f_1(Y, X)
-n36 neg friends(Y, X)
-n8 A{X}{person}
-n38 A{Y}{person-bot/X}
-n39 or
-n41 neg f_1(X, Y)
-n40 f_1(X, Y)
+n9 A{X}{person-bot}
+n10 neg smokes(X)
+n8 and
+n12 A{X}{person-bot}
+n13 f_1(X, X)
+n11 and
+n15 A{X}{person-bot}
+n16 A{Y}{person/X}
+n17 f_1(X, Y)
+n14 and
+n19 A{X}{person-top}
+n20 smokes(X)
+n18 and
+n22 A{X}{person-top}
+n23 f_1(X, X)
+n21 and
+n25 A{X}{person-top}
+n26 A{Y}{person-top/X}
+n27 f_1(X, Y)
+n24 A{X}{person-bot}
+n28 A{Y}{person-top}
+n29 or
+n31 and
+n33 neg f_1(Y, X)
+n32 friends(Y, X)
+n30 and
+n35 f_1(Y, X)
+n34 neg friends(Y, X)
 n6 A{X}{person}
-n42 A{Y}{person-bot/X}
-n43 or
-n45 neg friends(Y, X)
-n44 friends(Y, X)
-n4 A{X}{person-top}
-n46 A{Y}{person-top/X}
-n47 or
-n49 neg friends(Y, X)
-n48 friends(Y, X)
-n1 A{Y}{person}
-n50 or
-n52 neg friends(Y, Y)
-n51 friends(Y, Y)
+n36 A{Y}{person-bot/X}
+n37 or
+n39 neg f_1(X, Y)
+n38 f_1(X, Y)
+n4 A{X}{person}
+n40 A{Y}{person-bot}
+n41 or
+n43 neg friends(Y, X)
+n42 friends(Y, X)
+n2 A{X}{person-top}
+n44 A{Y}{person-top}
+n45 or
+n47 neg friends(Y, X)
+n46 friends(Y, X)
 n0 -> n1;
-n0 -> n2;
-n2 -> n3;
+n1 -> n2;
+n1 -> n3;
 n3 -> n4;
 n3 -> n5;
 n5 -> n6;
@@ -61,45 +56,40 @@ n5 -> n7;
 n7 -> n8;
 n7 -> n9;
 n9 -> n10;
-n9 -> n11;
-n11 -> n12;
-n10 -> n13;
-n10 -> n14;
-n14 -> n15;
-n13 -> n16;
-n13 -> n17;
-n17 -> n18;
-n18 -> n19;
-n16 -> n20;
-n16 -> n21;
-n21 -> n22;
-n20 -> n23;
-n20 -> n24;
-n24 -> n25;
-n23 -> n26;
-n23 -> n27;
-n27 -> n28;
+n8 -> n11;
+n8 -> n12;
+n12 -> n13;
+n11 -> n14;
+n11 -> n15;
+n15 -> n16;
+n16 -> n17;
+n14 -> n18;
+n14 -> n19;
+n19 -> n20;
+n18 -> n21;
+n18 -> n22;
+n22 -> n23;
+n21 -> n24;
+n21 -> n25;
+n25 -> n26;
+n26 -> n27;
+n24 -> n28;
 n28 -> n29;
-n26 -> n30;
-n30 -> n31;
+n29 -> n30;
+n29 -> n31;
 n31 -> n32;
 n31 -> n33;
-n33 -> n34;
-n33 -> n35;
-n32 -> n36;
-n32 -> n37;
-n8 -> n38;
-n38 -> n39;
-n39 -> n40;
-n39 -> n41;
-n6 -> n42;
-n42 -> n43;
-n43 -> n44;
-n43 -> n45;
-n4 -> n46;
-n46 -> n47;
-n47 -> n48;
-n47 -> n49;
-n1 -> n50;
-n50 -> n51;
-n50 -> n52;
+n30 -> n34;
+n30 -> n35;
+n6 -> n36;
+n36 -> n37;
+n37 -> n38;
+n37 -> n39;
+n4 -> n40;
+n40 -> n41;
+n41 -> n42;
+n41 -> n43;
+n2 -> n44;
+n44 -> n45;
+n45 -> n46;
+n45 -> n47;

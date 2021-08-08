@@ -71,9 +71,9 @@ cnf = CNF([clause])
 # cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
 compiler = Compiler()
 nnf = compiler.compile(cnf)
-# draw_nx_graph_from_nnf(nnf)
+draw_nx_graph_from_nnf(nnf)
 
 smoothed_nnf = nnf.do_smoothing(cnf)
 # smoothed_nnf = nnf.get_smoothed_node()
-# draw_nx_graph_from_nnf(smoothed_nnf)
+draw_nx_graph_from_nnf(smoothed_nnf)
 write_nnf_to_txt(smoothed_nnf, 'TEST')

@@ -3,7 +3,12 @@ Classes for types of logical terms, which are constants and variables
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kc.data_structures import ProperDomain
 
 class LogicalTerm(ABC):
     """
@@ -60,7 +65,7 @@ class LogicalVariable(LogicalTerm):
 
     def __eq__(self, other: Any) -> bool:
         """Two logical variables are equal if they have the same symbol."""
-        return isinstance(other, LogicalVariable) and self.symbol == other.symbol
+        return isinstance(other, LogicalVariable) and not isinstance(other, FreeVariable) and self.symbol == other.symbol
 
     def __str__(self) -> str:
         return self.symbol
@@ -86,6 +91,12 @@ class FreeVariable(LogicalVariable):
     """NOTE: Experimental subclass of variables specifically for FreeVariables.
     For now, doesn't have much functionality, just so we can check if something is Free
     """
+    def __init__(self, symbol: str, domain: Optional['ProperDomain'] = None) -> None:
+        """"We need to keep track of a FreeVariable's domain so we can tell if
+        inequality constraints involving it it are trivial
+        NOTE: We set the domain later on"""
+        super(FreeVariable, self).__init__(symbol)
+        self.domain = domain
 
     def __eq__(self, other: Any) -> bool:
         """Two free variables are equal if they have the same symbol."""
