@@ -97,9 +97,7 @@ class AtomCounting(KCRule):
         unequal_constants = variable_cs.unequal_constants_for_variable(bound_var)
         # we only exclude constants that could possibly be part of the domain
         excluded_constants = unequal_constants.intersection(parent_domain.possible_constants)
-        # NOTE TODO: Trying out domain-top and domain-bot instead of D and underscores
         subdomain_variable = DomainVariable(parent_domain.symbol + '-top', parent_domain, excluded_constants=excluded_constants)
-        # subdomain_variable = cnf.get_new_domain_variable(parent_domain.symbol, parent_domain, excluded_constants)
 
         # the new domain variable must be a subset of the allowed domain for the bound variable
         var_constant_constraints = cls._build_constraints_between_domain_var_and_constants(subdomain_variable, excluded_constants)
@@ -111,5 +109,5 @@ class AtomCounting(KCRule):
         """Return a list of constraints specifying which constants are NOT contained in a DomainVariable"""
         constraints: List['NotSubsetConstraint'] = []
         for constant in constants:
-            constraints.append(NotSubsetConstraint(variable, SetOfConstants([constant])))
+            constraints.append(NotSubsetConstraint(SetOfConstants([constant]), variable))
         return constraints
