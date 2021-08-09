@@ -1,25 +1,37 @@
-n0 E{person-top}{person}
+n0 E{People-top}{People}
 n1 and
 n3 and
 n5 and
-n7 A{X}{person-bot}
-n8 neg smokes(X)
-n6 and
-n10 A{X}{person-top}
-n11 smokes(X)
-n9 A{X}{person-bot}
-n12 A{Y}{person-top}
-n13 neg friends(Y, X)
-n4 A{X}{person}
-n14 A{Y}{person-bot}
-n15 or
-n17 neg friends(Y, X)
-n16 friends(Y, X)
-n2 A{X}{person-top}
-n18 A{Y}{person-top}
-n19 or
-n21 neg friends(Y, X)
-n20 friends(Y, X)
+n7 and
+n9 A{X}{People-bot}
+n10 neg fun(X)
+n8 and
+n12 A{X}{People-bot}
+n13 neg friends(X, X)
+n11 and
+n15 A{X}{People-bot}
+n16 A{Y}{People/X}
+n17 neg friends(X, Y)
+n14 and
+n19 A{X}{People-top}
+n20 A{Y}{People-bot}
+n21 neg friends(X, Y)
+n18 A{X}{People-top}
+n22 fun(X)
+n6 A{X}{People}
+n23 A{Y}{People-bot/X}
+n24 or
+n26 neg friends(X, Y)
+n25 friends(X, Y)
+n4 A{X}{People-top}
+n27 A{Y}{People-top/X}
+n28 or
+n30 neg friends(X, Y)
+n29 friends(X, Y)
+n2 A{Y}{People-top}
+n31 or
+n33 neg friends(Y, Y)
+n32 friends(Y, Y)
 n0 -> n1;
 n1 -> n2;
 n1 -> n3;
@@ -28,16 +40,28 @@ n3 -> n5;
 n5 -> n6;
 n5 -> n7;
 n7 -> n8;
-n6 -> n9;
-n6 -> n10;
-n10 -> n11;
-n9 -> n12;
+n7 -> n9;
+n9 -> n10;
+n8 -> n11;
+n8 -> n12;
 n12 -> n13;
-n4 -> n14;
-n14 -> n15;
+n11 -> n14;
+n11 -> n15;
 n15 -> n16;
-n15 -> n17;
-n2 -> n18;
-n18 -> n19;
+n16 -> n17;
+n14 -> n18;
+n14 -> n19;
 n19 -> n20;
-n19 -> n21;
+n20 -> n21;
+n18 -> n22;
+n6 -> n23;
+n23 -> n24;
+n24 -> n25;
+n24 -> n26;
+n4 -> n27;
+n27 -> n28;
+n28 -> n29;
+n28 -> n30;
+n2 -> n31;
+n31 -> n32;
+n31 -> n33;
