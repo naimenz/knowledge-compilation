@@ -17,10 +17,10 @@ class DomainTerm(ABC):
     Terms are either sets of constants or domain variables, so can never be instantiated directly.
     """
 
-    @abstractmethod
-    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
-        """Get the difference between this domain term and another"""
-        pass
+    # @abstractmethod
+    # def difference(self, other: 'DomainTerm') -> 'DomainTerm':
+    #     """Get the difference between this domain term and another"""
+    #     pass
 
     @staticmethod
     def union_constants(*args: 'DomainTerm') -> FrozenSet['Constant']:
@@ -75,13 +75,13 @@ class SetOfConstants(DomainTerm):
         never be changed once set."""
         return self._constants
 
-    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
-        """Return the set difference between this set of constants and the other
-        as a SetOfConstants (if both are SetOfConstants)"""
-        if not isinstance(other, SetOfConstants):
-            raise NotImplementedError('Cannot compute difference of SetOfConstants with DomainVariable')
-        new_constants = self.constants - other.constants
-        return SetOfConstants(new_constants)
+    # def difference(self, other: 'DomainTerm') -> 'DomainTerm':
+    #     """Return the set difference between this set of constants and the other
+    #     as a SetOfConstants (if both are SetOfConstants)"""
+    #     if not isinstance(other, SetOfConstants):
+            # raise NotImplementedError('Cannot compute difference of SetOfConstants with DomainVariable')
+        # new_constants = self.constants - other.constants
+        # return SetOfConstants(new_constants)
 
     def size(self) -> int:
         return len(self.constants)
@@ -217,8 +217,8 @@ class EmptyDomain(ProperDomain):
         ProperDomain.__init__(self, 'EMPTY', None)
         self.debug_message = debug_message
 
-    def difference(self, other):
-        raise NotImplementedError('EmptyDomain has no difference')
+    # def difference(self, other):
+    #     raise NotImplementedError('EmptyDomain has no difference')
 
     @property
     def possible_constants(self) -> FrozenSet['Constant']:
@@ -242,27 +242,31 @@ class EmptyDomain(ProperDomain):
         return self.__str__()
 
 
-class RootDomain(ProperDomain, SetOfConstants):
+class RootDomain(ProperDomain):
     """This is a class to represent a RootDomain, i.e. a specific set of constants
     given as part of the user-defined input. New RootDomains will not be created
     during compilation.
     NOTE: I am going to make the same assumption as Forclift: that RootDomains do not overlap"""
     def __init__(self, constants: Iterable['Constant'], symbol: str) -> None:
-        SetOfConstants.__init__(self, constants)
         ProperDomain.__init__(self, symbol, None)
+        self._constants = frozenset(constants)
 
     @property
     def possible_constants(self) -> FrozenSet['Constant']:
         """The 'possible_constants' for a RootDomain are just all its constants"""
-        return self.constants
+        return self._constants
+
+    def size(self) -> int:
+        return len(self._constants)
+
 
     def __eq__(self, other: Any) -> bool:
         """Since RootDomains should not be created except at the start,
         there should only ever one of each. We can just check if the symbols and constants match."""
-        return isinstance(other, RootDomain) and self.constants == other.constants and self.symbol == other.symbol
+        return isinstance(other, RootDomain) and self._constants == other._constants and self.symbol == other.symbol
 
     def __hash__(self) -> int:
-        return hash((self.symbol, self.constants))
+        return hash((self.symbol, self._constants))
 
     def __str__(self) -> str:
         return f"{self.symbol}"
@@ -310,9 +314,9 @@ class DomainVariable(ProperDomain):
         else:
             raise ValueError('DomainVariable {self} without a parent!')
 
-    def difference(self, other: 'DomainTerm') -> 'DomainTerm':
-        """Get the difference between this domain variable and another domain TERM"""
-        raise NotImplementedError()
+    # def difference(self, other: 'DomainTerm') -> 'DomainTerm':
+    #     """Get the difference between this domain variable and another domain TERM"""
+    #     raise NotImplementedError()
 
     def size(self) -> int:
         """Return the maximum size of this DomainVariable
