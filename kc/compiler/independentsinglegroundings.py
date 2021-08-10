@@ -53,7 +53,8 @@ class IndependentSingleGroundings(KCRule):
     @classmethod
     def _substitute_root_vars(cls, cnf: 'CNF', new_variable: 'LogicalVariable', sub: 'Substitution', new_variable_cs: 'ConstraintSet') -> 'CNF':
         """We can't simply use the substitute method because we
-        need to remove the new variable from the bound vars after substituting it """
+        need to remove the new variable from the bound vars after substituting it.
+        We also handle dropping unnecessary constraints here"""
 
         new_clauses: Set['Clause'] = set()
         # NOTE: all clauses are constrained (since must have at least one bound var)
@@ -63,7 +64,9 @@ class IndependentSingleGroundings(KCRule):
             if subbed_cs is None:
                 raise ValueError(f"subbed_cs {subbed_cs} shouldn't be unsatisfiable")
             # NOTE TODO: Trying out removing the specific constraints used rather than all with the variable
-            new_cs: 'ConstraintSet' = ConstraintSet(subbed_cs.constraints - new_variable_cs.constraints)
+            # and we also remove any set constraints that involve the variable 
+            redundant_set_constraints = set(c for c in subbed_cs.constraints if c.logical_term == new_variable)
+            new_cs: 'ConstraintSet' = ConstraintSet(subbed_cs.constraints - new_variable_cs.constraints - redundant_set_constraints)
             _new_bound_vars = [sub[var] for var in clause.bound_vars if sub[var] != new_variable]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking
 
