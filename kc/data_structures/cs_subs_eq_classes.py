@@ -47,10 +47,15 @@ class ConstraintSet:
 
         redundant_inclusion_constraints = self._get_redundant_inclusion_constraints(inclusion_constraints)
         self._inclusion_constraints = frozenset(inclusion_constraints) - redundant_inclusion_constraints
-        self._notinclusion_constraints = frozenset(notinclusion_constraints)
+
+        # we initially set the notinclusion constraints, then update them to remove redundant ones
+        self._notinclusion_constraints = frozenset(notinclusion_constraints) 
+        redundant_notinclusion_constraints = self._get_redundant_notinclusion_constraints(notinclusion_constraints)
+        self._notinclusion_constraints -= redundant_notinclusion_constraints
 
         redundant_inequality_constraints = self._get_redundant_inequality_constraints(inequality_constraints)
         self._inequality_constraints = frozenset(inequality_constraints) - redundant_inequality_constraints
+
         self._equality_constraints = frozenset(equality_constraints)
 
         self._subset_constraints = frozenset(subset_constraints)
@@ -73,6 +78,20 @@ class ConstraintSet:
                         redundant_inclusion_constraints.add(ic)
                         break
         return redundant_inclusion_constraints
+
+    def _get_redundant_notinclusion_constraints(self,
+                                             notinclusion_constraints: Set['NotInclusionConstraint']
+                                             ) -> Set['NotInclusionConstraint']:
+        """Get the notinclusion constraints that are already implied by the domain"""
+        redundant_notinclusion_constraints = set()
+        for nc in notinclusion_constraints:
+            if isinstance(nc.logical_term, LogicalVariable) and isinstance(nc.domain_term, SetOfConstants):
+                variable = nc.logical_term
+                constant = get_element_of_set(nc.domain_term.constants)  # only one because these are for inequalities with constants
+                domain = self.get_domain_for_variable(variable)
+                if constant not in domain.possible_constants:
+                    redundant_notinclusion_constraints.add(nc)
+        return redundant_notinclusion_constraints
 
     def _get_redundant_inequality_constraints(self,
                                              inequality_constraints: Set['InequalityConstraint']
@@ -964,7 +983,11 @@ class InclusionConstraint(SetConstraint):
                     return EmptyConstraint(f'{new_logical_term} in {self.domain_term}')
                 else:
                     return FalseConstraint(f'{new_logical_term} not in {self.domain_term}')
-            raise ValueError('Cannot yet handle DomainTerm in substitute')
+            elif isinstance(self.domain_term, ProperDomain):
+                if new_logical_term in self.domain_term.possible_constants:
+                    return EmptyConstraint(f'{new_logical_term} in {self.domain_term}')
+                else:
+                    return FalseConstraint(f'{new_logical_term} not in {self.domain_term}')
         else:
             logical_var = cast('LogicalVariable', new_logical_term)
             return InclusionConstraint(logical_var, self.domain_term)
