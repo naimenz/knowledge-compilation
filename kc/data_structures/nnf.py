@@ -94,7 +94,7 @@ class NNFNode(ABC):
         # if we have a viable atom pair, apply some preprocessing to the clauses to 
         # avoid variable name issues
         # DEBUG TODO: This is experimental
-        other_c_atom = self._align_variables(c_atom, other_c_atom)
+        other_c_atom = c_atom._align_variables(other_c_atom)
         cs = c_atom.cs
         other_cs = other_c_atom.cs
 
@@ -137,95 +137,13 @@ class NNFNode(ABC):
     def A_without_B(self, A: Set['ConstrainedAtom'], B: Set['ConstrainedAtom']) -> Set['ConstrainedAtom']:
         """Return a set of ConstrainedAtoms representing those in A not covered by B.
         The approach taken is to make everything from A independent or subsumed by B, then remove the subsumed parts"""
-        split_A: Set['ConstrainedAtom'] = set()
-        for c_atomA in sorted(A):
-            independent_of_all = True
-            if c_atomA in B:
-                continue  # trivially covered if it is already in B
-            else:
-                for c_atomB in sorted(B):
-                    if not c_atomA.is_independent_from_other_clause(c_atomB):
-                        independent_of_all = False
-                        if not c_atomB.subsumes(c_atomA):
-                            # make c_atomA independent of c_atomB
-                            independent_c_atomsA = self._make_independent(set([c_atomA, c_atomB])) - set([c_atomB])
-                            split_A = split_A.union(independent_c_atomsA)
-            if independent_of_all:
-                split_A.add(c_atomA)
-        # we do a second round of subsumes checks to avoid redundant newly created c_atoms
-        # TODO: integrate this into first loop to make it more efficient
-        new_A: Set['ConstrainedAtom'] = set()
-        for c_atomA in sorted(split_A):
-            subsumed = False
-            for c_atomB in sorted(B):
-                if c_atomB.subsumes(c_atomA):
-                    subsumed = True
-                    break
-            if subsumed == False:
-                new_A.add(c_atomA)
+        new_A = A
+        # subtract the ground atoms from B from A one atom at a time
+        for c_atom in sorted(B):
+            new_A = c_atom.subtract_from_c_atoms(new_A)
+
         # NOTE: the atoms aren't guaranteed to be independent when built this way, so we make them so
         return self._make_independent(new_A)
-
-
-    def _find_ordered_viable_atom_pair(self, A: Iterable['ConstrainedAtom'], B: Iterable['ConstrainedAtom']
-                              ) -> Optional[Tuple['ConstrainedAtom', 'ConstrainedAtom']]:
-        """Find a pair of constrained atoms, with the first from A and the second from B,
-        such that they are not not independent and the atom from B does not subsume the atom from A"""
-        for c_atomA in sorted(A):
-            for c_atomB in sorted(B):
-                if c_atomA != c_atomB and not c_atomA.is_independent_from_other_clause(c_atomB):
-                    if not c_atomB.subsumes(c_atomA):
-                        viable_atom_pair = (c_atomA, c_atomB)
-                        return viable_atom_pair
-        return None
-
-
-    def _make_variables_different(self,
-                                c_atom: 'ConstrainedAtom',
-                                other_c_atom: 'ConstrainedAtom',
-                                ) -> 'ConstrainedAtom':
-        """MODIFIED FROM UNITPROP
-        Apply preprocessing to the BOUND variables of two clauses to make them 
-        all distinct. Also optionally apply this same substitution to another clause"""
-
-        # all the variables that need to be substituted
-        overlapping_variables: FrozenSet['LogicalVariable'] = c_atom.bound_vars.intersection(other_c_atom.bound_vars)
-
-        old_other_c_atom = other_c_atom
-        for variable in sorted(overlapping_variables):
-            temp_cnf = CNF([c_atom, old_other_c_atom], names=None)  # taking advantage of existing methods in CNF
-            sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
-            sub = Substitution([(variable, sub_target)])
-            new_other_c_atom = old_other_c_atom.substitute(sub)
-            if new_other_c_atom is None:
-                raise ValueError('Substitution made unsatisfiable')
-            else:
-                old_other_c_atom = new_other_c_atom
-        return old_other_c_atom
-
-
-    def _align_variables(self,
-                         c_atom: 'ConstrainedAtom',
-                         other_c_atom: 'ConstrainedAtom'
-                         ) -> 'ConstrainedAtom':
-        """MODIFIED FROM UNITPROP
-        'Line up' the variables in the  other_c_atom to match those in the first (c_atom), and
-        apply this to the whole clause.
-        This is done to make the mgu meaningful, rather than just having it rename variables to match.
-        First, separate out all the bound variables.
-        Then for each bound variable in the terms of this c_atom, we rename the other to match, as long as it 
-        also is a bound variable."""
-        other_c_atom = self._make_variables_different(c_atom, other_c_atom)
-        old_other_c_atom = other_c_atom
-        for term, other_term in zip(c_atom.atom.terms, other_c_atom.atom.terms):
-            if term in c_atom.bound_vars and other_term in other_c_atom.bound_vars:
-                assert(isinstance(other_term, LogicalVariable))  # hack for type checking
-                sub = Substitution([(other_term, term)])
-                new_other_c_atom = old_other_c_atom.substitute(sub)
-                if new_other_c_atom is None:
-                    raise ValueError("Shouldn't be unsatisfiable here")
-                old_other_c_atom = new_other_c_atom
-        return old_other_c_atom
 
 
 class TrueNode(NNFNode):
@@ -511,7 +429,8 @@ class ExistsNode(IntensionalNode):
             new_cs = new_cs.substitute_domain_in_set_constraints(subdomain.complement, parent_domain)
             new_c_atom = ConstrainedAtom(c_atom.literals, c_atom.bound_vars, new_cs)
             new_c_atoms.add(new_c_atom)
-        return new_c_atoms
+        # NOTE TODO: Trying out making independent before returning
+        return self._make_independent(new_c_atoms)
 
 
     def node_info(self) -> Dict[str, str]:

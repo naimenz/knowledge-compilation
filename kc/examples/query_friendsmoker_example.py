@@ -56,7 +56,7 @@ X1inDcomp = InclusionConstraint(X1, Dcomp)
 gamma_s1 = ConstrainedClause([~smokesX, ~friendsXX1, smokesX1], [X, X1],
         ConstraintSet([XinPeople, X1inPeople, XinD, X1inDcomp]))
 
-gamma_s2 = ConstrainedClause([~smokesX, ~friendsXX1, smokesX1], [X, X1],
+gamma_s2 = ConstrainedClause([~smokesX, ~friendsXX1, smokesX1], [X, X1],  
         ConstraintSet([XinPeople, X1inPeople, X1inD, XinDcomp]))
 
 c_literal = UnitClause([smokesX1], [X, X1],

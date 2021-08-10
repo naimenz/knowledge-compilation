@@ -60,7 +60,7 @@ class ConstraintSet:
 
         self._subset_constraints = frozenset(subset_constraints)
 
-        self._constraints = (frozenset(constraints) - redundant_inclusion_constraints) - redundant_inequality_constraints
+        self._constraints = frozenset(constraints) - redundant_inclusion_constraints - redundant_inequality_constraints - redundant_notinclusion_constraints
     
     def _get_redundant_inclusion_constraints(self,
                                              inclusion_constraints: Set['InclusionConstraint']
@@ -89,7 +89,8 @@ class ConstraintSet:
                 variable = nc.logical_term
                 constant = get_element_of_set(nc.domain_term.constants)  # only one because these are for inequalities with constants
                 domain = self.get_domain_for_variable(variable)
-                if constant not in domain.possible_constants:
+                # NOTE TODO DEBUG: This is a hack for now to stop infinite loops in split
+                if domain != EmptyDomain() and constant not in domain.possible_constants:
                     redundant_notinclusion_constraints.add(nc)
         return redundant_notinclusion_constraints
 

@@ -724,7 +724,92 @@ class ConstrainedAtom(UnitClause):
         else:
             return False
 
+    def subtract_from_c_atom(self, other_c_atom: 'ConstrainedAtom') -> Set['ConstrainedAtom']:
+        """Subtract THIS c_atom (self) FROM other_c_atom. 
+        Return a new set of c_atoms such that the ground atoms from self are removed from those of other_c_atom (if there was any overlap; otherwise just return original)"""
+        # apply some preprocessing to the clauses to avoid variable name issues
+        aligned_self = other_c_atom._align_variables(self)
+        cs = aligned_self.cs
+        other_cs = other_c_atom.cs
 
+        mgu_eq_classes = aligned_self.get_constrained_atom_mgu_eq_classes(other_c_atom)
+        # no mgu means they are independent
+        if mgu_eq_classes is None:
+            return set([other_c_atom])
+        elif aligned_self.subsumes(other_c_atom):
+            return set()
+        # the interesting case: there is some overlap
+        else:
+            theta = mgu_eq_classes.to_substitution()
+            cs_theta = theta.to_constraint_set()
+            joint_variables = aligned_self.bound_vars.union(other_c_atom.bound_vars)
+
+            return_clauses: Set['ConstrainedAtom'] = set()
+            # loop over all constraints to negate
+            for e in sorted(cs_theta.join(cs)):
+                # NOTE DEBUG: Trying - only include constraint if it is relevant to the clause
+                if not (e.terms[0] in other_c_atom.all_variables or e.terms[1] in other_c_atom.all_variables):
+                    continue
+                not_e = ~e
+                cs_rest = other_cs.join(ConstraintSet([not_e]))
+                # before going further, check if the constraint set for this clause is even satisfiable
+                if cs_rest.is_satisfiable():
+                    return_clauses.add( ConstrainedAtom(other_c_atom.literals, joint_variables, cs_rest).propagate_equality_constraints() )
+            return return_clauses
+
+    def subtract_from_c_atoms(self, c_atoms: Iterable['ConstrainedAtom']) -> Set['ConstrainedAtom']:
+        """Subtract THIS c_atom (self) FROM a set of c_atoms individually.
+        Return a new set of c_atoms such that the ground atoms from self are removed from those of each c_atom in c_atoms (if there was any overlap; otherwise just return original)"""
+        # apply some preprocessing to the clauses to avoid variable name issues
+        return_c_atoms = set()
+        for c_atom in sorted(c_atoms):
+            new_c_atoms = self.subtract_from_c_atom(c_atom)
+            return_c_atoms |= new_c_atoms
+        return return_c_atoms
+
+    def _align_variables(self,
+                         other_c_atom: 'ConstrainedAtom'
+                         ) -> 'ConstrainedAtom':
+        """MODIFIED FROM UNITPROP
+        'Line up' the variables in the  other_c_atom to match those in the first (self), and
+        apply this to the whole clause.
+        This is done to make the mgu meaningful, rather than just having it rename variables to match.
+        First, separate out all the bound variables.
+        Then for each bound variable in the terms of this c_atom, we rename the other to match, as long as it 
+        also is a bound variable."""
+        other_c_atom = self._make_variables_different(other_c_atom)
+        old_other_c_atom = other_c_atom
+        for term, other_term in zip(self.atom.terms, other_c_atom.atom.terms):
+            if term in self.bound_vars and other_term in other_c_atom.bound_vars:
+                assert(isinstance(other_term, LogicalVariable))  # hack for type checking
+                sub = Substitution([(other_term, term)])
+                new_other_c_atom = old_other_c_atom.substitute(sub)
+                if new_other_c_atom is None:
+                    raise ValueError("Shouldn't be unsatisfiable here")
+                old_other_c_atom = new_other_c_atom
+        return old_other_c_atom
+
+    def _make_variables_different(self,
+                                other_c_atom: 'ConstrainedAtom',
+                                ) -> 'ConstrainedAtom':
+        """MODIFIED FROM UNITPROP
+        Apply preprocessing to the BOUND variables of two atoms to make them 
+        all distinct. Also optionally apply this same substitution to another clause"""
+
+        # all the variables that need to be substituted
+        overlapping_variables: FrozenSet['LogicalVariable'] = self.bound_vars.intersection(other_c_atom.bound_vars)
+
+        old_other_c_atom = other_c_atom
+        for variable in sorted(overlapping_variables):
+            temp_cnf = CNF([self, old_other_c_atom], names=None)  # taking advantage of existing methods in CNF
+            sub_target = temp_cnf.get_new_logical_variable(variable.symbol)
+            sub = Substitution([(variable, sub_target)])
+            new_other_c_atom = old_other_c_atom.substitute(sub)
+            if new_other_c_atom is None:
+                raise ValueError('Substitution made unsatisfiable')
+            else:
+                old_other_c_atom = new_other_c_atom
+        return old_other_c_atom
 
 class CNF:
     """

@@ -2,6 +2,7 @@
 
 from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable
 from kc.compiler import KCRule
+from kc.util import get_element_of_set  # DEBUG
 DEBUG_FLAG = False
 
 from typing import Optional, Tuple, List, Any, Set, FrozenSet
