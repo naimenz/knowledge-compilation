@@ -11,6 +11,7 @@ Y = LogicalVariable('Y')
 alice = Constant('alice')
 bob = Constant('bob')
 charlie = Constant('charlie')
+guy = Constant('guy')
 
 friends = Predicate('friends', 2)
 smokes = Predicate('smokes', 1)
@@ -21,7 +22,7 @@ smokesX = Literal(Atom(smokes, [X]))
 smokesY = Literal(Atom(smokes, [Y]))
 f1XY = Literal(Atom(f1, [X, Y]))
 
-People = RootDomain([alice, bob, charlie], 'person')
+People = RootDomain([alice, bob, charlie, guy], 'person')
 
 XinPeople = InclusionConstraint(X, People)
 YinPeople = InclusionConstraint(Y, People)
