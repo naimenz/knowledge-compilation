@@ -79,12 +79,12 @@ class UnitPropagation(KCRule):
 
         theta = mgu_eq_classes.to_substitution()
         cs_theta = theta.to_constraint_set()
+
         cs_mgu = cs_gamma.join(cs_theta).join(cs_A)
         joint_variables = A.bound_vars.union(a_gamma.bound_vars)
 
         return_clauses: List['Clause'] = []
         gamma_mgu: 'Clause'
-        # print(f'{cs_mgu = }, {cs_mgu.is_satisfiable() = }')
         if cs_mgu.is_satisfiable():
             if joint_variables or cs_mgu.is_non_empty(): 
                 gamma_mgu = ConstrainedClause(gamma.literals, joint_variables, cs_mgu).propagate_equality_constraints()

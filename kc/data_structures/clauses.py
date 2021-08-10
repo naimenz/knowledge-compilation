@@ -592,8 +592,7 @@ class ConstrainedAtom(UnitClause):
             propagated_constraint_set = combined_constraint_set.propagate_equality_constraints()
             if propagated_constraint_set.is_satisfiable():
                 return unconstrained_mgu
-        else:
-            return None
+        return None
 
     def get_constrained_atom_mgu_substitution(self: 'ConstrainedAtom',
                                               other_c_atom: 'ConstrainedAtom'
@@ -701,8 +700,13 @@ class ConstrainedAtom(UnitClause):
         elif any(inequality not in other_atom.get_constant_or_free_inequalities()
                  for inequality in this_atom.get_constant_or_free_inequalities()):
             # return "3"
-            # print("DNS 3")
-            return True
+            # TODO DEBUG: make this more efficient instead of searching twice
+            for inequality in this_atom.get_constant_or_free_inequalities():
+                if inequality not in other_atom.get_constant_or_free_inequalities():
+                    # we add a further check for whether that inequality would be trivial in this atom
+                    if not this_atom.cs.join(ConstraintSet([inequality])) == this_atom.cs:
+                        # print("DNS 3")
+                        return True
         elif any(inequality not in other_atom.get_bound_variable_inequalities()
                  and inequality.is_not_trivial(this_atom)
                  for inequality in this_atom.get_bound_variable_inequalities()):

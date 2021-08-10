@@ -65,7 +65,7 @@ class IndependentSingleGroundings(KCRule):
                 raise ValueError(f"subbed_cs {subbed_cs} shouldn't be unsatisfiable")
             # NOTE TODO: Trying out removing the specific constraints used rather than all with the variable
             # and we also remove any set constraints that involve the variable 
-            redundant_set_constraints = set(c for c in subbed_cs.constraints if c.logical_term == new_variable)
+            redundant_set_constraints = set(c for c in subbed_cs.set_constraints if c.logical_term == new_variable)
             new_cs: 'ConstraintSet' = ConstraintSet(subbed_cs.constraints - new_variable_cs.constraints - redundant_set_constraints)
             _new_bound_vars = [sub[var] for var in clause.bound_vars if sub[var] != new_variable]
             new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars) # hack for type checking

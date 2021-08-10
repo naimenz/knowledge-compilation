@@ -355,7 +355,7 @@ class ForAllNode(IntensionalNode):
         attributes['type'] = 'ForAllNode'
         for_all_string = '\u2200'
         var_string = '{' + ', '.join(str(var) for var in self.bound_vars) + '}'
-        attributes['label'] = f'{for_all_string}{var_string}, {self.cs}'
+        attributes['label'] = f'{for_all_string}{var_string}\n{self.cs}'
         return attributes
 
     def get_node_string(self) -> str:
@@ -439,7 +439,7 @@ class ExistsNode(IntensionalNode):
         attributes['type'] = 'ExistsNode'
         exists_string = '\u2203'
         var_string = '{' + ', '.join(str(var) for var in self.bound_vars) + '}'
-        attributes['label'] = f'{exists_string}{var_string}, {self.cs}'
+        attributes['label'] = f'{exists_string}{var_string}\n{self.cs}'
         return attributes
 
     def get_node_string(self) -> str:
