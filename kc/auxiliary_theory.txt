@@ -6,40 +6,40 @@ n7 A{X}{person-bot}
 n8 neg smokes(X)
 n6 and
 n10 A{X}{person-bot}
-n11 f_1(X, X)
+n11 a1(X,X)
 n9 and
 n13 A{X}{person-bot}
 n14 A{Y}{person/X}
-n15 f_1(X, Y)
+n15 a1(X,Y)
 n12 and
 n17 A{X}{person-top}
 n18 smokes(X)
 n16 and
 n20 A{X}{person-top}
-n21 f_1(X, X)
+n21 a1(X,X)
 n19 and
 n23 A{X}{person-top}
 n24 A{Y}{person-top/X}
-n25 f_1(X, Y)
+n25 a1(X,Y)
 n22 A{X}{person-bot}
 n26 A{Y}{person-top}
 n27 or
 n29 and
-n31 neg f_1(Y, X)
-n30 friends(Y, X)
+n31 neg a1(Y,X)
+n30 friends(Y,X)
 n28 and
-n33 f_1(Y, X)
-n32 neg friends(Y, X)
+n33 a1(Y,X)
+n32 neg friends(Y,X)
 n4 A{X}{person}
 n34 A{Y}{person-bot}
 n35 or
-n37 neg friends(Y, X)
-n36 friends(Y, X)
+n37 neg friends(Y,X)
+n36 friends(Y,X)
 n2 A{X}{person-top}
 n38 A{Y}{person-top}
 n39 or
-n41 neg friends(Y, X)
-n40 friends(Y, X)
+n41 neg friends(Y,X)
+n40 friends(Y,X)
 n0 -> n1;
 n1 -> n2;
 n1 -> n3;

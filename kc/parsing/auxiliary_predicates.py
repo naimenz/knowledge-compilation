@@ -31,7 +31,8 @@ def make_auxiliary_predicate_for_clause(clause: 'ConstrainedClause', auxiliary_n
 
     first_branch = [ConstrainedClause(list(clause.literals) + [~aux_literal], clause.bound_vars, clause.cs)]
 
-    second_branch = [ConstrainedClause([literal, aux_literal], clause.bound_vars, clause.cs) for literal in clause.literals]
+    # IMPORTANT: we were not negating the literal before, but we are now
+    second_branch = [ConstrainedClause([~literal, aux_literal], clause.bound_vars, clause.cs) for literal in clause.literals]
 
     return first_branch + second_branch
 

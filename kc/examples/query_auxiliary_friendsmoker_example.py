@@ -3,7 +3,7 @@ In non-CNF form, this is f1(X, Y) <=> ( smokes(X) ^ friends(X, Y) => smokes(Y) )
 from kc.data_structures import *
 from kc.compiler import *
 from kc.util import build_nx_graph_from_nnf, draw_nx_graph_from_nnf
-from kc.parsing import write_nnf_to_txt
+from kc.parsing import write_nnf_to_txt, make_auxiliary_predicates_for_clauses
 
 X = LogicalVariable('X')
 Y = LogicalVariable('Y')
@@ -30,13 +30,11 @@ YinPeople = InclusionConstraint(Y, People)
 
 cs = ConstraintSet([XinPeople, YinPeople])
 
-clause1 = ConstrainedClause([~f1XY, smokesY, ~smokesX, ~friendsXY], [X, Y], cs)
-clause2 = ConstrainedClause([f1XY, ~smokesY], [X, Y], cs)
-clause3 = ConstrainedClause([f1XY, friendsXY], [X, Y], cs)
-clause4 = ConstrainedClause([f1XY, smokesX], [X, Y], cs)
+clause = ConstrainedClause([~smokesX, ~friendsXY, smokesY], [X, Y], cs)
+auxiliary_clauses = make_auxiliary_predicates_for_clauses([clause])
 query = UnconstrainedClause([smokesguy])
 
-cnf = CNF([clause1, clause2, clause3, clause4, query])
+cnf = CNF(auxiliary_clauses + [query])
 # cnf.shattered = True  # hack for now because they don't seem to shatter in the PhD example
 compiler = Compiler()
 
@@ -46,4 +44,4 @@ draw_nx_graph_from_nnf(nnf)
 smoothed_nnf = nnf.do_smoothing(cnf)
 draw_nx_graph_from_nnf(smoothed_nnf)
 
-write_nnf_to_txt(smoothed_nnf, 'capital_query')
+write_nnf_to_txt(smoothed_nnf, 'auxiliary_query')
