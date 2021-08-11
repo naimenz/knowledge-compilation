@@ -1,0 +1,35 @@
+n0 A{X}{person}
+n1 or
+n3 and
+n5 neg BMI(X)
+n4 or
+n7 and
+n9 neg a1(X)
+n8 diabetes(X)
+n6 and
+n11 a1(X)
+n10 neg diabetes(X)
+n2 and
+n13 and
+n15 BMI(X)
+n14 a1(X)
+n12 or
+n17 neg diabetes(X)
+n16 diabetes(X)
+n0 -> n1;
+n1 -> n2;
+n1 -> n3;
+n3 -> n4;
+n3 -> n5;
+n4 -> n6;
+n4 -> n7;
+n7 -> n8;
+n7 -> n9;
+n6 -> n10;
+n6 -> n11;
+n2 -> n12;
+n2 -> n13;
+n13 -> n14;
+n13 -> n15;
+n12 -> n16;
+n12 -> n17;
