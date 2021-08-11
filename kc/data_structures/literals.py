@@ -149,7 +149,7 @@ class Atom:
 
     def __str__(self) -> str:
         term_strs = [str(term) for term in self.terms]
-        return f"{self.predicate.name}({', '.join(term_strs)})"
+        return f"{self.predicate.name}({','.join(term_strs)})"
 
     def __repr__(self) -> str:
         return self.__str__()
