@@ -52,3 +52,43 @@ def draw_nx_graph_from_nnf(root: 'NNFNode') -> None:
     nx.draw(graph, pos, node_color=node_colours)
     nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
     plt.show()
+
+def build_nx_graph_from_txt(file_name: 'str') -> 'DiGraph':
+    with open(file_name + ".txt", 'r') as f:
+        lines = f.readlines()
+    node_lines = []
+    edge_lines = []
+    for line in lines:
+        stripped_line = line.strip()
+        if stripped_line[-1] == ';':
+            edge_lines.append(stripped_line[:-1].split())
+        else:
+            node_lines.append(stripped_line.split(' ',1))
+
+    graph = nx.DiGraph()
+    for node_line in node_lines:
+        node_name, node_data = node_line
+        graph.add_node(node_name, label=node_data)
+    for edge_line in edge_lines:
+        graph.add_edge(edge_line[0], edge_line[2])
+    return graph
+
+def draw_nx_graph_from_txt(file_name: 'str') -> None:
+    """Just for testing purposes, draw a graph from a WFOMI txt file"""
+    graph = build_nx_graph_from_txt(file_name)
+    print(graph)
+
+    pos = graphviz_layout(graph, prog="dot")
+
+    label_pos = {}
+    y_off = 10  # offset on the y axis
+
+    for k, v in pos.items():
+        label_pos[k] = (v[0], v[1]+y_off)
+    node_labels = nx.get_node_attributes(graph, 'label')
+    nx.draw(graph, pos, node_color='green')
+    nx.draw_networkx_labels(graph, label_pos, labels=node_labels)
+    plt.show()
+
+if __name__ == "__main__":
+    draw_nx_graph_from_txt('../../WFOMI/solver/test_input/pipeline-smokers/query')
