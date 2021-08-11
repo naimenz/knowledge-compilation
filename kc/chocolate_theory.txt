@@ -1,0 +1,19 @@
+n0 A{X}{person}
+n1 or
+n3 and
+n5 neg belgian(X)
+n4 or
+n7 neg likes(X, chocolate)
+n6 likes(X, chocolate)
+n2 and
+n9 belgian(X)
+n8 likes(X, chocolate)
+n0 -> n1;
+n1 -> n2;
+n1 -> n3;
+n3 -> n4;
+n3 -> n5;
+n4 -> n6;
+n4 -> n7;
+n2 -> n8;
+n2 -> n9;
