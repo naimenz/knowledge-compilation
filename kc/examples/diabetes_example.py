@@ -7,9 +7,9 @@ from kc.parsing import write_nnf_to_txt, make_auxiliary_predicates_for_clauses
 
 X = LogicalVariable('X')
 
-alice = Constant('alice')
-bob = Constant('bob')
-charlie = Constant('charlie')
+alice = Constant('Alice')
+bob = Constant('Bob')
+charlie = Constant('Charlie')
 
 People = RootDomain([alice], 'person')
 

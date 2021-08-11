@@ -1,11 +1,11 @@
 n0 and
-n2 diabetes(alice)
+n2 diabetes(Alice)
 n1 or
 n4 and
-n6 neg BMI(alice)
+n6 neg BMI(Alice)
 n5 and
-n8 neg a1(alice)
-n7 A{X}{person/alice}
+n8 neg a1(Alice)
+n7 A{X}{person/Alice}
 n9 or
 n11 and
 n13 neg BMI(X)
@@ -24,10 +24,10 @@ n20 or
 n25 neg diabetes(X)
 n24 diabetes(X)
 n3 and
-n27 BMI(alice)
+n27 BMI(Alice)
 n26 and
-n29 a1(alice)
-n28 A{X}{person/alice}
+n29 a1(Alice)
+n28 A{X}{person/Alice}
 n30 or
 n32 and
 n34 neg BMI(X)
