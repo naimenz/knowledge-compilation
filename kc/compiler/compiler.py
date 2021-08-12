@@ -31,7 +31,7 @@ class Compiler:
                                        VacuousConjunction,
                                        Independence,
                                        ShannonDecomposition,
-                                       # ShatteredCompilation,  
+                                       ShatteredCompilation,  
                                        IndependentSingleGroundings,
                                        IndependentPairedGroundings,
                                        CheckTautology,
