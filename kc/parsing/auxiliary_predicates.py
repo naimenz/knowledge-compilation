@@ -25,7 +25,7 @@ def make_auxiliary_predicate_for_clause(clause: 'ConstrainedClause', auxiliary_n
     We'll call (¬clause => ¬aux) the first branch. It is straightforward and gives (clause v ¬aux).
     The second branch gives a conjunction of a number of formulas of the form (aux v ¬l) for each literal l in clause """
     # NOTE: I'm assuming the aux pred takes as many arguments as the clause has bound variables
-    aux_terms = list(clause.bound_vars)
+    aux_terms = sorted(clause.bound_vars)
     auxiliary_predicate = Predicate(auxiliary_name, len(aux_terms))
     aux_literal = Literal(Atom(auxiliary_predicate, aux_terms))
 

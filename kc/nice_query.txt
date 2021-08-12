@@ -1,0 +1,81 @@
+n0 and
+n2 nice(Guy)
+n1 E{person-top}{person}
+n3 and
+n5 and
+n7 and
+n9 A{X}{person-bot/Guy}
+n10 neg nice(X)
+n8 and
+n12 A{X}{person-bot/Guy}
+n13 A{Y}{person}
+n14 a1(Y,X)
+n11 and
+n16 A{X}{person-top}
+n17 nice(X)
+n15 and
+n19 A{X}{person}
+n20 A{Y}{person-top}
+n21 or
+n23 and
+n25 neg a1(X,Y)
+n24 neg friends(X,Y)
+n22 and
+n27 a1(X,Y)
+n26 friends(X,Y)
+n18 A{X}{person}
+n28 or
+n30 and
+n32 neg a1(X,Guy)
+n31 neg friends(X,Guy)
+n29 and
+n34 a1(X,Guy)
+n33 friends(X,Guy)
+n6 A{X}{person}
+n35 A{Y}{person-bot/Guy}
+n36 or
+n38 neg friends(X,Y)
+n37 friends(X,Y)
+n4 or
+n40 neg nice(Guy)
+n39 nice(Guy)
+n0 -> n1;
+n0 -> n2;
+n1 -> n3;
+n3 -> n4;
+n3 -> n5;
+n5 -> n6;
+n5 -> n7;
+n7 -> n8;
+n7 -> n9;
+n9 -> n10;
+n8 -> n11;
+n8 -> n12;
+n12 -> n13;
+n13 -> n14;
+n11 -> n15;
+n11 -> n16;
+n16 -> n17;
+n15 -> n18;
+n15 -> n19;
+n19 -> n20;
+n20 -> n21;
+n21 -> n22;
+n21 -> n23;
+n23 -> n24;
+n23 -> n25;
+n22 -> n26;
+n22 -> n27;
+n18 -> n28;
+n28 -> n29;
+n28 -> n30;
+n30 -> n31;
+n30 -> n32;
+n29 -> n33;
+n29 -> n34;
+n6 -> n35;
+n35 -> n36;
+n36 -> n37;
+n36 -> n38;
+n4 -> n39;
+n4 -> n40;

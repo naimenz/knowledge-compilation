@@ -31,7 +31,7 @@ class ConstraintSet:
         # make it easier to access different types of constraints 
         equality_constraints, inequality_constraints = set(), set()
         inclusion_constraints, notinclusion_constraints = set(), set()
-        subset_constraints = set()
+        subset_constraints, notsubset_constraints = set(), set()
 
         for constraint in constraints:
             if isinstance(constraint, EqualityConstraint):
@@ -44,6 +44,8 @@ class ConstraintSet:
                 notinclusion_constraints.add(constraint)
             elif isinstance(constraint, SubsetConstraint):
                 subset_constraints.add(constraint)
+            elif isinstance(constraint, SubsetConstraint):
+                notsubset_constraints.add(constraint)
 
         redundant_inclusion_constraints = self._get_redundant_inclusion_constraints(inclusion_constraints)
         self._inclusion_constraints = frozenset(inclusion_constraints) - redundant_inclusion_constraints
@@ -59,6 +61,7 @@ class ConstraintSet:
         self._equality_constraints = frozenset(equality_constraints)
 
         self._subset_constraints = frozenset(subset_constraints)
+        self._notsubset_constraints = frozenset(notsubset_constraints)
 
         self._constraints = frozenset(constraints) - redundant_inclusion_constraints - redundant_inequality_constraints - redundant_notinclusion_constraints
     
@@ -152,6 +155,10 @@ class ConstraintSet:
     @property
     def subset_constraints(self) -> FrozenSet['SubsetConstraint']:
         return self._subset_constraints
+
+    @property
+    def notsubset_constraints(self) -> FrozenSet['NotSubsetConstraint']:
+        return self._notsubset_constraints
 
     @property
     def logical_constraints(self) -> FrozenSet['LogicalConstraint']:

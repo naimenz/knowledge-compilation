@@ -28,7 +28,7 @@ def build_nx_graph_from_nnf(root: 'NNFNode') -> 'DiGraph':
 
         # add text for drawing
         node_data = current_node.node_info()
-        node_string = f"{node_data['type']}\n{node_data['label']}"
+        node_string = node_data['label']
         graph.add_node(current_node, label=node_string, smoothing=node_data['smoothing'])
 
         for child in current_node.children:
@@ -63,12 +63,13 @@ def build_nx_graph_from_txt(file_name: 'str') -> 'DiGraph':
         if stripped_line[-1] == ';':
             edge_lines.append(stripped_line[:-1].split())
         else:
-            node_lines.append(stripped_line.split(' ',1))
+            node_lines.append(stripped_line.split(' '))
 
     graph = nx.DiGraph()
     for node_line in node_lines:
-        node_name, node_data = node_line
-        graph.add_node(node_name, label=node_data)
+        node_name = node_line[0]
+        node_data = "\n".join(node_line[1:])
+        graph.add_node(node_name, label=node_name + '\n' + node_data)
     for edge_line in edge_lines:
         graph.add_edge(edge_line[0], edge_line[2])
     return graph
@@ -91,4 +92,5 @@ def draw_nx_graph_from_txt(file_name: 'str') -> None:
     plt.show()
 
 if __name__ == "__main__":
+    # draw_nx_graph_from_txt('../../WFOMI/solver/test_input/smokers/query')
     draw_nx_graph_from_txt('../../WFOMI/solver/test_input/pipeline-smokers/query')

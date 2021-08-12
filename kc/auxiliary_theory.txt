@@ -10,7 +10,7 @@ n11 a1(X,X)
 n9 and
 n13 A{X}{person-bot}
 n14 A{Y}{person/X}
-n15 a1(X,Y)
+n15 a1(Y,X)
 n12 and
 n17 A{X}{person-top}
 n18 smokes(X)
@@ -20,15 +20,15 @@ n21 a1(X,X)
 n19 and
 n23 A{X}{person-top}
 n24 A{Y}{person-top/X}
-n25 a1(X,Y)
+n25 a1(Y,X)
 n22 A{X}{person-bot}
 n26 A{Y}{person-top}
 n27 or
 n29 and
-n31 neg a1(Y,X)
+n31 neg a1(X,Y)
 n30 friends(Y,X)
 n28 and
-n33 a1(Y,X)
+n33 a1(X,Y)
 n32 neg friends(Y,X)
 n4 A{X}{person}
 n34 A{Y}{person-bot}

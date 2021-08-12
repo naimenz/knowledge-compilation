@@ -1,99 +1,87 @@
 n0 and
 n2 and
-n4 smokes(Guy)
-n3 and
+n4 and
 n6 and
-n8 a1(Guy,Guy)
-n7 A{X}{person/Guy}
-n9 a1(X,Guy)
-n5 E{person-top}{person}
-n10 and
+n8 smokes(Guy)
+n7 and
+n10 A{X}{person}
+n11 a1(X,Guy)
+n9 E{person-top}{person/Guy}
 n12 and
 n14 and
 n16 and
 n18 and
-n20 and
+n20 A{X}{person-bot/Guy}
+n21 neg smokes(X)
+n19 and
+n23 A{X}{person-bot/Guy}
+n24 A{Y}{person/Guy}
+n25 a1(X,Y)
 n22 and
-n24 A{X}{person-bot/Guy}
-n25 neg smokes(X)
-n23 and
-n27 A{X}{person-bot/Guy}
-n28 A{Y}{person/Guy,X}
-n29 a1(X,Y)
+n27 A{X}{person-top}
+n28 smokes(X)
 n26 and
-n31 A{X}{person-bot/Guy}
-n32 a1(X,X)
-n30 and
-n34 A{X}{person-top}
-n35 smokes(X)
-n33 and
-n37 A{X}{person-top}
-n38 a1(Guy,X)
-n36 and
-n40 A{X}{person-top}
-n41 a1(X,X)
-n39 and
-n43 A{X}{person-top}
-n44 A{Y}{person-top/X}
-n45 a1(X,Y)
-n42 and
-n47 A{X}{person-bot/Guy}
-n48 A{Y}{person-top}
-n49 or
-n51 and
-n53 neg a1(Y,X)
-n52 friends(Y,X)
-n50 and
-n55 a1(Y,X)
-n54 neg friends(Y,X)
-n46 A{X}{person-bot/Guy}
-n56 or
-n58 and
-n60 neg a1(Guy,X)
-n59 friends(Guy,X)
-n57 and
-n62 a1(Guy,X)
-n61 neg friends(Guy,X)
-n21 or
-n64 neg a1(Guy,Guy)
-n63 a1(Guy,Guy)
-n19 A{X}{person/Guy}
-n65 or
-n67 neg a1(X,Guy)
-n66 a1(X,Guy)
+n30 A{X}{person-top}
+n31 a1(Guy,X)
+n29 and
+n33 A{X}{person-top}
+n34 A{Y}{person-top}
+n35 a1(X,Y)
+n32 and
+n37 A{X}{person-bot/Guy}
+n38 A{Y}{person-top}
+n39 or
+n41 and
+n43 neg a1(Y,X)
+n42 friends(Y,X)
+n40 and
+n45 a1(Y,X)
+n44 neg friends(Y,X)
+n36 A{X}{person-bot/Guy}
+n46 or
+n48 and
+n50 neg a1(Guy,X)
+n49 friends(Guy,X)
+n47 and
+n52 a1(Guy,X)
+n51 neg friends(Guy,X)
 n17 A{X}{person-top}
-n68 or
-n70 neg friends(Guy,X)
-n69 friends(Guy,X)
+n53 or
+n55 neg friends(Guy,X)
+n54 friends(Guy,X)
 n15 A{X}{person/Guy}
-n71 A{Y}{person-bot/Guy}
-n72 or
-n74 neg friends(Y,X)
-n73 friends(Y,X)
+n56 A{Y}{person-bot/Guy,X}
+n57 or
+n59 neg friends(Y,X)
+n58 friends(Y,X)
 n13 A{X}{person-top}
-n75 A{Y}{person-top}
-n76 or
-n78 neg friends(Y,X)
-n77 friends(Y,X)
-n11 or
-n80 neg smokes(Guy)
-n79 smokes(Guy)
-n1 A{X}{person}
-n81 or
-n83 neg friends(X,Guy)
-n82 friends(X,Guy)
+n60 A{Y}{person-top/X}
+n61 or
+n63 neg friends(Y,X)
+n62 friends(Y,X)
+n5 or
+n65 neg friends(Guy,Guy)
+n64 friends(Guy,Guy)
+n3 A{X}{person/Guy}
+n66 or
+n68 neg friends(X,Guy)
+n67 friends(X,Guy)
+n1 A{Y}{person/Guy}
+n69 or
+n71 neg friends(Y,Y)
+n70 friends(Y,Y)
 n0 -> n1;
 n0 -> n2;
 n2 -> n3;
 n2 -> n4;
-n3 -> n5;
-n3 -> n6;
+n4 -> n5;
+n4 -> n6;
 n6 -> n7;
 n6 -> n8;
 n7 -> n9;
-n5 -> n10;
+n7 -> n10;
 n10 -> n11;
-n10 -> n12;
+n9 -> n12;
 n12 -> n13;
 n12 -> n14;
 n14 -> n15;
@@ -103,65 +91,53 @@ n16 -> n18;
 n18 -> n19;
 n18 -> n20;
 n20 -> n21;
-n20 -> n22;
-n22 -> n23;
-n22 -> n24;
+n19 -> n22;
+n19 -> n23;
+n23 -> n24;
 n24 -> n25;
-n23 -> n26;
-n23 -> n27;
+n22 -> n26;
+n22 -> n27;
 n27 -> n28;
-n28 -> n29;
+n26 -> n29;
 n26 -> n30;
-n26 -> n31;
-n31 -> n32;
-n30 -> n33;
-n30 -> n34;
+n30 -> n31;
+n29 -> n32;
+n29 -> n33;
+n33 -> n34;
 n34 -> n35;
-n33 -> n36;
-n33 -> n37;
+n32 -> n36;
+n32 -> n37;
 n37 -> n38;
-n36 -> n39;
-n36 -> n40;
-n40 -> n41;
-n39 -> n42;
-n39 -> n43;
-n43 -> n44;
-n44 -> n45;
-n42 -> n46;
-n42 -> n47;
-n47 -> n48;
+n38 -> n39;
+n39 -> n40;
+n39 -> n41;
+n41 -> n42;
+n41 -> n43;
+n40 -> n44;
+n40 -> n45;
+n36 -> n46;
+n46 -> n47;
+n46 -> n48;
 n48 -> n49;
-n49 -> n50;
-n49 -> n51;
-n51 -> n52;
-n51 -> n53;
-n50 -> n54;
-n50 -> n55;
-n46 -> n56;
+n48 -> n50;
+n47 -> n51;
+n47 -> n52;
+n17 -> n53;
+n53 -> n54;
+n53 -> n55;
+n15 -> n56;
 n56 -> n57;
-n56 -> n58;
-n58 -> n59;
-n58 -> n60;
-n57 -> n61;
-n57 -> n62;
-n21 -> n63;
-n21 -> n64;
-n19 -> n65;
-n65 -> n66;
-n65 -> n67;
-n17 -> n68;
-n68 -> n69;
-n68 -> n70;
-n15 -> n71;
-n71 -> n72;
-n72 -> n73;
-n72 -> n74;
-n13 -> n75;
-n75 -> n76;
-n76 -> n77;
-n76 -> n78;
-n11 -> n79;
-n11 -> n80;
-n1 -> n81;
-n81 -> n82;
-n81 -> n83;
+n57 -> n58;
+n57 -> n59;
+n13 -> n60;
+n60 -> n61;
+n61 -> n62;
+n61 -> n63;
+n5 -> n64;
+n5 -> n65;
+n3 -> n66;
+n66 -> n67;
+n66 -> n68;
+n1 -> n69;
+n69 -> n70;
+n69 -> n71;

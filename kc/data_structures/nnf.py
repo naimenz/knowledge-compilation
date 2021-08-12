@@ -1,11 +1,12 @@
 """Classes for NNFs -- represented by their root nodes"""
 
-from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint, SetOfConstants
+from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, Constraint
+from kc.data_structures import ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint, SetOfConstants, NotInclusionConstraint
 from kc.util import get_element_of_set
 
 from abc import ABC, abstractmethod
 
-from typing import Iterable, List, Set, Union, Dict, Tuple, Optional, FrozenSet, TypeVar
+from typing import Iterable, List, Set, Union, Dict, Tuple, Optional, FrozenSet, TypeVar, Sequence
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
@@ -55,10 +56,19 @@ class NNFNode(ABC):
 
         all_possible_atoms: Set['ConstrainedAtom'] = set.union(*(set(clause.get_constrained_atoms()) for clause in cnf.clauses))
         all_circuit_atoms = self.get_circuit_atoms()
+        print("==== all_possible_atoms =====")
+        for atom in all_possible_atoms:
+            print(atom)
+        print("==== all_circuit_atoms =====")
+        for atom in all_circuit_atoms:
+            print(atom)
 
         partially_smoothed_node = self.get_smoothed_node()
         # now add all atoms that were missed by the whole circuit
         missed_circuit_atoms = self.A_without_B(all_possible_atoms, all_circuit_atoms)
+        print("==== missed_circuit_atoms =====")
+        for atom in missed_circuit_atoms:
+            print(atom)
         smoothed_node = partially_smoothed_node.add_circuit_nodes(missed_circuit_atoms)
         return smoothed_node
 
@@ -140,7 +150,10 @@ class NNFNode(ABC):
         new_A = A
         # subtract the ground atoms from B from A one atom at a time
         for c_atom in sorted(B):
+            print(f'before: {new_A = }')
+            print(f'{c_atom = }')
             new_A = c_atom.subtract_from_c_atoms(new_A)
+            print(f'after: {new_A = }')
 
         # NOTE: the atoms aren't guaranteed to be independent when built this way, so we make them so
         return self._make_independent(new_A)
@@ -420,13 +433,22 @@ class ExistsNode(IntensionalNode):
 
     def substitute_parent_domain(self, c_atoms: Iterable['ConstrainedAtom']) -> Set['ConstrainedAtom']:
         """Take a bunch of constrained atoms and, where applicable, substitute the quantified domain with its parent.
-        NOTE TODO: For now, I also substitute the quantified domain's complement with the parent, but I'm not sure if this is appropriate"""
+        NOTE TODO DEBUG: Inequality constraints between variables are added as they are in Forclift, but I'm not fully sure how this
+        makes up for removed redundant ineqs -- won't we add too many?"""
         subdomain = get_element_of_set(self.bound_vars)  # There should be a single bound domain variable
         parent_domain = get_element_of_set(self.cs.subset_constraints).right_term  # There should be only one here too
         new_c_atoms: Set['ConstrainedAtom'] = set()
         for c_atom in sorted(c_atoms):
+            # creating inequality constraints between pairs of variables belonging to different domain
+            subdomain_variables = [v for v in c_atom.bound_vars if any(ic.logical_term == v and ic.domain_term == subdomain for ic in c_atom.cs.inclusion_constraints)]
+            complement_variables = [v for v in c_atom.bound_vars if any(ic.logical_term == v and ic.domain_term == subdomain.complement for ic in c_atom.cs.inclusion_constraints)]
+            missed_variable_inequalities = [InequalityConstraint(v1, v2) for v1 in subdomain_variables for v2 in complement_variables if v1 != v2]
+            # get all of the missing constant inequalities
+            missed_constant_inequalities = [NotInclusionConstraint(v1, SetOfConstants([c])) for v1 in subdomain_variables for c in subdomain.excluded_constants]
+            missed_constant_inequalities += [NotInclusionConstraint(v1, SetOfConstants([c])) for v1 in complement_variables for c in subdomain.complement.excluded_constants]  # type: ignore
             new_cs = c_atom.cs.substitute_domain_in_set_constraints(subdomain, parent_domain)
             new_cs = new_cs.substitute_domain_in_set_constraints(subdomain.complement, parent_domain)
+            new_cs = new_cs.join(ConstraintSet(missed_variable_inequalities + missed_constant_inequalities))  # type: ignore
             new_c_atom = ConstrainedAtom(c_atom.literals, c_atom.bound_vars, new_cs)
             new_c_atoms.add(new_c_atom)
         # NOTE TODO: Trying out making independent before returning
@@ -446,9 +468,14 @@ class ExistsNode(IntensionalNode):
         """Get the string that will be used to pass to the WFOMI computation"""
         # exists only ever have one bound var
         bound_var = get_element_of_set(self.bound_vars)
+        print(bound_var.excluded_constants)
         parent_domain = get_element_of_set(self.cs.subset_constraints).right_term  # There should be only one here too
-
-        string = f"E{{{bound_var}}}{{{parent_domain}}}"
+        # NOTE: We now have to exclude any constants that are not contained in the new domain
+        if len(bound_var.excluded_constants) > 0:
+            excluded_constants_string = ",".join(sorted(str(c) for c in bound_var.excluded_constants))
+            string = f"E{{{bound_var}}}{{{parent_domain}/{excluded_constants_string}}}"
+        else:
+            string = f"E{{{bound_var}}}{{{parent_domain}}}"
         return string
 
 class EmptyNode(NNFNode):
