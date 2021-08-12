@@ -690,12 +690,12 @@ class ConstrainedAtom(UnitClause):
                and len(eq_class.variables.intersection(other.bound_vars)) > 0
                for eq_class in mgu_eq_classes):
             # return "1"
-            print("DNS 1")
+            # print("DNS 1")
             return True
         if any(len(eq_class.variables.intersection(other.bound_vars)) >= 2
                  for eq_class in mgu_eq_classes):
             # return "2"
-            print("DNS 2")
+            # print("DNS 2")
             return True
         # if any(inequality not in other_atom.get_constant_or_free_inequalities()
         #          for inequality in this_atom.get_constant_or_free_inequalities()):
@@ -705,13 +705,13 @@ class ConstrainedAtom(UnitClause):
             if inequality not in other_atom.get_constant_or_free_inequalities():
                 # we add a further check for whether that inequality would be trivial in this atom
                 if not this_atom.cs.join(ConstraintSet([inequality])) == this_atom.cs:
-                    print("DNS 3")
+                    # print("DNS 3")
                     return True
         if any(inequality not in other_atom.get_bound_variable_inequalities()
                  and inequality.is_not_trivial(this_atom)
                  for inequality in this_atom.get_bound_variable_inequalities()):
             # return "4"
-            print("DNS 4")
+            # print("DNS 4")
             return True
         for eq_class in mgu_eq_classes:
             for term1 in eq_class:
@@ -723,7 +723,7 @@ class ConstrainedAtom(UnitClause):
                             this_domain = self.cs.get_domain_for_variable(variable1)
                             other_domain = other.cs.get_domain_for_variable(variable2)
                             if this_domain.is_strict_subset_of(other_domain):
-                                print("DNS 5")
+                                # print("DNS 5")
                                 return True
         else:
             return False

@@ -56,19 +56,19 @@ class NNFNode(ABC):
 
         all_possible_atoms: Set['ConstrainedAtom'] = set.union(*(set(clause.get_constrained_atoms()) for clause in cnf.clauses))
         all_circuit_atoms = self.get_circuit_atoms()
-        print("==== all_possible_atoms =====")
-        for atom in all_possible_atoms:
-            print(atom)
-        print("==== all_circuit_atoms =====")
-        for atom in all_circuit_atoms:
-            print(atom)
+        # print("==== all_possible_atoms =====")
+        # for atom in all_possible_atoms:
+        #     print(atom)
+        # print("==== all_circuit_atoms =====")
+        # for atom in all_circuit_atoms:
+        #     print(atom)
 
         partially_smoothed_node = self.get_smoothed_node()
         # now add all atoms that were missed by the whole circuit
         missed_circuit_atoms = self.A_without_B(all_possible_atoms, all_circuit_atoms)
-        print("==== missed_circuit_atoms =====")
-        for atom in missed_circuit_atoms:
-            print(atom)
+        # print("==== missed_circuit_atoms =====")
+        # for atom in missed_circuit_atoms:
+        #     print(atom)
         smoothed_node = partially_smoothed_node.add_circuit_nodes(missed_circuit_atoms)
         return smoothed_node
 
@@ -150,10 +150,7 @@ class NNFNode(ABC):
         new_A = A
         # subtract the ground atoms from B from A one atom at a time
         for c_atom in sorted(B):
-            print(f'before: {new_A = }')
-            print(f'{c_atom = }')
             new_A = c_atom.subtract_from_c_atoms(new_A)
-            print(f'after: {new_A = }')
 
         # NOTE: the atoms aren't guaranteed to be independent when built this way, so we make them so
         return self._make_independent(new_A)
@@ -420,13 +417,18 @@ class ExistsNode(IntensionalNode):
         # it's more efficient to redo this here than call self.get_circuit_atoms
         child_circuit_atoms = self.child.get_circuit_atoms()
         all_circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
+        print("====== child_circuit_atoms ======")
+        for atom in child_circuit_atoms:
+            print(atom)
+        print("====== all_circuit_atoms ======")
+        for atom in all_circuit_atoms:
+            print(atom)
 
         # TODO: For now we loop to convergence, but there must be a quicker way
         missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
-        new_missed_circuit_atoms = self.A_without_B(missed_circuit_atoms, child_circuit_atoms)
-        while missed_circuit_atoms != new_missed_circuit_atoms:
-            missed_circuit_atoms = new_missed_circuit_atoms
-            new_missed_circuit_atoms = self.A_without_B(missed_circuit_atoms, child_circuit_atoms)
+        print("====== missed_circuit_atoms ======")
+        for atom in missed_circuit_atoms:
+            print(atom)
         smoothed_child = self.child.get_smoothed_node().add_circuit_nodes(missed_circuit_atoms)
 
         return ExistsNode(smoothed_child, self.bound_vars, self.cs)
@@ -468,7 +470,6 @@ class ExistsNode(IntensionalNode):
         """Get the string that will be used to pass to the WFOMI computation"""
         # exists only ever have one bound var
         bound_var = get_element_of_set(self.bound_vars)
-        print(bound_var.excluded_constants)
         parent_domain = get_element_of_set(self.cs.subset_constraints).right_term  # There should be only one here too
         # NOTE: We now have to exclude any constants that are not contained in the new domain
         if len(bound_var.excluded_constants) > 0:
