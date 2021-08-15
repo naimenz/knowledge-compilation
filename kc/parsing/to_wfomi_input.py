@@ -116,10 +116,20 @@ def remove_true_node(true_node: 'TrueNode', and_node: 'AndNode') -> Optional['NN
 
 def replace_double_for_all(for_all_node: 'ForAllNode') -> Tuple[Optional['ForAllNode'], 'ForAllNode'] :
     """Replace IN PLACE a for-all node over two variables with two for-all nodes
-    If we have replaced the root, return that (or None). Additioally, return the new current node to search from"""
+    If we have replaced the root, return that (or None). Additioally, return the new current node to search from
+    NOTE TODO: This may cause problems with IPG"""
     bound_var, second_bound_var = sorted(for_all_node.bound_vars)
+    domain, second_domain = for_all_node.cs.get_domain_for_variable(bound_var), for_all_node.cs.get_domain_for_variable(second_bound_var) 
     constraints = ConstraintSet([c for c in for_all_node.cs.set_constraints if c.logical_term == bound_var])
-    second_constraints = ConstraintSet([c for c in for_all_node.cs.constraints if not (isinstance(c, SetConstraint) and c.logical_term == bound_var)])
+    # DEBUG TRying out putting logical constraints on larger domain
+    second_constraints = ConstraintSet([c for c in for_all_node.cs.set_constraints if c.logical_term == second_bound_var])
+    # the bigger domain gets the logical constraints
+    if domain.is_strict_superset_of(second_domain):
+        constraints = constraints.join(ConstraintSet(for_all_node.cs.logical_constraints))
+    else:
+        second_constraints = second_constraints.join(ConstraintSet(for_all_node.cs.logical_constraints))
+
+    # second_constraints = ConstraintSet([c for c in for_all_node.cs.constraints if not (isinstance(c, SetConstraint) and c.logical_term == bound_var)])
     # build in reverse order so we can have the right children
     second_for_all = ForAllNode(for_all_node.child, [second_bound_var], second_constraints)
     for_all_node.child.parents = [second_for_all]

@@ -91,7 +91,7 @@ class FreeVariable(LogicalVariable):
     """NOTE: Experimental subclass of variables specifically for FreeVariables.
     For now, doesn't have much functionality, just so we can check if something is Free
     """
-    def __init__(self, symbol: str, domain: Optional['ProperDomain'] = None) -> None:
+    def __init__(self, symbol: str, domain: 'ProperDomain') -> None:
         """"We need to keep track of a FreeVariable's domain so we can tell if
         inequality constraints involving it it are trivial
         NOTE: We set the domain later on"""

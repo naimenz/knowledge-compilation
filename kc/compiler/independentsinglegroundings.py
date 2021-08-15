@@ -93,18 +93,30 @@ class IndependentSingleGroundings(KCRule):
         root_variable = cast(LogicalVariable, root_term)  # hack for type checking
         # for checking if the logical constraints are redundant
         domain = clause.cs.get_domain_for_variable(root_variable) 
+        # NOTE TODO DEBUG: trying out including the inequality with the BIGGER domain by looking at the domain of the other var
+        # since we are in the two variable fragment, there are 0 or 1 remaining variables after ISG
+        other_variable_set = clause.bound_vars - set([root_variable])
+        if len(other_variable_set) > 0:
+            next_variable = get_element_of_set(other_variable_set)
+            next_domain = clause.cs.get_domain_for_variable(next_variable)
+            next_domain_is_subset = next_domain.is_strict_subset_of(domain)
+        else:
+            # there is no next domain, so in some sense it is a subset, but really this is just for convenience
+            next_domain_is_subset = True
         set_constraints = [sc for sc in clause.cs.set_constraints if sc.logical_term == root_variable]
 
         # NOTE DEBUG TODO: Trying a small function to check whether we should include this constraint yet
         def is_valid_logical_constraint(constraint: 'LogicalConstraint') -> bool:
             lt = constraint.left_term
             rt = constraint.right_term
-            if lt == root_variable:
-                if isinstance(rt, FreeVariable) and rt.domain.intersect_with(domain) != EmptyDomain():
-                    return True
-            elif rt == root_variable:
-                if isinstance(lt, FreeVariable) and lt.domain.intersect_with(domain) != EmptyDomain():
-                    return True
+            # only include logical constraints if this is the larger domain
+            if next_domain_is_subset:
+                if lt == root_variable:
+                    if isinstance(rt, FreeVariable) and rt.domain.intersect_with(domain) != EmptyDomain():
+                        return True
+                elif rt == root_variable:
+                    if isinstance(lt, FreeVariable) and lt.domain.intersect_with(domain) != EmptyDomain():
+                        return True
             return False
 
         logical_constraints = [lc for lc in clause.cs.logical_constraints if is_valid_logical_constraint(lc)]

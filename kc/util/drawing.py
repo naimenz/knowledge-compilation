@@ -92,5 +92,5 @@ def draw_nx_graph_from_txt(file_name: 'str') -> None:
     plt.show()
 
 if __name__ == "__main__":
-    # draw_nx_graph_from_txt('../../WFOMI/solver/test_input/smokers/query')
-    draw_nx_graph_from_txt('../../WFOMI/solver/test_input/pipeline-smokers/theory')
+    # draw_nx_graph_from_txt('../../WFOMI/solver/test_input/smokers/theory')
+    draw_nx_graph_from_txt('../../WFOMI/solver/test_input/pipeline-smokers/query')
