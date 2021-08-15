@@ -5,14 +5,17 @@ This includes constrained AND unconstrained clauses.
 TODO: Figure out if the inheritance structure for UnitClause and ConstrainedAtom makes sense.
 """
 
-from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint, \
-         NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable, Substitution, FreeVariable
+from kc.data_structures import Literal, Atom, LogicalVariable, Constant, ConstraintSet, InequalityConstraint
+from kc.data_structures import NotInclusionConstraint, SetOfConstants, EquivalenceClasses, DomainVariable
+from kc.data_structures import Substitution, FreeVariable, SMTPredicate
 from kc.util import get_element_of_set
+
+from collections import defaultdict
 
 from functools import reduce
 from abc import ABC, abstractmethod
 
-from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional, FrozenSet, Tuple
+from typing import List, TypeVar, Iterable, Any, Sequence, Set, Optional, FrozenSet, Tuple, Dict
 from typing import cast 
 from typing import TYPE_CHECKING
 
@@ -163,6 +166,10 @@ class Clause(ABC):
         for literal in self.literals:
             all_constants = all_constants.union(literal.constants)
         return all_constants
+
+    def get_smt_predicates(self) -> Set['SMTPredicate']:
+        """Get a set of the SMT predicates from this class"""
+        return set(l.atom.predicate for l in self.literals if isinstance(l.atom.predicate, SMTPredicate))
 
     @abstractmethod
     def __lt__(self, other: Any) -> bool:
@@ -821,9 +828,15 @@ class CNF:
     This consists of a set of (CONSTRAINED OR UNCONSTRAINED) clauses, which form a conjunction.
     """
 
-    def __init__(self, clauses: Iterable['Clause'], shattered: bool=False, names: Optional[Tuple[str, str]]=('X', 'Y')) -> None:
-        """Initialise with a set of clauses and (optionally) the shattering status of the cnf
+    def __init__(self,
+                 clauses: Iterable['Clause'],
+                 shattered: bool = False,
+                 subdivided: bool = False,
+                 names: Optional[Tuple[str, str]]=('X', 'Y')
+                 ) -> None:
+        """Initialise with a set of clauses and (optionally) the shattering and subdivided statuses of the cnf
         By default, a CNF is not shattered.
+        By default, a CNF does not have divided ranges.
         By default, we rename the variables to be X and Y. We only don't do this when we are using the CNF to get new variable names."""
         u_clauses, c_clauses = set(), set()
         for clause in clauses:
@@ -839,7 +852,8 @@ class CNF:
         u_clauses_as_clauses = cast(FrozenSet['Clause'], self.u_clauses)  # hack for type-checking
         self.clauses: FrozenSet['Clause'] = u_clauses_as_clauses.union(self.c_clauses)
 
-        self.shattered = shattered # keep track of whether this cnf has undergone shattering
+        self.shattered = shattered  # keep track of whether this cnf has undergone shattering
+        self.subdivided = subdivided  # keep track of whether this cnf has had SMT ranges divided
 
     def make_variables_different(self) -> 'CNF': 
         """Make the variable names in each clause different.
@@ -992,6 +1006,33 @@ class CNF:
             new_variable_string += '_'
         new_variable = DomainVariable(new_variable_string, parent_domain, excluded_constants=excluded_constants)
         return new_variable
+
+    def subdivide_ranges(self) -> 'CNF':
+        """Return a new CNF where the ranges of all SMT predicates have been subdivided so as not to overlap"""
+
+        
+        smt_predicates = self.get_smt_predicates()
+        # now we make a dictionary of all the bounds for each different function symbol
+        boundary_dict: Dict[Tuple[str, int], Set[float]] = defaultdict(set)
+        for predicate in smt_predicates:
+            boundary_dict[(predicate.name, predicate.arity)].update((predicate.lower_bound, predicate.upper_bound))
+
+        # create all of the subdivided predicates
+        new_predicate_dict: Dict[str, List['SMTPredicate']] = defaultdict(list)
+        for name_and_arity, values in boundary_dict.items():
+            name, arity = name_and_arity
+            ordered_boundaries = sorted(values)
+            for i in range(len(ordered_boundaries) - 1):
+                new_predicate = SMTPredicate(name, arity, ordered_boundaries[i], ordered_boundaries[i+1])
+                new_predicate_dict[name].append(new_predicate)
+        return new_predicate_dict 
+
+    def get_smt_predicates(self) -> Set['SMTPredicate']:
+        """Get a set of all SMT predicates that appear in the theory"""
+        smt_predicates = set()
+        for clause in self.clauses:
+            smt_predicates |= clause.get_smt_predicates()
+        return smt_predicates
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses"""

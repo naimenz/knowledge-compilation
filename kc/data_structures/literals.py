@@ -5,7 +5,7 @@ Classes for literals, including the predicates and atoms that go into building l
 from kc.data_structures import Constant, LogicalVariable, EquivalenceClass, EquivalenceClasses
 import typing
 
-from typing import List, Sequence, Any, Set, Optional, FrozenSet
+from typing import List, Sequence, Any, Set, Optional, FrozenSet, Iterable
 from typing import cast
 from typing import TYPE_CHECKING
 
@@ -149,7 +149,7 @@ class Atom:
 
     def __str__(self) -> str:
         term_strs = [str(term) for term in self.terms]
-        return f"{self.predicate.name}({','.join(term_strs)})"
+        return self.predicate.string_for_atom(term_strs)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -163,32 +163,32 @@ class Atom:
 
 
 
-class GroundAtom(Atom):
-    """
-    A class for ground FOL atoms.
-    These are the same as regular atoms but all terms are constants
-    """
-    def __init__(self, predicate: 'Predicate', terms: List['Constant']) -> None:
-        cast_terms = cast(List['LogicalTerm'], terms) # hack for type checking
-        super().__init__(predicate, cast_terms)
+# class GroundAtom(Atom):
+#     """
+#     A class for ground FOL atoms.
+#     These are the same as regular atoms but all terms are constants
+#     """
+#     def __init__(self, predicate: 'Predicate', terms: List['Constant']) -> None:
+#         cast_terms = cast(List['LogicalTerm'], terms) # hack for type checking
+#         super().__init__(predicate, cast_terms)
 
-    @staticmethod
-    def build_from_atom_substitution(atom: 'Atom', substitution: 'Substitution') -> 'GroundAtom':
-        """Construct a ground atom from a substitution to a non-ground atom
+#     @staticmethod
+#     def build_from_atom_substitution(atom: 'Atom', substitution: 'Substitution') -> 'GroundAtom':
+#         """Construct a ground atom from a substitution to a non-ground atom
 
-        NOTE: assumes that all variables in the atom appear in the substitution, or it'll throw a key error.
-        TODO: should this function be here, or in Atom, or stand-alone?"""
-        ground_terms: List['Constant'] = []
-        for term in atom.terms:
-            if isinstance(term, Constant):
-                ground_terms.append(term)
-            else:
-                variable = cast(LogicalVariable, term) # hack for type checking 
-                sub = substitution[variable]
-                if not isinstance(sub, Constant):
-                    raise ValueError('Substitution for ground atom should be closing (i.e. no variables)')
-                ground_terms.append(sub)
-        return GroundAtom(atom.predicate, ground_terms)
+#         NOTE: assumes that all variables in the atom appear in the substitution, or it'll throw a key error.
+#         TODO: should this function be here, or in Atom, or stand-alone?"""
+#         ground_terms: List['Constant'] = []
+#         for term in atom.terms:
+#             if isinstance(term, Constant):
+#                 ground_terms.append(term)
+#             else:
+#                 variable = cast(LogicalVariable, term) # hack for type checking 
+#                 sub = substitution[variable]
+#                 if not isinstance(sub, Constant):
+#                     raise ValueError('Substitution for ground atom should be closing (i.e. no variables)')
+#                 ground_terms.append(sub)
+#         return GroundAtom(atom.predicate, ground_terms)
 
 
 class Predicate:
@@ -211,6 +211,11 @@ class Predicate:
     def __str__(self) -> str:
         return f"{self.name}/{self.arity}"
 
+    def string_for_atom(self, term_strs: Iterable[str]) -> str:
+        """For representation inside an atom, we need to provide a different function,
+        with space to include terms"""
+        return f"{self.name}({','.join(term_strs)})"
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -221,3 +226,38 @@ class Predicate:
             raise NotImplementedError(f'Cannot compare Predicate and {type(other)}')
         return (self.name, self.arity) < (other.name, other.arity)
 
+class SMTPredicate(Predicate):
+    """
+    A class for SMT predicates.
+    This consists of a predicate name (which is really a function symbol name for SMT predicates),
+    an arity, AND upper and lower bounds (either or both of which can be None)
+    """
+    def __init__(self, name: str, arity: int, lower_bound: float, upper_bound: float) -> None:
+        super(SMTPredicate, self).__init__(name, arity)
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+
+    def __eq__(self, other: Any) -> bool:
+        """Two predicates are equal if they have the same name and the same arity"""
+        return isinstance(other, SMTPredicate) and self.name == other.name and self.arity == other.arity and \
+                self.lower_bound == other.lower_bound and self.upper_bound == other.upper_bound
+    
+    def __hash__(self) -> int:
+        return hash((self.name, self.arity, self.lower_bound, self.upper_bound))
+
+    def __str__(self) -> str:
+        le_string = ' \u2264 '
+        return f"{self.lower_bound}{le_string}{self.name}/{self.arity} < {self.upper_bound}"
+
+    def string_for_atom(self, term_strs: Iterable[str]) -> str:
+        """For representation inside an atom, we need to provide a different function,
+        with space to include terms"""
+        le_string = ' \u2264 '
+        return f"{self.lower_bound}{le_string}{self.name}({','.join(term_strs)}) < {self.upper_bound}"
+
+    def __lt__(self, other: Any) -> bool:
+        """The order is not important as long as it is consistent, so we will
+        compare the order of the symbol and the arity"""
+        if not isinstance(other, Predicate): 
+            raise NotImplementedError(f'Cannot compare Predicate and {type(other)}')
+        return (self.name, self.arity, self.lower_bound, self.upper_bound) < (other.name, other.arity, self.lower_bound, self.upper_bound)

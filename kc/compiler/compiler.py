@@ -14,7 +14,6 @@ from kc.compiler import CheckTautology, Ground
 import sys
 sys.setrecursionlimit(100) 
 
-
 from typing import Dict, Optional, Tuple, Any, Type
 
 
@@ -41,16 +40,19 @@ class Compiler:
     def compile(self, theory: 'CNF') -> 'NNFNode':
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
+        # ensuring that ranges are subdivided before continuing
+        if not theory.ranges_subdivided: 
+            print("SUBDIVIDING RANGES")
+            theory = theory.subdivide_ranges()
         # if there are no clauses in the theory, then nothing to do
         #  TODO: make this nicer
         if len(theory.clauses) == 0:
             print("EMPTY HERE")
             return EmptyNode()
 
-        # DEBUG: disabling caching for nicer graphs
-        # if self.cache_contains(theory):
-        #     print(f"DEBUG: Hit cache")
-        #     return self.get_cache(theory)
+        if self.cache_contains(theory):
+            print(f"DEBUG: Hit cache")
+            return self.get_cache(theory)
 
         nnf: Optional['NNFNode'] = None
 
