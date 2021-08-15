@@ -10,3 +10,7 @@ kc/temp.py
 
 # ignoring rubbish files for checking small things and looking at output
 *mess/
+
+# ignoring compilation output files
+*query.txt
+*theory.txt
