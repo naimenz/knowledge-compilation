@@ -613,6 +613,16 @@ class ConstrainedAtom(UnitClause):
         else:
             return None
 
+    def extend_ranges(self) -> 'ConstrainedAtom':
+        """Extend the ranges of an smt constrained atom to +/- infinity, for smoothing purposes.
+        Throws an error if the atom isn't SMT, so check beforehand"""
+        if not self.atom.is_smt():
+            raise ValueError(f'extend_ranges only applicable to SMT atoms, not {self.atom}')
+        old_predicate = self.atom.predicate
+        new_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), float('inf'))
+        new_atom = Atom(new_predicate, self.atom.terms)
+        return ConstrainedAtom([Literal(new_atom)], self.bound_vars, self.cs)
+
     def independent_or_subsumed_by(self, subsumer: 'ConstrainedAtom') -> bool:
         """Return true if this c-atom (self) is independent of, or subsumed by, the subsumer.
         NOTE: This function is only as correct as '.subsumes' is."""

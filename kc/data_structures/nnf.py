@@ -1,17 +1,18 @@
 """Classes for NNFs -- represented by their root nodes"""
 
 from kc.data_structures import ConstrainedClause, UnconstrainedClause, Clause, Substitution, CNF, LogicalVariable, ConstraintSet, Constraint
-from kc.data_structures import ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint, SetOfConstants, NotInclusionConstraint
+from kc.data_structures import ConstrainedAtom, Literal, LessThanConstraint, InequalityConstraint, SetOfConstants, NotInclusionConstraint, SMTPredicate, Atom
 from kc.util import get_element_of_set
 
 from abc import ABC, abstractmethod
 
 from typing import Iterable, List, Set, Union, Dict, Tuple, Optional, FrozenSet, TypeVar, Sequence
+from typing import cast
 from typing import TYPE_CHECKING
 
 # to avoid circular imports that are just for type checking
 if TYPE_CHECKING:
-    from kc.data_structures import DomainVariable 
+    from kc.data_structures import DomainVariable
 
 class NNFNode(ABC):
     """The abstract base class for all NNF nodes."""
@@ -52,23 +53,27 @@ class NNFNode(ABC):
 
     def do_smoothing(self, cnf: 'CNF') -> 'NNFNode':
         """Initiate smoothing, which recursively calls get_smoothed_node.
-        We pass in a cnf so we know which circuit atoms to aim for"""
+        We pass in a cnf so we know which circuit atoms to aim for
+        NOTE: We have to preprocess the SMT atoms like we do in LiteralNode"""
 
         all_possible_atoms: Set['ConstrainedAtom'] = set.union(*(set(clause.get_constrained_atoms()) for clause in cnf.clauses))
+        # update ranges
+        print(f'before ranges {all_possible_atoms = }')
+        all_possible_atoms = set(ca.extend_ranges() if ca.atom.is_smt() else ca for ca in all_possible_atoms)
         all_circuit_atoms = self.get_circuit_atoms()
-        # print("==== all_possible_atoms =====")
-        # for atom in all_possible_atoms:
-        #     print(atom)
-        # print("==== all_circuit_atoms =====")
-        # for atom in all_circuit_atoms:
-        #     print(atom)
+        print("==== all_possible_atoms =====")
+        for atom in all_possible_atoms:
+            print(atom)
+        print("==== all_circuit_atoms =====")
+        for atom in all_circuit_atoms:
+            print(atom)
 
         partially_smoothed_node = self.get_smoothed_node()
         # now add all atoms that were missed by the whole circuit
         missed_circuit_atoms = self.A_without_B(all_possible_atoms, all_circuit_atoms)
-        # print("==== missed_circuit_atoms =====")
-        # for atom in missed_circuit_atoms:
-        #     print(atom)
+        print("==== missed_circuit_atoms =====")
+        for atom in missed_circuit_atoms:
+            print(atom)
         smoothed_node = partially_smoothed_node.add_circuit_nodes(missed_circuit_atoms)
         return smoothed_node
 
@@ -80,11 +85,18 @@ class NNFNode(ABC):
             true_literal_node = LiteralNode(get_element_of_set(c_atom.literals), from_smoothing=True)
             false_literal_node = LiteralNode(~get_element_of_set(c_atom.literals), from_smoothing=True)
             or_node = OrNode(true_literal_node, false_literal_node, from_smoothing=True)
+            # TODO DEBUG: Moving this if somewhere higher would avoid making or_node when not needed
             if len(c_atom.bound_vars) > 0 and c_atom.cs != ConstraintSet([]):
-                smoothing_branch = ForAllNode(or_node, c_atom.bound_vars, c_atom.cs, from_smoothing=True)
+                if c_atom.atom.is_smt():
+                    smoothing_branch = ForAllNode(true_literal_node, c_atom.bound_vars, c_atom.cs, from_smoothing=True)
+                else:
+                    smoothing_branch = ForAllNode(or_node, c_atom.bound_vars, c_atom.cs, from_smoothing=True)
                 current_tail = AndNode(smoothing_branch, current_tail)
             else: 
-                current_tail = AndNode(or_node, current_tail)
+                if c_atom.atom.is_smt():
+                    current_tail = AndNode(true_literal_node, current_tail)
+                else:
+                    current_tail = AndNode(or_node, current_tail)
         return current_tail
 
 
@@ -215,11 +227,23 @@ class LiteralNode(NNFNode):
 
     def get_circuit_atoms(self) -> Set['ConstrainedAtom']:
         """LiteralNodes have no children and cover only their own literal.
+
         NOTE: we return it as a ConstrainedAtom despite it having no constraints
+
         NOTE IMPORTANT: We have to convert FreeVariables into non-free variables here
-        so that they appear in bound_vars correctly when substituting"""
-        c_atom = ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))
-        # print(f'DEBUG: Literal node circuit_atoms:\n{c_atom}')
+        so that they appear in bound_vars correctly when substituting
+
+        NOTE DEBUG: For now, we replace SMT predicates with 'unlimited' ones, since
+        this is equivalent to any SMT predicate and its negation, and we only need to consider it
+        if it's not present at all"""
+        if not self.literal.is_smt():
+            c_atom = ConstrainedAtom([Literal(self.literal.atom, True)], [], ConstraintSet([]))
+        else:
+            old_predicate = cast('SMTPredicate', self.literal.atom.predicate)  # hack for type checking
+            new_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), float('inf'))
+            atom = Atom(new_predicate, self.literal.atom.terms)
+            c_atom = ConstrainedAtom([Literal(atom, True)], [], ConstraintSet([]))
+        print(f'DEBUG: Literal node circuit_atoms:\n{c_atom}')
         return set([c_atom.replace_free_variables()])
 
     def get_smoothed_node(self) -> 'LiteralNode':
@@ -260,6 +284,7 @@ class IntensionalNode(NNFNode):
     and (possibly empty) bound variables and constraint sets"""
     child: 'NNFNode'
 
+
 class AndNode(ExtensionalNode):
     """A node representing an extensional AND operation."""
 
@@ -269,11 +294,8 @@ class AndNode(ExtensionalNode):
         left_circuit_atoms = self.left.get_circuit_atoms()
         right_circuit_atoms = self.right.get_circuit_atoms()
         all_circuit_atoms = left_circuit_atoms.union(right_circuit_atoms)
-        # DEBUG TODO: checking that they really are independent
-        # print(f"HERE:\n{self._make_independent(all_circuit_atoms) = }\n{                        all_circuit_atoms = }")
+        # we make them independent here just to make sure
         all_circuit_atoms = self._make_independent(all_circuit_atoms)
-        # assert(self._make_independent(all_circuit_atoms) == all_circuit_atoms)
-        # print(f'DEBUG:AndNode circuit_atoms:\n{sorted(all_circuit_atoms)}')
         return all_circuit_atoms
 
     def get_smoothed_node(self) -> 'AndNode':
