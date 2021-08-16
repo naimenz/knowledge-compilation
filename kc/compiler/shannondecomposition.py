@@ -31,6 +31,11 @@ class ShannonDecomposition(KCRule):
         false_literal = ~true_literal
         true_branch = cnf.join(CNF([UnconstrainedClause([true_literal])]))
         false_branch = cnf.join(CNF([UnconstrainedClause([false_literal])]))
+        # manually setting flags because cnf.join cannot
+        true_branch.shattered = cnf.shattered
+        true_branch.subdivided = cnf.subdivided
+        false_branch.shattered = cnf.shattered
+        false_branch.subdivided = cnf.subdivided
 
         return OrNode(compiler.compile(true_branch), compiler.compile(false_branch))
 

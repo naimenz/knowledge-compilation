@@ -27,7 +27,8 @@ class Independence(KCRule):
             return False, None
         else:
             # if the parent was shattered, so are the children
-            return True, (CNF(subtheory, shattered=cnf.shattered), CNF(other_subtheory, shattered=cnf.shattered))
+            return True, (CNF(subtheory, shattered=cnf.shattered, subdivided=cnf.subdivided),\
+                          CNF(other_subtheory, shattered=cnf.shattered, subdivided=cnf.subdivided))
 
     @classmethod
     def apply(cls, cnf: 'CNF', sub_cnfs: StoredCNFs, compiler: 'Compiler') -> 'NNFNode':

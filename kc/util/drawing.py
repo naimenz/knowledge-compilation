@@ -31,7 +31,7 @@ def build_nx_graph_from_nnf(root: 'NNFNode') -> 'DiGraph':
         node_data = current_node.node_info()
         node_string = node_data['label']
         # copying to get a tree, not a DAG
-        graph.add_node(copy(current_node), label=node_string, smoothing=node_data['smoothing'])
+        graph.add_node(current_node, label=node_string, smoothing=node_data['smoothing'])
 
         for child in current_node.children:
             unvisited_queue.append(child)

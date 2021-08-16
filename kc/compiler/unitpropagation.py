@@ -32,6 +32,7 @@ class UnitPropagation(KCRule):
     def apply(cls, cnf: 'CNF', unit_clause: 'UnitClause', compiler: 'Compiler') -> 'NNFNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
+        print(f"DEBUG: Start of unitprop, {cnf.subdivided = }")
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in sorted(cnf.clauses):
@@ -40,14 +41,15 @@ class UnitPropagation(KCRule):
                 conditioned_clause = cls.condition(gamma_s, unit_clause)
                 if not conditioned_clause is None:
                     unitpropagated_clauses.append(conditioned_clause)
-        propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered)
+        propagated_cnf = CNF(unitpropagated_clauses, shattered=cnf.shattered, subdivided=cnf.subdivided)
         # NOTE: a quick check here to see if the unit_clause is really unconstrained, and if so, return
         # it that way
         if len(unit_clause.bound_vars) == 0 and unit_clause.cs == ConstraintSet([]):
-            unit_cnf = CNF([UnconstrainedClause(unit_clause.literals)], shattered=cnf.shattered)
+            unit_cnf = CNF([UnconstrainedClause(unit_clause.literals)], shattered=cnf.shattered, subdivided=cnf.subdivided)
         else:
-            unit_cnf = CNF([unit_clause], shattered=cnf.shattered)
+            unit_cnf = CNF([unit_clause], shattered=cnf.shattered, subdivided=cnf.subdivided)
         # avoiding creating empty nodes
+        print(f"DEBUG: End of unitprop, {propagated_cnf.subdivided = }, {unit_cnf.subdivided = }")
         if len(propagated_cnf.clauses) > 0:
             return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
         else:

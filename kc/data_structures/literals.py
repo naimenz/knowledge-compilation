@@ -214,7 +214,9 @@ class Predicate:
         return isinstance(self, SMTPredicate)
 
     def __eq__(self, other: Any) -> bool:
-        """Two predicates are equal if they have the same name and the same arity"""
+        """Two predicates are equal if they have the same name and the same arity
+        NOTE: We do not need to handle the SMTPredicate case, since the way python handles
+        __eq__, the method of the other instance will be called even if it is on the right"""
         return isinstance(other, Predicate) and self.name == other.name and self.arity == other.arity
 
     def __hash__(self) -> int:

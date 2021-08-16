@@ -865,7 +865,7 @@ class CNF:
             names = ('X' + str(i), 'Y' + str(i))
             new_clause = clause.rename_bound_variables(names)
             new_c_clauses.add(new_clause)
-        return CNF(new_c_clauses.union(self.u_clauses), shattered=self.shattered, names=None)
+        return CNF(new_c_clauses.union(self.u_clauses), shattered=self.shattered, subdivided=self.subdivided, names=None)
 
 
     def rename_bound_variables(self, names: Tuple[str, str]=('X', 'Y')) -> 'CNF':
@@ -1068,7 +1068,7 @@ class CNF:
                             lower_bound_valid2 = new_predicate.lower_bound >= positive_lower_bound2
                             upper_bound_valid2 = new_predicate.upper_bound <= positive_upper_bound2
                             if (lower_bound_valid1 and upper_bound_valid1) or (lower_bound_valid2 and upper_bound_valid2):
-                                new_literals.add(Literal(Atom(new_predicate, literal.atom.terms), literal.polarity))
+                                new_literals.add(Literal(Atom(new_predicate, literal.atom.terms), polarity=True))
             if isinstance(clause, UnconstrainedClause):
                 new_clause: 'Clause' = UnconstrainedClause(new_literals)
             elif isinstance(clause, ConstrainedClause):

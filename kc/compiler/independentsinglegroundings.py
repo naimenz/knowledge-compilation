@@ -76,8 +76,7 @@ class IndependentSingleGroundings(KCRule):
             else:
                 new_clauses.add(ConstrainedClause(new_literals, new_bound_vars, new_cs))
         # shattering is preserved during this operation
-        # DEBUG shouldnt need to rename here
-        return CNF(new_clauses, shattered = cnf.shattered, names=None)
+        return CNF(new_clauses, shattered=cnf.shattered, subdivided=cnf.subdivided, names=None)
             
     @classmethod
     def _get_new_variable_cs(cls,

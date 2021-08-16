@@ -41,9 +41,11 @@ class Compiler:
         """This function follows closely the algorithm described in the PhD and 
         the one used in Forclift"""
         # ensuring that ranges are subdivided before continuing
-        if not theory.ranges_subdivided: 
+        if not theory.subdivided: 
             print("SUBDIVIDING RANGES")
+            print(f'{theory.subdivided = }')
             theory = theory.subdivide_ranges()
+            print(f'{theory.subdivided = }')
         # if there are no clauses in the theory, then nothing to do
         #  TODO: make this nicer
         if len(theory.clauses) == 0:
@@ -64,8 +66,8 @@ class Compiler:
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(theory)
 
-        # print(f"DEBUG: Theory = {theory}")
-        # print(f"DEBUG: Applicable rule = {applicable_rule}")
+        print(f"DEBUG: Theory = {theory}")
+        print(f"DEBUG: Applicable rule = {applicable_rule}")
 
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {theory}")

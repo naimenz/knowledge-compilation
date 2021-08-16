@@ -102,7 +102,7 @@ class IndependentPairedGroundings(KCRule):
             else:
                 new_clauses.add(ConstrainedClause(new_literals, new_bound_vars, new_cs))
         # shattering is preserved during this operation
-        return CNF(new_clauses, shattered = cnf.shattered)
+        return CNF(new_clauses, shattered=cnf.shattered, subdivided=cnf.subdivided)
             
     @classmethod
     def _get_new_variable_cs(cls,

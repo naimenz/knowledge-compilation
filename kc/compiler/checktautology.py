@@ -30,5 +30,5 @@ class CheckTautology(KCRule):
     @classmethod
     def apply(cls, cnf: 'CNF', tautology_clause: 'Clause', compiler: 'Compiler') -> 'NNFNode':
         """Apply LeafConstruction and return an NNFNode"""
-        simplified_cnf = CNF(cnf.clauses.difference(set([tautology_clause])), shattered=cnf.shattered)
+        simplified_cnf = CNF(cnf.clauses.difference(set([tautology_clause])), shattered=cnf.shattered, subdivided=cnf.subdivided)
         return AndNode(compiler.compile(simplified_cnf), TrueNode())

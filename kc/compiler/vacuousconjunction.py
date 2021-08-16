@@ -28,6 +28,6 @@ class VacuousConjunction(KCRule):
     def apply(cls, cnf: 'CNF', stored_data: None, compiler: 'Compiler') -> 'ForAllNode':
         """Apply VacuousConjunction and return an NNFNode"""
         clause = tuple(cnf.c_clauses)[0] # only one so we can access it directly
-        child_cnf = CNF([UnconstrainedClause(clause.literals)])
+        child_cnf = CNF([UnconstrainedClause(clause.literals)], subdivided=cnf.subdivided)
         child = compiler.compile(child_cnf)
         return ForAllNode(child, clause.bound_vars, clause.cs)
