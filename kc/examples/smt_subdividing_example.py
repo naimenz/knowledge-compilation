@@ -32,9 +32,10 @@ YinPeople = InclusionConstraint(Y, People)
 
 cs = ConstraintSet([XinPeople, YinPeople])
 
-clause1 = ConstrainedClause([~smokesX, ~friendsXY, age_10_20X], [X, Y], cs)
+clause1 = ConstrainedClause([~smokesX, ~friendsXY, ~age_10_20X], [X, Y], cs)
 clause2 = ConstrainedClause([~smokesX, ~friendsXY, age_15_30Y], [X, Y], cs)
 
 cnf = CNF([clause1, clause2])
 print(cnf)
+print("==============")
 print(cnf.subdivide_ranges())

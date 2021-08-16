@@ -38,6 +38,10 @@ class Literal:
         """Return only the constants in the terms of this literal"""
         return self.atom.constants
 
+    def is_smt(self) -> bool:
+        """Is this an smt literal?"""
+        return isinstance(self.atom.predicate, SMTPredicate)
+
     # TODO: refactor to sequence of if( and .. and ..) return True else False
     def __eq__(self, other: Any) -> bool: 
         """Two literals are equal if they have the same atom and polarity"""
@@ -140,6 +144,10 @@ class Atom:
         else:
             return None
 
+    def is_smt(self) -> bool:
+        """Is this an smt atom?"""
+        return isinstance(self.predicate, SMTPredicate)
+
     def __eq__(self, other: Any) -> bool:
         """Two atoms are equal if they have the same predicate and the same terms"""
         return isinstance(other, Atom) and self.predicate == other.predicate and self.terms == other.terms
@@ -201,6 +209,10 @@ class Predicate:
         self.name = name
         self.arity = arity
 
+    def is_smt(self) -> bool:
+        """Is this an smt predicate?"""
+        return isinstance(self, SMTPredicate)
+
     def __eq__(self, other: Any) -> bool:
         """Two predicates are equal if they have the same name and the same arity"""
         return isinstance(other, Predicate) and self.name == other.name and self.arity == other.arity
@@ -230,12 +242,16 @@ class SMTPredicate(Predicate):
     """
     A class for SMT predicates.
     This consists of a predicate name (which is really a function symbol name for SMT predicates),
-    an arity, AND upper and lower bounds (either or both of which can be None)
+    an arity, AND upper and lower bounds (either or both of which can be inf/-inf)
     """
     def __init__(self, name: str, arity: int, lower_bound: float, upper_bound: float) -> None:
         super(SMTPredicate, self).__init__(name, arity)
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+
+    def is_smt(self) -> bool:
+        """Is this an smt predicate?"""
+        return True
 
     def __eq__(self, other: Any) -> bool:
         """Two predicates are equal if they have the same name and the same arity"""
@@ -253,7 +269,7 @@ class SMTPredicate(Predicate):
         """For representation inside an atom, we need to provide a different function,
         with space to include terms"""
         le_string = ' \u2264 '
-        return f"{self.lower_bound}{le_string}{self.name}({','.join(term_strs)}) < {self.upper_bound}"
+        return f"[{self.lower_bound}{le_string}{self.name}({','.join(term_strs)}) < {self.upper_bound}]"
 
     def __lt__(self, other: Any) -> bool:
         """The order is not important as long as it is consistent, so we will

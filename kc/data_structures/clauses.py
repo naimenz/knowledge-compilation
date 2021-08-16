@@ -167,9 +167,9 @@ class Clause(ABC):
             all_constants = all_constants.union(literal.constants)
         return all_constants
 
-    def get_smt_predicates(self) -> Set['SMTPredicate']:
-        """Get a set of the SMT predicates from this class"""
-        return set(l.atom.predicate for l in self.literals if isinstance(l.atom.predicate, SMTPredicate))
+    def get_smt_literals(self) -> Set['Literal']:
+        """Get a set of the literals with SMT predicates from this class"""
+        return set(l for l in self.literals if l.is_smt())  # type: ignore
 
     @abstractmethod
     def __lt__(self, other: Any) -> bool:
@@ -1008,14 +1008,27 @@ class CNF:
         return new_variable
 
     def subdivide_ranges(self) -> 'CNF':
-        """Return a new CNF where the ranges of all SMT predicates have been subdivided so as not to overlap"""
-
+        """Return a new CNF where the ranges of all SMT predicates have been subdivided so as not to overlap
+        We deal with negative literals by inverting them to create two positive literals, e.g.
+        [1 < f(X) < 2] becomes [-inf < f(X) < 1] v [2 < f(X) < inf]"""
         
-        smt_predicates = self.get_smt_predicates()
+        smt_literals = self.get_smt_literals()
         # now we make a dictionary of all the bounds for each different function symbol
         boundary_dict: Dict[Tuple[str, int], Set[float]] = defaultdict(set)
-        for predicate in smt_predicates:
-            boundary_dict[(predicate.name, predicate.arity)].update((predicate.lower_bound, predicate.upper_bound))
+        for literal in smt_literals:
+            predicate = cast('SMTPredicate', literal.atom.predicate)  # hack for type checking
+            
+            if literal.polarity == True:
+                bounds: Tuple[float, ...] = (predicate.lower_bound, predicate.upper_bound)
+            # use the boundaries of the positive literals we'd create instead
+            else:
+                positive_lower_bound1 = float('-inf')
+                positive_upper_bound1 = predicate.lower_bound
+                positive_lower_bound2 = predicate.upper_bound
+                positive_upper_bound2 = float('inf')
+                bounds = (positive_lower_bound1, positive_upper_bound1, positive_lower_bound2, positive_upper_bound2)
+            boundary_dict[(predicate.name, predicate.arity)].update(bounds)
+        print(boundary_dict)
 
         # create all of the subdivided predicates
         new_predicate_dict: Dict[str, List['SMTPredicate']] = defaultdict(list)
@@ -1025,14 +1038,53 @@ class CNF:
             for i in range(len(ordered_boundaries) - 1):
                 new_predicate = SMTPredicate(name, arity, ordered_boundaries[i], ordered_boundaries[i+1])
                 new_predicate_dict[name].append(new_predicate)
-        return new_predicate_dict 
 
-    def get_smt_predicates(self) -> Set['SMTPredicate']:
-        """Get a set of all SMT predicates that appear in the theory"""
-        smt_predicates = set()
+        # now for each clause in the theory and for each smt atom in that clause, replace
+        # the atom with an equivalent set of non-overlapping smt atoms
+        new_clauses = set()
+        # TODO: Refactor this horrible mess
         for clause in self.clauses:
-            smt_predicates |= clause.get_smt_predicates()
-        return smt_predicates
+            new_literals = set()
+            for literal in clause.literals:
+                if not literal.is_smt():
+                    new_literals.add(literal)
+                else:
+                    old_predicate = cast('SMTPredicate', literal.atom.predicate)  # hack for type checking
+                    if literal.polarity == True:
+                        for new_predicate in new_predicate_dict[old_predicate.name]:
+                            lower_bound_valid = new_predicate.lower_bound >= old_predicate.lower_bound
+                            upper_bound_valid = new_predicate.upper_bound <= old_predicate.upper_bound
+                            if lower_bound_valid and upper_bound_valid:
+                                new_literals.add(Literal(Atom(new_predicate, literal.atom.terms), literal.polarity))
+                    else:
+                        positive_lower_bound1 = float('-inf')
+                        positive_upper_bound1 = old_predicate.lower_bound
+                        positive_lower_bound2 = old_predicate.upper_bound
+                        positive_upper_bound2 = float('inf')
+                        for new_predicate in new_predicate_dict[old_predicate.name]:
+                            # check each of the bounds for the replacement smt predicates of a negative 
+                            lower_bound_valid1 = new_predicate.lower_bound >= positive_lower_bound1
+                            upper_bound_valid1 = new_predicate.upper_bound <= positive_upper_bound1
+                            lower_bound_valid2 = new_predicate.lower_bound >= positive_lower_bound2
+                            upper_bound_valid2 = new_predicate.upper_bound <= positive_upper_bound2
+                            if (lower_bound_valid1 and upper_bound_valid1) or (lower_bound_valid2 and upper_bound_valid2):
+                                new_literals.add(Literal(Atom(new_predicate, literal.atom.terms), literal.polarity))
+            if isinstance(clause, UnconstrainedClause):
+                new_clause: 'Clause' = UnconstrainedClause(new_literals)
+            elif isinstance(clause, ConstrainedClause):
+                new_clause = ConstrainedClause(new_literals, clause.bound_vars, clause.cs)
+            else:
+                raise ValueError(f"how is {clause} not a clause, it's a {type(clause)}")
+            new_clauses.add(new_clause)
+
+        return CNF(new_clauses, shattered=self.shattered, subdivided=True, names=None)
+
+    def get_smt_literals(self) -> Set['Literal']:
+        """Get a set of all literals with SMT predicates that appear in the theory"""
+        smt_literals = set()
+        for clause in self.clauses:
+            smt_literals |= clause.get_smt_literals()
+        return smt_literals
 
     def __eq__(self, other: Any) -> bool:
         """Two CNFs are equal if they have the same clauses"""

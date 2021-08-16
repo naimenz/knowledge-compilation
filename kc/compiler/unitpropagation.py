@@ -2,8 +2,6 @@
 
 from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable
 from kc.compiler import KCRule
-from kc.util import get_element_of_set  # DEBUG
-DEBUG_FLAG = False
 
 from typing import Optional, Tuple, List, Any, Set, FrozenSet
 from typing import TypeVar
@@ -65,9 +63,6 @@ class UnitPropagation(KCRule):
             return [gamma]
         a_gamma = viable_atoms[0]
 
-        # if we have a viable atom, apply some preprocessing to the clauses to 
-        # avoid variable name issues
-        # DEBUG TODO: This is experimental
         if isinstance(gamma, ConstrainedClause):
             a_gamma, gamma = cls._align_variables(A, a_gamma, gamma)
         cs_gamma = a_gamma.cs
@@ -96,7 +91,7 @@ class UnitPropagation(KCRule):
 
         # loop over all constraints to negate for gamma_rest
         for e in sorted(cs_theta.join(cs_A)):
-            # NOTE DEBUG: Trying - only include constraint if it is relevant to the clause
+            # only include constraint if it is relevant to the clause
             if not (e.terms[0] in gamma.all_variables or e.terms[1] in gamma.all_variables):
                 continue
             not_e = ~e
@@ -171,23 +166,16 @@ class UnitPropagation(KCRule):
     def condition(cls, gamma: 'Clause', c_literal: 'UnitClause') -> Optional['Clause']:
         """Condition the constrained clause 'gamma' with respect to the unit clause (constrained literal) 'c_literal'.
         NOTE: assumes that gamma is split wrt the atom in 'c_literal'"""
-        # print("\n==============================")
-        # print(f"{gamma = }")
-        # print(f"{c_literal = }")
         if gamma.is_subsumed_by_literal(c_literal): # gamma is redundant when we have 'literal'
-            # print(f"SUBSUMED!")
             return None
         else:
-            # print(f"NOT SUBSUMED!")
             necessary_literals = cls._discard_unsatisfied_literals(gamma, c_literal)
             Lambda: 'Clause'
             if isinstance(gamma, ConstrainedClause):
                 Lambda = ConstrainedClause(necessary_literals, gamma.bound_vars, gamma.cs)
             else:
                 Lambda = UnconstrainedClause(necessary_literals)
-            # print(f"REDUCED TO {Lambda}!")
             return Lambda
-        # print("==============================\n")
 
 
     @classmethod
