@@ -51,6 +51,11 @@ class NNFNode(ABC):
         This recursively gets smoothed versions of this node's children."""
         pass
 
+    @abstractmethod
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+
     def do_smoothing(self, cnf: 'CNF') -> 'NNFNode':
         """Initiate smoothing, which recursively calls get_smoothed_node.
         We pass in a cnf so we know which circuit atoms to aim for
@@ -181,6 +186,7 @@ class TrueNode(NNFNode):
     def get_smoothed_node(self) -> 'TrueNode':
         """TrueNodes do not change with smoothing"""
         return self
+    
 
     def node_info(self) -> Dict[str, str]:
         """Get information about this node in a way that is used for drawing graphs"""
@@ -192,6 +198,11 @@ class TrueNode(NNFNode):
     def get_node_string(self) -> str:
         """Get the string that will be used to pass to the WFOMI computation"""
         raise NotImplementedError('WFOMI solver has no TrueNode')
+
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+        pass
 
 class FalseNode(NNFNode):
     """A class to represent False in the circuit. Needs no data"""
@@ -217,6 +228,11 @@ class FalseNode(NNFNode):
     def get_node_string(self) -> str:
         """Get the string that will be used to pass to the WFOMI computation"""
         raise NotImplementedError('WFOMI solver has no FalseNode')
+
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+        pass
 
 class LiteralNode(NNFNode):
     """A class to represent a single literal in the circuit. 
@@ -250,8 +266,32 @@ class LiteralNode(NNFNode):
         """LiteralNodes do not change with smoothing"""
         return self
 
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+        changed = False
+        if self.literal.is_smt():
+            pred = cast('SMTPredicate', self.literal.atom.predicate)  # hack for type checking
+            if pred.lower_bound == float('-inf'):
+                # gets the lower bound from the dict if it exists, otherwise sticks with -inf
+                lower_bound = bounds_dict.get(pred.name, [float('-inf')])[0]
+                changed = True
+            else:
+                lower_bound = pred.lower_bound
+            if pred.upper_bound == float('inf'):
+                # gets the upper bound from the dict if it exists, otherwise sticks with inf
+                upper_bound = bounds_dict.get(pred.name, [..., float('inf')])[1]
+                changed = True
+            else:
+                upper_bound = pred.upper_bound
+            if changed:
+                new_predicate = SMTPredicate(pred.name, pred.arity, lower_bound, upper_bound)
+                self.literal = Literal(Atom(new_predicate, self.literal.atom.terms), self.literal.polarity)
+
+
     def node_info(self) -> Dict[str, str]:
-        """Get information about this node in a way that is used for drawing graphs"""
+        """Get information about this node in a way that is used for drawing graphs
+        NOTE: We have to draw smt atoms differently"""
         attributes = super(LiteralNode, self).node_info()
         attributes['type'] = 'LiteralNode'
         attributes['label'] = str(self.literal)
@@ -259,14 +299,16 @@ class LiteralNode(NNFNode):
 
     def get_node_string(self) -> str:
         """Get the string that will be used to pass to the WFOMI computation"""
-        atom_string = str(self.literal.atom)
+        if not self.literal.is_smt():
+            atom_string = str(self.literal.atom)
+        else:
+            atom_string = self.literal.atom.string_for_wfomi()
         # instead of ¬, WFOMI uses neg
         if self.literal.polarity == True:
             string = atom_string
         else:
             string = 'neg ' + atom_string
         return string
-
 
 class ExtensionalNode(NNFNode):
     """Abstract subclass for AND and OR nodes
@@ -277,6 +319,11 @@ class ExtensionalNode(NNFNode):
         self.left = left
         self.right = right
 
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+        self.left.replace_infinities(bounds_dict)
+        self.right.replace_infinities(bounds_dict)
 
 class IntensionalNode(NNFNode):
     """Abstract subclass for FORALL and EXISTS nodes
@@ -284,6 +331,10 @@ class IntensionalNode(NNFNode):
     and (possibly empty) bound variables and constraint sets"""
     child: 'NNFNode'
 
+    def replace_infinities(self, bounds_dict: Dict[str, Tuple[float, float]]) -> None:
+        """Recursively search through the tree for nodes that contain SMT predicates with infinity in their
+        bounds and replace them with specific bounds"""
+        self.child.replace_infinities(bounds_dict)
 
 class AndNode(ExtensionalNode):
     """A node representing an extensional AND operation."""

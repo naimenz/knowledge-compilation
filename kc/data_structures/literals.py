@@ -186,6 +186,12 @@ class Atom:
         term_strs = [str(term) for term in self.terms]
         return self.predicate.string_for_atom(term_strs)
 
+    def string_for_wfomi(self) -> str:
+        """For use in WFOMI, we need to give literals in a different format,
+        e.g. 15 < age(X) < 99 as age_15_99(X)"""
+        term_strs = [str(term) for term in self.terms]
+        return self.predicate.string_for_wfomi(term_strs)
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -299,6 +305,12 @@ class SMTPredicate(Predicate):
         with space to include terms"""
         le_string = ' \u2264 '
         return f"[{self.lower_bound}{le_string}{self.name}({','.join(term_strs)}) < {self.upper_bound}]"
+
+    def string_for_wfomi(self, term_strs: Iterable[str]) -> str:
+        """For use in WFOMI, we need to give literals in a different format,
+        e.g. 15 < age(X) < 99 as age_15_99(X)
+        TODO: Decide on how many decimal places"""
+        return f"{self.name}_{self.lower_bound:.0f}_{self.upper_bound:.0f}({','.join(term_strs)})"
 
     def __lt__(self, other: Any) -> bool:
         """The order is not important as long as it is consistent, so we will

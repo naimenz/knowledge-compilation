@@ -10,7 +10,8 @@ from kc.util import build_nx_graph_from_nnf
 from kc.util import draw_nx_graph_from_nnf
 from copy import copy, deepcopy
 
-from typing import Optional, Tuple
+import re
+from typing import Optional, Tuple, Dict, List
 
 from collections import deque
 
@@ -160,20 +161,43 @@ def write_string_to_txt(string: str, file_name: str) -> None:
         f.write(string)
 
 def write_nnf_to_txt(root: 'NNFNode', file_name: str) -> None:
+    """Process and then write an nnf to a file"""
     string = nnf_to_wfomi_string(root)
     print(string)
     write_string_to_txt(string, file_name)
+
+def write_nnf_and_weights_to_txt(root: 'NNFNode',
+                                 weights: Dict['str', 'str'],
+                                 nnf_name: str,
+                                 weights_name: str) -> None:
+    """Process and then write an nnf and its weights to files"""
+    string = nnf_to_wfomi_string(root)
+    weight_lines: List[str] = []
+    # we'll say that only SMT predicates can contain underscores
+    for line in string.split('\n'):
+        if len(line) > 0 and line[-1] != ';' and '_' in line:
+            # parse the line to get the bounds out
+            # explanation at https://regex101.com/r/W0pdBX/2
+            bounds_regex = r"n\d+ (neg |)?(.+)_(-?\d+|-inf)_(-?\d+|inf)"
+            polarity, name, lower_bound, upper_bound = re.findall(bounds_regex, line)[0]
+            weight_function = weights[name]
+            full_line = f"{polarity + name}{weight_function} bounds[{lower_bound}, {upper_bound}]"
+            print(full_line)
 
 if __name__ == "__main__":
     X = LogicalVariable('X')
     Y = LogicalVariable('Y')
     People = RootDomain([Constant('alice')], 'People')
-    clause1 = Literal(Atom(Predicate("hi", 1), [X]))
-    clause2 = Literal(Atom(Predicate("bye", 1), [X]))
+    clause1 = Literal(Atom(SMTPredicate("hi", 1, -53, 7), [X]), False)
+    # clause1 = Literal(Atom(Predicate("hi", 1), [X]))
+    clause2 = Literal(Atom(SMTPredicate("bye", 1, float('-inf'), 111), [X]), True)
+    # clause2 = Literal(Atom(SMTPredicate("bye", 1, float('-inf'), 111), [X]), False)
     root = AndNode(LiteralNode(clause1), AndNode(LiteralNode(clause2), TrueNode()))
     processed_root = prepare_nnf_for_wfomi(root)
-    draw_nx_graph_from_nnf(root)
-    draw_nx_graph_from_nnf(processed_root)
+    # draw_nx_graph_from_nnf(root)
+    # draw_nx_graph_from_nnf(processed_root)
+    weight_dict = {'bye': '(x)fun 1', 'hi': '(x)fun (1-x)'}
+    write_nnf_and_weights_to_txt(root, weight_dict, 1, 1)
 
 #     root1 = ForAllNode(AndNode(LiteralNode(clause2), TrueNode()), [LogicalVariable('X')], ConstraintSet([]))
 #     processed_root1 = prepare_nnf_for_wfomi(root1)
