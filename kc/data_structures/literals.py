@@ -40,15 +40,42 @@ class Literal:
 
     def is_smt(self) -> bool:
         """Is this an smt literal?"""
-        return isinstance(self.atom.predicate, SMTPredicate)
+        # TODO: Figure out why mypy throws 'cannot determine type of predicate' here
+        return isinstance(self.atom.predicate, SMTPredicate)  # type: ignore
 
     # TODO: refactor to sequence of if( and .. and ..) return True else False
     def __eq__(self, other: Any) -> bool: 
-        """Two literals are equal if they have the same atom and polarity"""
+        """Two literals are equal if they have the same atom and polarity
+        OR the predicate is SMT, one is positive and the other is negative, and the ranges work out"""
+        if not isinstance(other, Literal):
+            return False
+        literals_identical = (self.atom == other.atom and self.polarity == other.polarity)
+        if literals_identical:
+            return True
+        # handling the case of one-side unbounded smt atoms
+        if self.is_smt() and other.is_smt():
+            # TODO: Figure out why mypy throws 'cannot determine type of predicate' here
+            self_pred, other_pred = self.atom.predicate, other.atom.predicate  # type: ignore
+            if (self_pred.upper_bound == other_pred.lower_bound and self_pred.lower_bound == -other_pred.upper_bound == float('-inf')) \
+                    or (self_pred.lower_bound == other_pred.upper_bound and self_pred.upper_bound == -other_pred.lower_bound == float('inf')):
+                return True
+        return False
+
+
         return isinstance(other, Literal) and self.atom == other.atom and self.polarity == other.polarity
 
     def __invert__(self) -> 'Literal':
-        """Return a literal with the opposite polarity to this one."""
+        """Return a literal with the opposite polarity to this one.
+        NOTE: We handle SMT literals differently if possible"""
+        if self.is_smt():
+            # TODO: Figure out why mypy can't determine type
+            predicate = self.atom.predicate  # type: ignore
+            if predicate.lower_bound == float('-inf'):
+                new_predicate = SMTPredicate(predicate.name, predicate.arity, predicate.upper_bound, float('inf'))
+                return Literal(Atom(new_predicate, self.atom.terms), True)  # type: ignore
+            if predicate.upper_bound == float('inf'):
+                new_predicate = SMTPredicate(predicate.name, predicate.arity, float('-inf'), predicate.lower_bound)
+                return Literal(Atom(new_predicate, self.atom.terms), True)  # type: ignore
         return Literal(self.atom, not self.polarity)
 
     def __hash__(self) -> int:
