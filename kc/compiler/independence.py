@@ -3,50 +3,46 @@
 from kc.data_structures import *
 from kc.compiler import KCRule
 
-from typing import Tuple, Optional, Sequence, List, Any
+from typing import Tuple, Optional, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kc.compiler import Compiler
 
-StoredCNFs = Tuple['CNF', 'CNF']
 
 class Independence(KCRule):
     @classmethod
-    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional[StoredCNFs]]:
-        """Independence is applicable if the theory can be divided into
-        two subtheories such that the subtheories make up the whole theory and are
-        independent.
-        NOTE: This will work with domain variables when clauses_independent does"""
+    def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, Optional[Tuple['CNF', 'CNF']]]:
+        """Independence is applicable if the theory can be divided into two subtheories
+         such that the subtheories make up the whole theory and are independent."""
         if len(cnf.clauses) == 1:
-            return False, None # need at least 2 clauses to make non-empty independent sets
-        clauses = sorted(cnf.clauses)
-        subtheory, other_subtheory = cls._partition([clauses[0]], clauses[1:])
-        # if all clauses have been moved into subtheory, then we are back where we started!
+            return False, None  # need at least 2 clauses to make non-empty independent sets
+        cnf_clauses = sorted(cnf.clauses)
+        subtheory, other_subtheory = cls._partition([cnf_clauses[0]], cnf_clauses[1:])
+        # if all clauses have been moved into subtheory by cls._partition, no theories are independent!
         if len(other_subtheory) == 0:
             return False, None
         else:
             # if the parent was shattered, so are the children
-            return True, (CNF(subtheory, shattered=cnf.shattered, subdivided=cnf.subdivided),\
+            return True, (CNF(subtheory, shattered=cnf.shattered, subdivided=cnf.subdivided),
                           CNF(other_subtheory, shattered=cnf.shattered, subdivided=cnf.subdivided))
 
     @classmethod
-    def apply(cls, cnf: 'CNF', sub_cnfs: StoredCNFs, compiler: 'Compiler') -> 'NNFNode':
+    def apply(cls, cnf: 'CNF', sub_cnfs: Tuple['CNF', 'CNF'], compiler: 'Compiler') -> 'NNFNode':
         """Apply Independence and return an NNFNode (in this case an AndNode)"""
         return AndNode(compiler.compile(sub_cnfs[0]), compiler.compile(sub_cnfs[1]))
 
     @classmethod
     def _partition(cls, potential_subtheory: List['Clause'],
-                  other_clauses: List['Clause']
-                  ) -> Tuple[List['Clause'], List['Clause']]:
-        """They use this function to construct the independent subtheories recursively.
+                   other_clauses: List['Clause']
+                   ) -> Tuple[List['Clause'], List['Clause']]:
+        """Used to construct the independent subtheories recursively.
         We start with two guesses for independent subtheories.
         We then iteratively move all the clauses that are dependent with the potential_subtheory 
-        over to it, and keep the rest separately.
+        over into one list, and keep the rest separately.
         """
         if len(other_clauses) == 0:
             return potential_subtheory, []
-        # this is done with a pattern match in scala
         else:
             if len(potential_subtheory) > 0:
                 clause, rest = potential_subtheory[0], potential_subtheory[1:]
