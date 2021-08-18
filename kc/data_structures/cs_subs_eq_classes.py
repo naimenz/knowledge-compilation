@@ -250,7 +250,11 @@ class ConstraintSet:
 
 
     def drop_constraints_involving_only_specific_variables(self, variables: Iterable['LogicalVariable']) -> 'ConstraintSet':
-        """Return a constraint set where all constraints that only involve variables from 'variables' are removed"""
+        """Return a constraint set where all constraints that only involve variables from 'variables' are removed
+        An example of this being used in IPG is:
+        e.g. if the original clause was \forall X, Y \in D, X != Y: friends(X, Y) then the constraints only involving
+        X and Y (i.e. X \in D; Y \in D; X != Y) are dealt with in the new ForAllNode and don't need to be carried
+        into the new cnf, leaving just friends(X, Y)"""
         relevant_logical_constraints = [lc for lc in self.logical_constraints if (not lc.left_term in variables and not lc.right_term in variables)]
         relevant_set_constraints = [sc for sc in self.set_constraints if not sc.logical_term in variables]
         return ConstraintSet([*relevant_logical_constraints, *relevant_set_constraints])
