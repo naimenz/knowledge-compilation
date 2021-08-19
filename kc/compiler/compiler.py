@@ -40,9 +40,9 @@ class Compiler:
         if not theory.subdivided: 
             theory = theory.subdivide_ranges()
 
-        # if self.cache_contains(theory):
-        #     print(f"DEBUG: Hit cache")
-        #     return self.get_cache(theory)
+        if self.cache_contains_cnf(theory):
+            print(f"DEBUG: Hit cache")
+            return self.get_cache(theory)
 
         # first we rename the variables in all the clauses to be different to simplify mgu finding later in the code
         theory = theory.make_variables_different()
@@ -51,8 +51,8 @@ class Compiler:
         stored_data: Optional[Any]
         applicable_rule, stored_data = self.find_rule(theory)
 
-        print(f"DEBUG: Theory = {theory}")
-        print(f"DEBUG: Applicable rule = {applicable_rule}")
+        # print(f"DEBUG: Theory = {theory}")
+        # print(f"DEBUG: Applicable rule = {applicable_rule}")
 
         if applicable_rule is None:
             raise ValueError("Compilation failed - no rule found for {theory}")

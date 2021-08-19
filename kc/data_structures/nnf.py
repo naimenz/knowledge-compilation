@@ -63,22 +63,22 @@ class NNFNode(ABC):
 
         all_possible_atoms: Set['ConstrainedAtom'] = set.union(*(set(clause.get_constrained_atoms()) for clause in cnf.clauses))
         # update ranges
-        print(f'before ranges {all_possible_atoms = }')
+        # print(f'before ranges {all_possible_atoms = }')
         all_possible_atoms = set(ca.extend_ranges() if ca.atom.is_smt() else ca for ca in all_possible_atoms)
         all_circuit_atoms = self.get_circuit_atoms()
-        print("==== all_possible_atoms =====")
-        for atom in all_possible_atoms:
-            print(atom)
-        print("==== all_circuit_atoms =====")
-        for atom in all_circuit_atoms:
-            print(atom)
+        # print("==== all_possible_atoms =====")
+        # for atom in all_possible_atoms:
+        #     print(atom)
+        # print("==== all_circuit_atoms =====")
+        # for atom in all_circuit_atoms:
+        #     print(atom)
 
         partially_smoothed_node = self.get_smoothed_node()
         # now add all atoms that were missed by the whole circuit
         missed_circuit_atoms = self.A_without_B(all_possible_atoms, all_circuit_atoms)
-        print("==== missed_circuit_atoms =====")
-        for atom in missed_circuit_atoms:
-            print(atom)
+        # print("==== missed_circuit_atoms =====")
+        # for atom in missed_circuit_atoms:
+        #     print(atom)
         smoothed_node = partially_smoothed_node.add_circuit_nodes(missed_circuit_atoms)
         return smoothed_node
 
@@ -259,7 +259,6 @@ class LiteralNode(NNFNode):
             new_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), float('inf'))
             atom = Atom(new_predicate, self.literal.atom.terms)
             c_atom = ConstrainedAtom([Literal(atom, True)], [], ConstraintSet([]))
-        print(f'DEBUG: Literal node circuit_atoms:\n{c_atom}')
         return set([c_atom.replace_free_variables()])
 
     def get_smoothed_node(self) -> 'LiteralNode':
@@ -490,18 +489,18 @@ class ExistsNode(IntensionalNode):
         # it's more efficient to redo this here than call self.get_circuit_atoms
         child_circuit_atoms = self.child.get_circuit_atoms()
         all_circuit_atoms: Set['ConstrainedAtom'] = self.substitute_parent_domain(child_circuit_atoms)
-        print("====== child_circuit_atoms ======")
-        for atom in child_circuit_atoms:
-            print(atom)
-        print("====== all_circuit_atoms ======")
-        for atom in all_circuit_atoms:
-            print(atom)
+        # print("====== child_circuit_atoms ======")
+        # for atom in child_circuit_atoms:
+        #     print(atom)
+        # print("====== all_circuit_atoms ======")
+        # for atom in all_circuit_atoms:
+        #     print(atom)
 
         # TODO: For now we loop to convergence, but there must be a quicker way
         missed_circuit_atoms = self.A_without_B(all_circuit_atoms, child_circuit_atoms)
-        print("====== missed_circuit_atoms ======")
-        for atom in missed_circuit_atoms:
-            print(atom)
+        # print("====== missed_circuit_atoms ======")
+        # for atom in missed_circuit_atoms:
+        #     print(atom)
         smoothed_child = self.child.get_smoothed_node().add_circuit_nodes(missed_circuit_atoms)
 
         return ExistsNode(smoothed_child, self.bound_vars, self.cs)
