@@ -99,16 +99,12 @@ class Clause(ABC):
         return old_clause  # type: ignore 
 
     def is_subsumed_by_literal(self, subsumer: 'UnitClause') -> bool:
-        """Returns true if this Clause is subsumed by the constrained literal.
-        NOTE: We now say that EVERY literal in self has to be subsumed by some literal in the subsumer
-        TODO: check this is right"""
+        """Returns true if this Clause is subsumed by the constrained literal."""
         if self.has_no_literals():
             return True
 
         # every literal in the subsumer (which is just 1) must subsume some literal in self
-        # print(f'{subsumer = }')
         for c_literal in self.get_constrained_literals():
-            # print(f'{c_literal = }')
             if c_literal.is_subsumed_by_literal(subsumer):
                 return True
         return False
@@ -578,7 +574,6 @@ class ConstrainedAtom(UnitClause):
         """Get the atom from the unconstrained clause"""
         return self.literal.atom
 
-
     def constrained_atoms_unify(self: 'ConstrainedAtom', other_c_atom: 'ConstrainedAtom') -> bool:
         """Returns True if there is a substitution that unifies this constrained atom (self) and other_c_atom, otherwise False."""
         return not self.get_constrained_atom_mgu_eq_classes(other_c_atom) is None
@@ -660,6 +655,18 @@ class ConstrainedAtom(UnitClause):
 
         # first, we make the variables different
         other = other.make_variables_different(self)
+
+        # hack to handle SMT atoms - replace them both with the full range
+        if self.atom.is_smt() and other.atom.is_smt():
+            old_self_predicate = self.atom.predicate
+            full_self_predicate = SMTPredicate(old_self_predicate.name, old_self_predicate.arity,
+                                               float('-inf'), float('inf'))
+            old_other_predicate = other.atom.predicate
+            full_other_predicate = SMTPredicate(old_other_predicate.name, old_other_predicate.arity,
+                                                float('-inf'), float('inf'))
+            self = ConstrainedAtom([Literal(Atom(full_self_predicate, self.atom.terms))], self.bound_vars, self.cs)
+            other = ConstrainedAtom([Literal(Atom(full_other_predicate, other.atom.terms))], other.bound_vars, other.cs)
+
 
         mgu_eq_classes = self.get_constrained_atom_mgu_eq_classes(other)
         # check for independence

@@ -1,14 +1,15 @@
 """File for unit propagation compilation rule"""
 
-from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable
+from kc.data_structures import AndNode, ConstrainedClause, UnconstrainedClause, ConstraintSet, UnitClause, Literal, SetOfConstants, CNF, Substitution, EquivalenceClasses, LogicalVariable, SMTPredicate, ConstrainedAtom, Atom
 from kc.compiler import KCRule
+from kc.util import get_element_of_set
 
 from typing import Optional, Tuple, List, Any, Set, FrozenSet
 from typing import TypeVar
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kc.compiler import Compiler
-    from kc.data_structures import CNF, Clause, ConstrainedAtom, LogicalVariable, NNFNode
+    from kc.data_structures import CNF, Clause, LogicalVariable, NNFNode
 
 CC = TypeVar('CC', bound='ConstrainedClause')
 CC2 = TypeVar('CC2', bound='ConstrainedClause')  # I need a second typevar for some functions
@@ -32,7 +33,6 @@ class UnitPropagation(KCRule):
     def apply(cls, cnf: 'CNF', unit_clause: 'UnitClause', compiler: 'Compiler') -> 'NNFNode':
         """Apply UnitPropagation (which requires applying splitting and conditioning)
         and return an NNFNode"""
-        print(f"DEBUG: Start of unitprop, {cnf.subdivided = }")
         unitpropagated_clauses: List['Clause'] = []
         u_atom = unit_clause.get_constrained_atoms()[0] # only one literal so we can access it directly
         for gamma in sorted(cnf.clauses):
@@ -49,7 +49,6 @@ class UnitPropagation(KCRule):
         else:
             unit_cnf = CNF([unit_clause], shattered=cnf.shattered, subdivided=cnf.subdivided)
         # avoiding creating empty nodes
-        print(f"DEBUG: End of unitprop, {propagated_cnf.subdivided = }, {unit_cnf.subdivided = }")
         if len(propagated_cnf.clauses) > 0:
             return AndNode(compiler.compile(propagated_cnf), compiler.compile(unit_cnf))
         else:
@@ -70,7 +69,20 @@ class UnitPropagation(KCRule):
         cs_gamma = a_gamma.cs
         cs_A = A.cs
 
-        mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
+        # change atoms to have full range temporarily
+        if A.atom.is_smt() and a_gamma.atom.is_smt():
+            old_A = A.atom.predicate
+            full_A_predicate = SMTPredicate(old_A.name, old_A.arity,
+                                               float('-inf'), float('inf'))
+            old_a_gamma_predicate = a_gamma.atom.predicate
+            full_a_gamma_predicate = SMTPredicate(old_a_gamma_predicate.name, old_a_gamma_predicate.arity,
+                                                float('-inf'), float('inf'))
+            full_A = ConstrainedAtom([Literal(Atom(full_A_predicate, A.atom.terms))], A.bound_vars, A.cs)
+            full_a_gamma = ConstrainedAtom([Literal(Atom(full_a_gamma_predicate, a_gamma.atom.terms))], a_gamma.bound_vars, a_gamma.cs)
+            mgu_eq_classes = full_A.get_constrained_atom_mgu_eq_classes(full_a_gamma)
+        else:
+            mgu_eq_classes = A.get_constrained_atom_mgu_eq_classes(a_gamma)
+
         if mgu_eq_classes is None:
             raise ValueError(f"a_gamma = {a_gamma} and A = {A} are independent but shouldn't be")
 
@@ -182,18 +194,32 @@ class UnitPropagation(KCRule):
 
     @classmethod
     def _discard_unsatisfied_literals(cls, gamma: 'Clause', c_literal: 'UnitClause') -> List['Literal']:
-        """Return only the literals that are not unsatisfied by 'literal'"""
+        """Return only the literals that are not unsatisfied by 'literal'
+        NOTE: We do some tricks for SMT literals to ensure that examples like
+        10 < age(X) < 20 discards 30 < age(X) < 40, where we set the negation of 30 < age(X) < 40
+        to be [10 < age(X) < 20], even though it is broader than that
+        """
+        unit_literal = get_element_of_set(c_literal.literals)
         lambdas = gamma.get_constrained_literals()
         necessary_literals = []
         for lam in sorted(lambdas):
             lam_literal = lam.literal
+            if lam_literal.is_smt() and unit_literal.is_smt() and lam_literal.atom.predicate.name == unit_literal.atom.predicate.name:
+                # if they are not equal, they are disjoint, so we set negative lam literal manually
+                # to be the negation of the unit atom, even though it technically covers more
+                if  lam_literal.atom.predicate != unit_literal.atom.predicate:
+                    negated_lam_literal = Literal(Atom(unit_literal.atom.predicate, lam_literal.atom.terms), True)
+                else:
+                    negated_lam_literal = ~lam_literal
+            else:
+                negated_lam_literal = ~lam_literal
 
             if isinstance(gamma, ConstrainedClause):
-                negated_constrained_literal = UnitClause([~lam_literal], gamma.bound_vars, gamma.cs)
+                negated_constrained_literal = UnitClause([negated_lam_literal], gamma.bound_vars, gamma.cs)
             else:
                 empty_bound_vars: Set['LogicalVariable'] = set()
                 empty_cs = ConstraintSet([])
-                negated_constrained_literal = UnitClause([~lam_literal], empty_bound_vars, empty_cs)
+                negated_constrained_literal = UnitClause([negated_lam_literal], empty_bound_vars, empty_cs)
 
             if not negated_constrained_literal.is_subsumed_by_literal(c_literal):
                 necessary_literals.append(lam_literal)

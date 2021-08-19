@@ -90,7 +90,7 @@ class AtomCounting(KCRule):
                 new_low_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), old_predicate.lower_bound)
                 false_literals.append(Literal(Atom(new_low_predicate, terms)))
             if old_predicate.upper_bound != float('inf'):
-                new_high_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, old_predicate.upper_bound, float('-inf'))
+                new_high_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, old_predicate.upper_bound, float('inf'))
                 false_literals.append(Literal(Atom(new_high_predicate, terms)))
             false_branch = ConstrainedClause(false_literals, [bound_var], false_branch_cs)
 

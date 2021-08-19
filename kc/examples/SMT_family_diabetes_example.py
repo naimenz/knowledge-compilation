@@ -11,12 +11,12 @@ alice = Constant('Alice')
 bob = Constant('Bob')
 charlie = Constant('Charlie')
 
-People = RootDomain([alice], 'person')
+People = RootDomain([alice, bob, charlie], 'person')
 
 diabetes = Predicate('diabetes', 1)
 family = Predicate('diabetes', 2)
-# BMI = SMTPredicate('BMI', 1, 35, float('inf'))
-BMI = Predicate('BMI', 1)
+BMI = SMTPredicate('BMI', 1, 35, float('inf'))
+# BMI = Predicate('BMI', 1)
 
 diabetesX = Literal(Atom(diabetes, [X]))
 diabetesalice = Literal(Atom(diabetes, [alice]))
