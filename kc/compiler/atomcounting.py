@@ -6,7 +6,7 @@ from kc.util import get_element_of_set
 
 from collections import defaultdict
 
-from typing import Tuple, Optional, List, Set, Dict
+from typing import Tuple, Optional, List, Set, Dict, cast
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -78,7 +78,21 @@ class AtomCounting(KCRule):
         false_branch_cs = variable_cs.join(ConstraintSet([bound_var_in_complement_constraint]))
 
         true_branch = UnitClause([Literal(atom, polarity=True)], [bound_var], true_branch_cs)
-        false_branch = UnitClause([Literal(atom, polarity=False)], [bound_var], false_branch_cs)
+
+
+        if not atom.is_smt():
+            false_branch: 'ConstrainedClause' = UnitClause([Literal(atom, polarity=False)], [bound_var], false_branch_cs)
+        else:
+            old_predicate = cast('SMTPredicate', atom.predicate)  # hack for type checking
+            terms = atom.terms
+            false_literals = []
+            if old_predicate.lower_bound != float('-inf'):
+                new_low_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), old_predicate.lower_bound)
+                false_literals.append(Literal(Atom(new_low_predicate, terms)))
+            if old_predicate.upper_bound != float('inf'):
+                new_high_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, old_predicate.upper_bound, float('-inf'))
+                false_literals.append(Literal(Atom(new_high_predicate, terms)))
+            false_branch = ConstrainedClause(false_literals, [bound_var], false_branch_cs)
 
         new_cnf = cnf.join(CNF([true_branch, false_branch]))
         new_cnf.shattered = True  # it must still be shattered at this stage due to preconditions

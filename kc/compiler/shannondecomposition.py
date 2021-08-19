@@ -28,14 +28,24 @@ class ShannonDecomposition(KCRule):
         """Apply ShannonDecomposition and return an NNFNode"""
         # NOTE: these 'literals' are technically a single-item set of literals
         true_literal = get_element_of_set(unbound_atom.literals)
-        false_literal = ~true_literal
         true_branch = cnf.join(CNF([UnconstrainedClause([true_literal])]))
-        false_branch = cnf.join(CNF([UnconstrainedClause([false_literal])]))
+        if not true_literal.is_smt():
+            false_literal = ~true_literal
+            false_branch = cnf.join(CNF([UnconstrainedClause([false_literal])]))
+        # with SMT atoms, we don't use negated literals. Instead, we take the outer ranges 
+        # (e.g. ¬[10 < age(X) < 20] goes to -inf < age(X) < 10 v 20 < age(X) < inf)
+        else:
+            old_predicate = true_literal.atom.predicate
+            new_low_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, float('-inf'), old_predicate.lower_bound)
+            new_high_predicate = SMTPredicate(old_predicate.name, old_predicate.arity, old_predicate.upper_bound, float('-inf'))
+            terms = true_literal.atom.terms
+            false_literals = [Literal(Atom(new_low_predicate, terms)), Literal(Atom(new_high_predicate, terms))]
+            false_branch = cnf.join(CNF([UnconstrainedClause(false_literals)]))
         # manually setting flags because cnf.join cannot
         true_branch.shattered = cnf.shattered
         true_branch.subdivided = cnf.subdivided
         false_branch.shattered = cnf.shattered
-        false_branch.subdivided = cnf.subdivided
+        false_branch.subdivided = False  # since we have new predicates, we may not be subdivided
 
         return OrNode(compiler.compile(true_branch), compiler.compile(false_branch))
 
