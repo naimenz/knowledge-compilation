@@ -7,18 +7,20 @@ from kc.util import powerset, partition_set
 from itertools import product
 from functools import reduce
 
-from typing import Tuple, Set, Iterable, Sequence, FrozenSet
+from typing import Tuple, Set, Iterable, FrozenSet
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kc.compiler import Compiler
 
+
 class ShatteredCompilation(KCRule):
     
     @classmethod
     def is_applicable(cls, cnf: 'CNF') -> Tuple[bool, None]:
-        """ShatteredCompilation is applicable if the theory is not already shattered (which is represented by a flag )
-        Returns True or False depending on the flag, plus None (no stored data needed)"""
+        """ShatteredCompilation is applicable if the theory is not already shattered (which is represented by a flag
+        in the CNF data structure)
+        Returns (True, None) or (False, None) depending on the flag (no stored data needed)"""
         shattering_applicable = not cnf.shattered
         return shattering_applicable, None
 
@@ -30,8 +32,8 @@ class ShatteredCompilation(KCRule):
         terms = (free_variables, constants)
         domains = cnf.get_domain_terms()
         shattered_clauses_list = [cls.shatter_clause(clause, terms, domains) for clause in cnf.clauses]
-        empty_set: Set['ConstrainedClause'] = set() # hack for type checking
-        flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)
+        empty_set: Set['ConstrainedClause'] = set()
+        flattened_shattered_clauses = empty_set.union(*shattered_clauses_list)  # shattered_clause_list is a list[list]
         propagated_shattered_clauses = [c.propagate_equality_constraints() for c in flattened_shattered_clauses]
         return compiler.compile(CNF(propagated_shattered_clauses, shattered=True, subdivided=cnf.subdivided))
 
@@ -42,25 +44,24 @@ class ShatteredCompilation(KCRule):
                        domains: Set['DomainTerm']
                        ) -> Set['ConstrainedClause']:
         """Shatter a clause with respect to a given set of terms and domains.
-        NOTE: This expects a constrained clause. I'm not really sure what to do about 
-        unconstrained clauses -- hopefully any unconstrained clauses won't reach shattering."""
+        NOTE: This expects a constrained clause."""
         if not isinstance(clause, ConstrainedClause):
             raise NotImplementedError('shatter_clause only works with ConstrainedClauses')
         # shatter each variable
-        # NOTE TODO: I'm assuming here that we only look at bound variables, although this is not quite what the PhD says
+        # TODO: I'm assuming here that we only look at bound variables, although this is not quite what the PhD says
         # literal_variables = clause.literal_variables
         literal_variables = clause.bound_vars
-        # CS_A
+        # CS_A: constraints from shattering variables
         shatter_var_constraints = cls._build_shatter_var_constraints(literal_variables, terms, domains)
-        # CS_B
+        # CS_B: constraints from making all bound variables different from each other
         literal_inequality_constraints = cls._build_literal_inequality_constraints(clause)
-        # CS
+        # CS: cross_product(CS_A, CS_B)
         all_final_constraints = product([clause.cs], shatter_var_constraints, literal_inequality_constraints)
         final_constraints = map(cls._merge_constraint_sets, all_final_constraints)
 
         # only return the satisfiable ones
-        satisfiable_constraints = [cs for cs in final_constraints if cs.is_satisfiable()]
-        return set(ConstrainedClause(clause.literals, clause.bound_vars, cs) for cs in satisfiable_constraints)
+        return set(ConstrainedClause(clause.literals, clause.bound_vars, cs)
+                   for cs in final_constraints if cs.is_satisfiable())
 
     @classmethod
     def shatter_var(cls, 
@@ -71,7 +72,7 @@ class ShatteredCompilation(KCRule):
         """Return shattered constraints for 'variable' with respect to 'terms'
         and 'domains'.
         NOTE: since we represent constant inequality with InclusionConstraints,
-        many of the CS_eq terms will actually by SetConstraints."""
+        many of the CS_eq terms will actually be SetConstraints."""
         equality_constraint_sets: Set['ConstraintSet'] = cls._build_equality_constraint_sets(variable, terms)
         inclusion_constraint_sets: Set['ConstraintSet'] = cls._build_inclusion_constraint_sets(variable, domains)
 
@@ -110,17 +111,14 @@ class ShatteredCompilation(KCRule):
         """Build the constraint set for a particular partition of the logical variables"""
         equality_constraints: Set['EqualityConstraint'] = set()
         inequality_constraints: Set['InequalityConstraint'] = set()
-        for subset in sorted(partition): 
-            # there is some duplicated effort here, but it is still correct because of sets
-            # TODO: for performance, reduce looping
+        for subset in sorted(partition):
             for var in sorted(subset):
-                for other_var in sorted(subset - set([var])):
+                for other_var in sorted(subset - {var}):
                     equality_constraints.add(EqualityConstraint(var, other_var))
 
-                for other_subset in sorted(partition - set([subset])):
+                for other_subset in sorted(partition - {subset}):
                     for other_var in sorted(other_subset):
                         inequality_constraints.add(InequalityConstraint(var, other_var))
-        # we then combine all of these into a single constraint
         partition_constraint_set = ConstraintSet([*equality_constraints, *inequality_constraints])
         return partition_constraint_set
 
@@ -168,9 +166,9 @@ class ShatteredCompilation(KCRule):
         
     @classmethod
     def _build_inclusion_constraint_sets(cls,
-                                        variable: 'LogicalVariable',
-                                        domains: Set['DomainTerm']
-                                        ) -> Set['ConstraintSet']:
+                                         variable: 'LogicalVariable',
+                                         domains: Set['DomainTerm']
+                                         ) -> Set['ConstraintSet']:
         """Build the cs_in part of the shatter_var constraint sets"""
         inclusion_constraint_sets: Set['ConstraintSet'] = set()
 
