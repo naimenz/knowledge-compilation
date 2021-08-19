@@ -119,15 +119,6 @@ class Clause(ABC):
     def is_tautology(self) -> bool:
         pass
 
-    def is_contradiction(self) -> bool:
-        """Is this clause always false? For now, just check if
-        its constraint set is satisfiable and it contains a literal
-        and its negation
-        NOTE: I don't think that a clause can be a contradiction because
-        it doesn't contain ANDs
-        TODO: check whether clauses can be contradictions"""
-        return False
-
     @property
     def literal_variables(self) -> Set['LogicalVariable']:
         """Return all variables that appear in any literal of the clause"""
@@ -442,15 +433,6 @@ class ConstrainedClause(Clause):
         for literal in self.literals:
             if ~literal in self.literals:
                 return True
-        return False
-
-    def is_contradiction(self) -> bool:
-        """Is this clause always false? For now, just check if
-        its constraint set is satisfiable and it contains a literal
-        and its negation
-        NOTE: I don't think that a clause can be a contradiction because
-        it doesn't contain ANDs
-        TODO: check whether clauses can be contradictions"""
         return False
 
     def has_no_literals(self) -> bool:

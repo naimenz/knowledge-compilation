@@ -5,6 +5,11 @@ from kc.data_structures import *
 from abc import ABC, abstractmethod
 
 from typing import Tuple, Any, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kc.compiler import Compiler
+
 
 class KCRule(ABC):
     """Abstract base class for compilation rules."""
@@ -22,4 +27,3 @@ class KCRule(ABC):
     def apply(cls, delta: 'CNF', stored_data: Any, compiler: 'Compiler') -> 'NNFNode':
         """Apply this compilation rule to the cnf, returning an NNF"""
         pass
-

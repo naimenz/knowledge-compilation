@@ -139,4 +139,4 @@ class IndependentSingleGroundings(KCRule):
             if isinstance(left_term, FreeVariable) and left_term.domain.intersect_with(domain) != EmptyDomain():
                 return True
         return False
-    
+
