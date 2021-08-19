@@ -273,7 +273,6 @@ class ConstraintSet:
             if constraint.logical_term == variable and isinstance(constraint.domain_term, ProperDomain):
                 domains.append(constraint.domain_term)
         return ProperDomain.intersect_all(*domains)
-        raise ValueError(f"{variable} has no ProperDomain")
 
     def get_allowed_constants_for(self, variable: 'LogicalVariable') -> FrozenSet['Constant']:
         """Get the constants that this variable could be equal to in this constraint set

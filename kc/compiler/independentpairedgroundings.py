@@ -88,10 +88,11 @@ class IndependentPairedGroundings(KCRule):
                 raise ValueError(f"subbed_cs {subbed_cs} shouldn't be unsatisfiable")
 
             new_cs: 'ConstraintSet' = subbed_cs.drop_constraints_involving_only_specific_variables(new_variables)
-            _new_bound_vars = [substitution[var] for var in clause.bound_vars if not substitution[var] in new_variables]
-            new_bound_vars = cast(List['LogicalVariable'], _new_bound_vars)  # hack for type checking
+            new_bound_vars = cast(List['LogicalVariable'],
+                                  [substitution[var] for var in clause.bound_vars
+                                   if not substitution[var] in new_variables])
 
-            # make unconstrained clauses
+            # add clauses back to new CNF
             if new_bound_vars == [] and new_cs == ConstraintSet([]):
                 new_clauses.add(UnconstrainedClause(new_literals))
             else:
